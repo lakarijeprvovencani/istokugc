@@ -13,12 +13,16 @@ interface ReviewListProps {
   showActions?: boolean;             // Prikaži admin akcije
   canReply?: boolean;                // Da li kreator može odgovoriti
   canDeleteOwn?: boolean;            // Da li biznis može obrisati svoje recenzije
+  canEditReply?: boolean;            // Da li kreator može urediti svoj odgovor
+  canDeleteReply?: boolean;          // Da li kreator može obrisati svoj odgovor
   currentBusinessId?: string;        // ID trenutnog biznis korisnika za proveru vlasništva
   emptyMessage?: string;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onDelete?: (id: string) => void;
   onReply?: (id: string, reply: string) => void;
+  onEditReply?: (id: string, reply: string) => void;
+  onDeleteReply?: (id: string) => void;
   getCreatorName?: (creatorId: string) => string; // Za admin prikaz
   getCreatorLink?: (creatorId: string) => string; // Link ka profilu kreatora
   pageSize?: number;
@@ -31,12 +35,16 @@ export default function ReviewList({
   showActions = false,
   canReply = false,
   canDeleteOwn = false,
+  canEditReply = false,
+  canDeleteReply = false,
   currentBusinessId,
   emptyMessage = 'Još uvek nema recenzija.',
   onApprove,
   onReject,
   onDelete,
   onReply,
+  onEditReply,
+  onDeleteReply,
   getCreatorName,
   getCreatorLink,
   pageSize = 5,
@@ -150,10 +158,14 @@ export default function ReviewList({
               showActions={showActions}
               canReply={canReply}
               canDelete={isOwnReview}
+              canEditReply={canEditReply && !!review.creatorReply}
+              canDeleteReply={canDeleteReply && !!review.creatorReply}
               onApprove={onApprove}
               onReject={onReject}
               onDelete={onDelete}
               onReply={onReply}
+              onEditReply={onEditReply}
+              onDeleteReply={onDeleteReply}
               creatorName={getCreatorName ? getCreatorName(review.creatorId) : undefined}
               creatorLink={getCreatorLink ? getCreatorLink(review.creatorId) : undefined}
             />

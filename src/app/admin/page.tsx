@@ -1001,12 +1001,7 @@ export default function AdminPage() {
                   <h3 className="text-sm font-medium text-muted mb-2">Platforme</h3>
                   <div className="flex flex-wrap gap-2">
                     {viewingCreator.platforms.map((platform) => (
-                      <span key={platform} className="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-medium flex items-center gap-1">
-                        {platform === 'TikTok' && '📱'}
-                        {platform === 'Instagram' && '📸'}
-                        {platform === 'YouTube' && '🎬'}
-                        {platform === 'Twitter/X' && '🐦'}
-                        {platform === 'LinkedIn' && '💼'}
+                      <span key={platform} className="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
                         {platform}
                       </span>
                     ))}

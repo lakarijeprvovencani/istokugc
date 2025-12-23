@@ -9,6 +9,7 @@ import ReviewCard from '@/components/ReviewCard';
 import { AverageRating } from '@/components/StarRating';
 import { generateReviewStats, Review } from '@/types/review';
 import PortfolioModal, { PortfolioItem } from '@/components/PortfolioModal';
+import VideoPlayerModal from '@/components/VideoPlayerModal';
 
 export default function DashboardPage() {
   const { currentUser } = useDemo();
@@ -37,7 +38,7 @@ export default function DashboardPage() {
 
 function CreatorDashboard() {
   const creator = mockCreators[0]; // Demo: use first creator
-  const { getReviewsForCreator, addReplyToReview } = useDemo();
+  const { getReviewsForCreator, addReplyToReview, updateReplyToReview, deleteReplyFromReview } = useDemo();
   const [activeTab, setActiveTab] = useState<'overview' | 'reviews'>('overview');
   
   // Inline editing states for each section
@@ -49,6 +50,8 @@ function CreatorDashboard() {
   
   // Portfolio state
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [activeVideo, setActiveVideo] = useState<PortfolioItem | null>(null);
+  const [detailItem, setDetailItem] = useState<PortfolioItem | null>(null);
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(
     creator.portfolio.map((item, index) => ({
       id: `existing-${index}`,
@@ -83,7 +86,7 @@ function CreatorDashboard() {
   
   // Available options for multi-select
   const availableCategories = ['Beauty', 'Lifestyle', 'Fashion', 'Tech', 'Food', 'Travel', 'Fitness', 'Gaming', 'Music', 'Art'];
-  const availablePlatforms = ['Instagram', 'TikTok', 'YouTube', 'Twitter', 'LinkedIn', 'Facebook'];
+  const availablePlatforms = ['Instagram', 'TikTok', 'YouTube'];
   const availableLanguages = ['Srpski', 'Engleski', 'Nemački', 'Francuski', 'Španski', 'Italijanski'];
   
   // Get reviews for this creator
@@ -131,11 +134,25 @@ function CreatorDashboard() {
   return (
     <div className="min-h-screen bg-secondary/30">
       <div className="max-w-6xl mx-auto px-6 lg:px-12 py-12">
-        <h1 className="text-3xl font-light mb-2">Dashboard</h1>
-        <p className="text-muted mb-6">Dobrodošla nazad, {creator.name}</p>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-light mb-2">Dashboard</h1>
+            <p className="text-muted">Dobrodošla nazad, {creator.name}</p>
+          </div>
+          <Link 
+            href={`/kreator/${creator.id}`}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            Pogledaj svoj profil
+          </Link>
+        </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-8 bg-white rounded-xl p-1 border border-border w-fit">
+        <div className="flex gap-1 mb-6 bg-white rounded-xl p-1 border border-border w-fit">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -156,6 +173,18 @@ function CreatorDashboard() {
               )}
             </button>
           ))}
+        </div>
+
+        {/* Stats - below tabs */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="bg-white rounded-2xl p-6 border border-border text-center">
+            <div className="text-3xl font-light mb-1">247</div>
+            <div className="text-sm text-muted">Pregleda profila</div>
+          </div>
+          <div className="bg-white rounded-2xl p-6 border border-border text-center">
+            <div className="text-3xl font-light mb-1">{stats.averageRating.toFixed(1)}</div>
+            <div className="text-sm text-muted">Prosečna ocena</div>
+          </div>
         </div>
 
         {activeTab === 'overview' && (
@@ -391,52 +420,82 @@ function CreatorDashboard() {
                 </div>
                 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {portfolioItems.map((item) => (
-                    <div key={item.id} className="aspect-[3/4] relative rounded-xl overflow-hidden group">
-                      {item.type === 'upload' && item.url.startsWith('data:video') ? (
-                        <video
-                          src={item.url}
-                          className="w-full h-full object-cover"
-                          muted
-                        />
-                      ) : (
-                        <Image 
-                          src={item.thumbnail} 
-                          alt="" 
-                          fill 
-                          className="object-cover" 
-                          unoptimized={item.thumbnail.startsWith('data:')}
-                        />
-                      )}
-                      <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded-full text-xs capitalize">
-                        {item.type === 'upload' ? '📤' : item.type}
-                      </div>
-                      {/* Delete button on hover */}
-                      <button
-                        onClick={() => handleRemovePortfolioItem(item.id)}
-                        className="absolute bottom-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Obriši"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                      {/* Link for external URLs */}
-                      {item.originalUrl && (
-                        <a
-                          href={item.originalUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="absolute bottom-2 left-2 bg-white/90 text-foreground p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Otvori original"
+                  {portfolioItems.map((item) => {
+                    // Get display platform
+                    const displayPlatform = item.platform || item.type;
+                    const platformLabels: Record<string, string> = {
+                      instagram: 'Instagram',
+                      tiktok: 'TikTok',
+                      youtube: 'YouTube',
+                      upload: 'Upload',
+                      other: 'Ostalo'
+                    };
+                    
+                    return (
+                      <div key={item.id} className="flex flex-col">
+                        <div 
+                          className="aspect-[3/4] relative rounded-xl overflow-hidden group cursor-pointer"
+                          onClick={() => setActiveVideo(item)}
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </a>
-                      )}
-                    </div>
-                  ))}
+                          {item.type === 'upload' && item.url.startsWith('data:video') ? (
+                            <video
+                              src={item.url}
+                              className="w-full h-full object-cover"
+                              muted
+                            />
+                          ) : (
+                            <Image 
+                              src={item.thumbnail} 
+                              alt="" 
+                              fill 
+                              className="object-cover" 
+                              unoptimized={item.thumbnail.startsWith('data:')}
+                            />
+                          )}
+                          {/* Hover overlay with play button */}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center">
+                              <svg className="w-6 h-6 text-foreground ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </div>
+                          </div>
+                          {/* Platform badge - text only */}
+                          <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-medium">
+                            {platformLabels[displayPlatform] || displayPlatform}
+                          </div>
+                          {/* Delete button on hover */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemovePortfolioItem(item.id);
+                            }}
+                            className="absolute bottom-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Obriši"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                        {/* Details button below image */}
+                        {item.description && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDetailItem(item);
+                            }}
+                            className="mt-2 text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 justify-center"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Detaljnije
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                   <button 
                     onClick={() => setShowPortfolioModal(true)}
                     className="aspect-[3/4] rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center text-muted hover:border-primary hover:text-primary transition-colors"
@@ -453,6 +512,73 @@ function CreatorDashboard() {
                 onClose={() => setShowPortfolioModal(false)}
                 onAdd={handleAddPortfolioItem}
               />
+
+              {/* Video Player Modal */}
+              <VideoPlayerModal
+                isOpen={!!activeVideo}
+                onClose={() => setActiveVideo(null)}
+                videoUrl={activeVideo?.url || ''}
+                videoType={activeVideo?.type || 'upload'}
+                originalUrl={activeVideo?.originalUrl}
+                description={activeVideo?.description}
+              />
+
+              {/* Detail Popup Modal */}
+              {detailItem && (
+                <div 
+                  className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                  onClick={() => setDetailItem(null)}
+                >
+                  <div 
+                    className="bg-white rounded-xl max-w-md w-full p-6"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-lg font-medium">O projektu</h3>
+                      <button 
+                        onClick={() => setDetailItem(null)}
+                        className="p-1 hover:bg-secondary rounded-full transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    {/* Platform */}
+                    <div className="mb-3">
+                      <span className="text-xs text-muted uppercase tracking-wider">Platforma</span>
+                      <p className="font-medium mt-1">
+                        {detailItem.platform === 'instagram' ? 'Instagram' : 
+                         detailItem.platform === 'tiktok' ? 'TikTok' : 
+                         detailItem.platform === 'youtube' ? 'YouTube' : 
+                         detailItem.type === 'upload' ? 'Upload' : 'Ostalo'}
+                      </p>
+                    </div>
+                    
+                    {/* Description */}
+                    <div>
+                      <span className="text-xs text-muted uppercase tracking-wider">Opis projekta</span>
+                      <p className="mt-1 text-foreground leading-relaxed">
+                        {detailItem.description || 'Nema opisa'}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setDetailItem(null);
+                        setActiveVideo(detailItem);
+                      }}
+                      className="mt-6 w-full py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      Pusti video
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Sidebar */}
@@ -625,8 +751,16 @@ function CreatorDashboard() {
                     review={review}
                     showStatus={true}
                     canReply={review.status === 'approved' && !review.creatorReply}
+                    canEditReply={!!review.creatorReply}
+                    canDeleteReply={!!review.creatorReply}
                     onReply={(reviewId, reply) => {
                       addReplyToReview(reviewId, reply);
+                    }}
+                    onEditReply={(reviewId, reply) => {
+                      updateReplyToReview(reviewId, reply);
+                    }}
+                    onDeleteReply={(reviewId) => {
+                      deleteReplyFromReview(reviewId);
                     }}
                   />
                 ))}
@@ -818,6 +952,7 @@ function BusinessDashboard() {
                   {myReviews.length > 3 && (
                     <Link 
                       href="/dashboard/reviews"
+                      scroll={true}
                       className="text-xs text-primary hover:underline hidden sm:inline"
                     >
                       Vidi sve →
@@ -930,6 +1065,7 @@ function BusinessDashboard() {
                     {myReviews.length > 3 && (
                       <Link 
                         href="/dashboard/reviews"
+                        scroll={true}
                         className="text-sm text-primary hover:underline py-2"
                       >
                         Vidi sve recenzije ({myReviews.length}) →

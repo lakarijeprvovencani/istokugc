@@ -12,7 +12,13 @@ export interface Creator {
   languages: string[];
   location: string;
   priceFrom: number;
-  portfolio: { type: 'youtube' | 'tiktok' | 'instagram'; url: string; thumbnail: string }[];
+  portfolio: { 
+    type: 'youtube' | 'tiktok' | 'instagram' | 'upload'; 
+    url: string; 
+    thumbnail: string;
+    description?: string;
+    platform?: 'instagram' | 'tiktok' | 'youtube' | 'other';
+  }[];
   email: string;
   phone?: string;
   instagram?: string;
@@ -46,7 +52,7 @@ export const categories = [
   'Entertainment',
 ];
 
-export const platforms = ['TikTok', 'Instagram', 'YouTube', 'Twitter/X', 'LinkedIn'];
+export const platforms = ['TikTok', 'Instagram', 'YouTube'];
 
 export const languages = [
   'Srpski',
@@ -71,8 +77,20 @@ export const mockCreators: Creator[] = [
     location: 'Beograd, Srbija',
     priceFrom: 150,
     portfolio: [
-      { type: 'instagram', url: 'https://instagram.com/reel/123', thumbnail: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=300&h=400&fit=crop' },
-      { type: 'tiktok', url: 'https://tiktok.com/@user/video/123', thumbnail: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=300&h=400&fit=crop' },
+      { 
+        type: 'youtube', 
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 
+        thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
+        description: 'UGC video za beauty brend - prikazuje proizvod u upotrebi',
+        platform: 'youtube'
+      },
+      { 
+        type: 'instagram', 
+        url: 'https://instagram.com/reel/C1234567890', 
+        thumbnail: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=300&h=400&fit=crop',
+        description: 'Instagram Reel za skincare kampanju',
+        platform: 'instagram'
+      },
     ],
     email: 'marija@example.com',
     phone: '+381 61 123 4567',
@@ -181,7 +199,7 @@ export const mockCreators: Creator[] = [
     photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop',
     bio: 'Finance i personal development kreatorka. Pomažem mladima da razumeju finansije i grade bolje navike.',
     categories: ['Finance', 'Education', 'Lifestyle'],
-    platforms: ['Instagram', 'TikTok', 'LinkedIn'],
+    platforms: ['Instagram', 'TikTok', 'YouTube'],
     languages: ['Hrvatski', 'Engleski'],
     location: 'Rijeka, Hrvatska',
     priceFrom: 220,
@@ -200,7 +218,7 @@ export const mockCreators: Creator[] = [
     photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop',
     bio: 'Gaming streamer i esports komentator. Kreiram sadržaj za gaming brendove i tech kompanije.',
     categories: ['Gaming', 'Tech', 'Entertainment'],
-    platforms: ['YouTube', 'TikTok', 'Twitter/X'],
+    platforms: ['YouTube', 'TikTok', 'Instagram'],
     languages: ['Srpski', 'Engleski'],
     location: 'Beograd, Srbija',
     priceFrom: 180,

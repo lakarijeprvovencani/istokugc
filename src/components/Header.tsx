@@ -18,59 +18,77 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-10">
+          <nav className="hidden md:flex items-center gap-8">
             <Link 
               href="/kreatori" 
-              className="text-muted hover:text-foreground transition-colors text-sm tracking-wide"
+              className="relative text-muted hover:text-foreground transition-colors text-sm font-medium group"
             >
               Kreatori
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
           </nav>
 
           {/* Desktop Auth buttons */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center">
             {!isHydrated ? (
-              <>
+              <div className="flex items-center gap-3">
                 <Link 
                   href="/login" 
-                  className="text-sm text-muted hover:text-foreground transition-colors"
+                  className="text-sm text-muted hover:text-foreground transition-colors font-medium"
                 >
                   Prijava
                 </Link>
                 <Link 
                   href="/register" 
-                  className="text-sm px-5 py-2.5 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors"
+                  className="text-sm px-5 py-2.5 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors font-medium"
                 >
                   Registracija
                 </Link>
-              </>
+              </div>
             ) : !isLoggedIn ? (
-              <>
+              <div className="flex items-center gap-3">
                 <Link 
                   href="/login" 
-                  className="text-sm text-muted hover:text-foreground transition-colors"
+                  className="text-sm text-muted hover:text-foreground transition-colors font-medium"
                 >
                   Prijava
                 </Link>
                 <Link 
                   href="/register" 
-                  className="text-sm px-5 py-2.5 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors"
+                  className="text-sm px-5 py-2.5 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors font-medium"
                 >
                   Registracija
                 </Link>
-              </>
+              </div>
             ) : (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                {/* User profile link with avatar */}
                 <Link 
                   href={currentUser.type === 'admin' ? '/admin' : '/dashboard'}
-                  className="text-sm text-muted hover:text-foreground transition-colors"
+                  className="flex items-center gap-3 px-3 py-2 rounded-full hover:bg-secondary transition-colors group"
                 >
-                  {currentUser.name}
+                  {/* Avatar with initials */}
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-primary">
+                      {currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                    {currentUser.name}
+                  </span>
                 </Link>
+                
+                {/* Divider */}
+                <div className="w-px h-6 bg-border mx-1" />
+                
+                {/* Logout button */}
                 <button 
                   onClick={logout}
-                  className="text-sm px-5 py-2.5 border border-border rounded-full hover:bg-secondary transition-colors"
+                  className="flex items-center gap-2 text-sm px-4 py-2 text-muted hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
                 >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
                   Odjava
                 </button>
               </div>

@@ -115,12 +115,7 @@ export default function CreatorCard({ creator }: CreatorCardProps) {
           {/* Platforms */}
           <div className="flex items-center gap-2 text-xs text-muted">
             {creator.platforms.map((platform) => (
-              <span key={platform} className="flex items-center gap-1">
-                {platform === 'TikTok' && '📱'}
-                {platform === 'Instagram' && '📸'}
-                {platform === 'YouTube' && '🎬'}
-                {platform === 'Twitter/X' && '🐦'}
-                {platform === 'LinkedIn' && '💼'}
+              <span key={platform}>
                 {platform}
               </span>
             ))}

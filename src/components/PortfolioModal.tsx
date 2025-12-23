@@ -9,6 +9,8 @@ export interface PortfolioItem {
   url: string;
   thumbnail: string;
   originalUrl?: string; // For social media links
+  description?: string; // Short description of the project
+  platform?: 'instagram' | 'tiktok' | 'youtube' | 'other'; // Target platform for uploaded content
 }
 
 interface PortfolioModalProps {
@@ -43,10 +45,10 @@ function parseMediaUrl(url: string): { type: PortfolioItem['type']; thumbnail: s
     
     // Instagram
     if (urlLower.includes('instagram.com')) {
-      // Instagram doesn't allow direct thumbnail access, use placeholder
+      // Instagram doesn't allow direct thumbnail access, use a gradient placeholder
       return {
         type: 'instagram',
-        thumbnail: '/instagram-placeholder.jpg',
+        thumbnail: 'https://images.unsplash.com/photo-1611262588024-d12430b98920?w=300&h=400&fit=crop', // Instagram-style placeholder
         originalUrl: url
       };
     }
@@ -56,7 +58,7 @@ function parseMediaUrl(url: string): { type: PortfolioItem['type']; thumbnail: s
       // TikTok also doesn't allow direct thumbnail access
       return {
         type: 'tiktok',
-        thumbnail: '/tiktok-placeholder.jpg',
+        thumbnail: 'https://images.unsplash.com/photo-1611605698335-8b1569810432?w=300&h=400&fit=crop', // TikTok-style placeholder
         originalUrl: url
       };
     }
@@ -74,6 +76,9 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
   const [urlPreview, setUrlPreview] = useState<{ type: string; thumbnail: string } | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [description, setDescription] = useState('');
+  const [urlDescription, setUrlDescription] = useState(''); // Description for URL links
+  const [selectedPlatform, setSelectedPlatform] = useState<'instagram' | 'tiktok' | 'youtube' | 'other'>('instagram');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -108,7 +113,9 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
       type: parsed.type,
       url: parsed.thumbnail,
       thumbnail: parsed.thumbnail,
-      originalUrl: parsed.originalUrl
+      originalUrl: parsed.originalUrl,
+      description: urlDescription.trim() || undefined,
+      platform: parsed.type as 'instagram' | 'tiktok' | 'youtube', // Platform is same as type for URLs
     };
 
     onAdd(newItem);
@@ -156,6 +163,8 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
       type: 'upload',
       url: uploadPreview, // In production, this would be the uploaded URL from cloud storage
       thumbnail: isVideo ? uploadPreview : uploadPreview, // For video, use first frame or placeholder
+      description: description.trim() || undefined,
+      platform: selectedPlatform,
     };
 
     onAdd(newItem);
@@ -168,6 +177,9 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
     setUrlPreview(null);
     setUploadedFile(null);
     setUploadPreview(null);
+    setDescription('');
+    setUrlDescription('');
+    setSelectedPlatform('instagram');
     setActiveTab('url');
     onClose();
   };
@@ -238,13 +250,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
                   <p className="text-sm text-muted mb-2">Pregled:</p>
                   <div className="flex items-center gap-4">
                     <div className="w-20 h-20 relative rounded-lg overflow-hidden bg-secondary">
-                      {urlPreview.thumbnail.startsWith('/') ? (
-                        <div className="w-full h-full flex items-center justify-center text-muted">
-                          <span className="text-2xl">
-                            {urlPreview.type === 'instagram' ? '📷' : urlPreview.type === 'tiktok' ? '🎵' : '🎬'}
-                          </span>
-                        </div>
-                      ) : (
+                      {urlPreview.thumbnail.startsWith('http') ? (
                         <Image
                           src={urlPreview.thumbnail}
                           alt="Preview"
@@ -252,17 +258,44 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
                           className="object-cover"
                           unoptimized
                         />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted bg-secondary">
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
                       )}
                     </div>
                     <div>
-                      <span className="inline-block px-3 py-1 bg-secondary rounded-full text-sm capitalize">
-                        {urlPreview.type}
+                      <span className="inline-block px-3 py-1 bg-secondary rounded-full text-sm font-medium">
+                        {urlPreview.type === 'instagram' ? 'Instagram' : urlPreview.type === 'tiktok' ? 'TikTok' : 'YouTube'}
                       </span>
                       <p className="text-xs text-muted mt-1 truncate max-w-[200px]">
                         {url}
                       </p>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Description for URL - shows when URL is valid */}
+              {urlPreview && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Kratak opis projekta <span className="text-muted font-normal">(opciono)</span>
+                  </label>
+                  <textarea
+                    value={urlDescription}
+                    onChange={(e) => setUrlDescription(e.target.value)}
+                    placeholder="Npr. Kampanja za beauty brend, prikazuje proizvod u upotrebi..."
+                    maxLength={150}
+                    rows={2}
+                    className="w-full px-3 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none text-sm"
+                  />
+                  <p className="text-xs text-muted mt-1 text-right">
+                    {urlDescription.length}/150
+                  </p>
                 </div>
               )}
 
@@ -331,6 +364,57 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
                 onChange={handleFileSelect}
                 className="hidden"
               />
+
+              {/* Description and Platform fields - only show when file is selected */}
+              {uploadedFile && (
+                <div className="space-y-4 border-t border-border pt-4">
+                  {/* Platform Selection */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Za koju platformu je ovaj sadržaj?
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: 'instagram', label: 'Instagram' },
+                        { value: 'tiktok', label: 'TikTok' },
+                        { value: 'youtube', label: 'YouTube' },
+                        { value: 'other', label: 'Ostalo' },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setSelectedPlatform(option.value as typeof selectedPlatform)}
+                          className={`px-3 py-2.5 rounded-lg border transition-colors text-sm font-medium ${
+                            selectedPlatform === option.value
+                              ? 'border-primary bg-primary/5 text-primary'
+                              : 'border-border hover:border-muted'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Kratak opis projekta <span className="text-muted font-normal">(opciono)</span>
+                    </label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Npr. UGC video za beauty brend, prikazuje proizvod u upotrebi..."
+                      maxLength={150}
+                      rows={2}
+                      className="w-full px-3 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none text-sm"
+                    />
+                    <p className="text-xs text-muted mt-1 text-right">
+                      {description.length}/150
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {urlError && (
                 <p className="text-sm text-red-500">{urlError}</p>

@@ -19,6 +19,7 @@ export default function KreatoriPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [minRating, setMinRating] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('');
+  const [showFilters, setShowFilters] = useState<boolean>(true);
   
   // Helper to get creator rating
   const getCreatorRating = (creatorId: string): number => {
@@ -148,10 +149,10 @@ export default function KreatoriPage() {
       </section>
 
       <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12">
-        <div className="lg:flex gap-12">
+        <div className="flex gap-12">
           {/* Sidebar filters */}
-          <aside className="lg:w-64 flex-shrink-0 mb-8 lg:mb-0">
-            <div className="sticky top-28">
+          <aside className={`flex-shrink-0 transition-all duration-300 ${showFilters ? 'w-64' : 'w-0 overflow-hidden'}`}>
+            <div className={`w-64 sticky top-28 ${showFilters ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
               {/* Search */}
               <div className="mb-8">
                 <label className="text-sm text-muted mb-2 block">Pretraga</label>
@@ -282,12 +283,28 @@ export default function KreatoriPage() {
           </aside>
 
           {/* Main content */}
-          <main className="flex-1">
+          <main className="flex-1 min-w-0">
             {/* Results count & sorting */}
             <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <p className="text-muted">
-                Prikazano <span className="font-medium text-foreground">{filteredCreators.length}</span> kreatora
-              </p>
+              <div className="flex items-center gap-3">
+                {/* Filter toggle button */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`p-2.5 rounded-xl border transition-all ${
+                    showFilters 
+                      ? 'bg-primary text-white border-primary' 
+                      : 'bg-white text-muted border-border hover:bg-secondary hover:text-foreground'
+                  }`}
+                  title={showFilters ? 'Sakrij filtere' : 'Prikaži filtere'}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                </button>
+                <p className="text-muted">
+                  Prikazano <span className="font-medium text-foreground">{filteredCreators.length}</span> kreatora
+                </p>
+              </div>
               
               <select
                 value={sortBy}

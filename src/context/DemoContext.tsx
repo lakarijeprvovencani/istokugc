@@ -77,6 +77,8 @@ interface DemoContextType {
   approveReview: (reviewId: string) => void;
   rejectReview: (reviewId: string, reason?: string) => void;
   addReplyToReview: (reviewId: string, reply: string) => void;
+  updateReplyToReview: (reviewId: string, reply: string) => void;
+  deleteReplyFromReview: (reviewId: string) => void;
   hasBusinessReviewedCreator: (businessId: string, creatorId: string) => boolean;
   getBusinessReviewForCreator: (businessId: string, creatorId: string) => Review | undefined;
 }
@@ -525,6 +527,36 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     saveReviews(newReviews);
   };
 
+  // Update reply to a review (creator only)
+  const updateReplyToReview = (reviewId: string, reply: string) => {
+    const newReviews = reviews.map(r => {
+      if (r.id === reviewId) {
+        return {
+          ...r,
+          creatorReply: reply,
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+      }
+      return r;
+    });
+    saveReviews(newReviews);
+  };
+
+  // Delete reply from a review (creator only)
+  const deleteReplyFromReview = (reviewId: string) => {
+    const newReviews = reviews.map(r => {
+      if (r.id === reviewId) {
+        const { creatorReply, creatorReplyAt, ...rest } = r;
+        return {
+          ...rest,
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+      }
+      return r;
+    });
+    saveReviews(newReviews);
+  };
+
   return (
     <DemoContext.Provider value={{ 
       currentUser, 
@@ -566,6 +598,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       approveReview,
       rejectReview,
       addReplyToReview,
+      updateReplyToReview,
+      deleteReplyFromReview,
       hasBusinessReviewedCreator,
       getBusinessReviewForCreator,
     }}>
