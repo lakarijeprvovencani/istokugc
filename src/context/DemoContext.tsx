@@ -1,7 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { UserType, DemoUser, demoUsers, Creator, mockCreators, CreatorStatus } from '@/lib/mockData';
+import { UserType, DemoUser, demoUsers, Creator, mockCreators, pendingCreators, CreatorStatus } from '@/lib/mockData';
+
+// Combine all creators into one source of truth
+const allBaseCreators: Creator[] = [...mockCreators, ...pendingCreators];
 
 // Type for creator modifications stored in localStorage
 interface CreatorModification {
@@ -90,7 +93,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   // Get all creators with modifications applied
   const getCreators = (includeHidden = false): Creator[] => {
-    return mockCreators
+    return allBaseCreators
       .map(creator => {
         const mods = creatorModifications[creator.id];
         if (mods) {
@@ -118,7 +121,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   // Get a single creator by ID with modifications applied
   const getCreatorById = (id: string): Creator | undefined => {
-    const creator = mockCreators.find(c => c.id === id);
+    const creator = allBaseCreators.find(c => c.id === id);
     if (!creator) return undefined;
     
     const mods = creatorModifications[id];

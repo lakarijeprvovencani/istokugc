@@ -1,22 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useDemo } from '@/context/DemoContext';
 import Link from 'next/link';
 import Image from 'next/image';
-import { mockCreators, pendingCreators, mockBusinesses, categories, Creator } from '@/lib/mockData';
+import { mockBusinesses, categories, Creator, CreatorStatus } from '@/lib/mockData';
 
 type AdminTab = 'pending' | 'creators' | 'businesses' | 'categories';
 
 export default function AdminPage() {
-  const { currentUser } = useDemo();
+  const { currentUser, getCreators, updateCreator, deleteCreator, isHydrated } = useDemo();
   const [activeTab, setActiveTab] = useState<AdminTab>('pending');
   
-  // State za kreatore koji čekaju
-  const [localPending, setLocalPending] = useState<Creator[]>([...pendingCreators]);
+  // Get all creators from context (includes modifications from localStorage)
+  // Now includes both mockCreators and pendingCreators
+  const allCreators = useMemo(() => {
+    if (!isHydrated) return [];
+    return getCreators(true); // includeHidden = true to get all creators
+  }, [getCreators, isHydrated]);
   
-  // State za odobrene kreatore
-  const [localCreators, setLocalCreators] = useState<Creator[]>([...mockCreators]);
+  // Kreatori koji čekaju odobrenje (status='pending' ili approved=false bez statusa)
+  const pendingCreatorsList = useMemo(() => {
+    return allCreators.filter(c => 
+      c.status === 'pending' || (!c.status && !c.approved)
+    );
+  }, [allCreators]);
+  
+  // Odobreni/aktivni kreatori
+  const approvedCreators = useMemo(() => {
+    return allCreators.filter(c => 
+      c.status === 'approved' || (c.approved && !c.status)
+    );
+  }, [allCreators]);
+  
+  // Deaktivirani kreatori
+  const deactivatedCreators = useMemo(() => {
+    return allCreators.filter(c => c.status === 'deactivated');
+  }, [allCreators]);
   
   // State za biznise
   const [localBusinesses, setLocalBusinesses] = useState([...mockBusinesses]);
@@ -46,33 +66,32 @@ export default function AdminPage() {
     );
   }
 
-  // Odobri kreatora
+  // Odobri kreatora - sets status to 'approved'
   const handleApprove = (id: string) => {
-    const creator = localPending.find(c => c.id === id);
-    if (creator) {
-      const approvedCreator = { ...creator, approved: true };
-      setLocalCreators(prev => [...prev, approvedCreator]);
-      setLocalPending(prev => prev.filter(c => c.id !== id));
-    }
+    updateCreator(id, { 
+      approved: true, 
+      status: 'approved' as CreatorStatus 
+    });
   };
 
-  // Odbij kreatora
+  // Odbij kreatora - soft delete
   const handleReject = (id: string) => {
-    setLocalPending(prev => prev.filter(c => c.id !== id));
+    deleteCreator(id);
   };
 
   // Obriši kreatora
   const handleDeleteCreator = (id: string) => {
     if (confirm('Da li ste sigurni da želite da obrišete ovog kreatora?')) {
-      setLocalCreators(prev => prev.filter(c => c.id !== id));
+      deleteCreator(id);
     }
   };
 
-  // Toggle vidljivost kreatora
-  const handleToggleVisibility = (id: string) => {
-    setLocalCreators(prev => prev.map(c => 
-      c.id === id ? { ...c, approved: !c.approved } : c
-    ));
+  // Promeni status kreatora
+  const handleChangeStatus = (id: string, newStatus: CreatorStatus) => {
+    updateCreator(id, { 
+      status: newStatus,
+      approved: newStatus === 'approved'
+    });
   };
 
   // Obriši biznis
@@ -100,14 +119,20 @@ export default function AdminPage() {
 
   // Sačuvaj izmene kreatora
   const handleSaveCreator = (updatedCreator: Creator) => {
-    setLocalCreators(prev => prev.map(c => 
-      c.id === updatedCreator.id ? updatedCreator : c
-    ));
+    updateCreator(updatedCreator.id, {
+      name: updatedCreator.name,
+      email: updatedCreator.email,
+      location: updatedCreator.location,
+      bio: updatedCreator.bio,
+      priceFrom: updatedCreator.priceFrom,
+      phone: updatedCreator.phone,
+      instagram: updatedCreator.instagram,
+    });
     setEditingCreator(null);
   };
 
-  // Filtrirani kreatori
-  const filteredCreators = localCreators.filter(c => 
+  // Filtrirani kreatori (svi osim obrišenih)
+  const filteredCreators = allCreators.filter(c => 
     c.name.toLowerCase().includes(searchCreators.toLowerCase()) ||
     c.email.toLowerCase().includes(searchCreators.toLowerCase())
   );
@@ -119,8 +144,8 @@ export default function AdminPage() {
   );
 
   const tabs: { id: AdminTab; label: string; count?: number }[] = [
-    { id: 'pending', label: 'Čekaju odobrenje', count: localPending.length },
-    { id: 'creators', label: 'Kreatori', count: localCreators.length },
+    { id: 'pending', label: 'Čekaju odobrenje', count: pendingCreatorsList.length },
+    { id: 'creators', label: 'Kreatori', count: allCreators.length },
     { id: 'businesses', label: 'Biznisi', count: localBusinesses.length },
     { id: 'categories', label: 'Kategorije', count: localCategories.length },
   ];
@@ -170,14 +195,14 @@ export default function AdminPage() {
             <div>
               <h2 className="text-lg font-medium mb-6">Kreatori koji čekaju odobrenje</h2>
               
-              {localPending.length === 0 ? (
+              {pendingCreatorsList.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-4xl mb-4">✅</div>
                   <p className="text-muted">Nema kreatora koji čekaju odobrenje</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {localPending.map((creator) => (
+                  {pendingCreatorsList.map((creator) => (
                     <div key={creator.id} className="border border-border rounded-xl p-6">
                       <div className="flex items-start gap-6">
                         <div className="w-20 h-20 rounded-full overflow-hidden relative flex-shrink-0">
@@ -290,16 +315,21 @@ export default function AdminPage() {
                           </td>
                           <td className="py-4">€{creator.priceFrom}</td>
                           <td className="py-4">
-                            <button
-                              onClick={() => handleToggleVisibility(creator.id)}
-                              className={`px-3 py-1 rounded-full text-xs cursor-pointer transition-colors ${
-                                creator.approved 
-                                  ? 'bg-success/10 text-success hover:bg-success/20' 
-                                  : 'bg-warning/10 text-warning hover:bg-warning/20'
+                            <select
+                              value={creator.status || (creator.approved ? 'approved' : 'pending')}
+                              onChange={(e) => handleChangeStatus(creator.id, e.target.value as CreatorStatus)}
+                              className={`px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                                (creator.status === 'approved' || (creator.approved && !creator.status))
+                                  ? 'bg-black text-white' 
+                                  : creator.status === 'pending'
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-red-100 text-red-700'
                               }`}
                             >
-                              {creator.approved ? 'Vidljiv' : 'Skriven'}
-                            </button>
+                              <option value="approved">Aktivan</option>
+                              <option value="pending">Na čekanju</option>
+                              <option value="deactivated">Neaktivan</option>
+                            </select>
                           </td>
                           <td className="py-4">
                             <div className="flex gap-2">
