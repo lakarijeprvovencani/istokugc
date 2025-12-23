@@ -20,16 +20,20 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   const [isDeleted, setIsDeleted] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
-  // Update editedCreator when savedCreator changes (after hydration) or when modal opens
+  // Update state after hydration - only run once when hydrated
   useEffect(() => {
-    if (savedCreator) {
-      setEditedCreator(savedCreator);
-      setIsDeleted(false);
-    } else if (isHydrated) {
-      // Creator was deleted or doesn't exist
-      setIsDeleted(true);
+    if (isHydrated) {
+      const creator = getCreatorById(resolvedParams.id);
+      if (creator) {
+        setEditedCreator(creator);
+        setIsDeleted(false);
+      } else {
+        // Creator was deleted or doesn't exist
+        setIsDeleted(true);
+      }
     }
-  }, [savedCreator, isHydrated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHydrated, resolvedParams.id]);
   
   // Use edited version if available, otherwise saved
   const creator = editedCreator || savedCreator;
