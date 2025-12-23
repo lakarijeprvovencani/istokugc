@@ -48,6 +48,9 @@ export default function AdminPage() {
   // State za editovanje
   const [editingCreator, setEditingCreator] = useState<Creator | null>(null);
   
+  // State za pregled kreatora (detalji pre odobrenja)
+  const [viewingCreator, setViewingCreator] = useState<Creator | null>(null);
+  
   // Pretraga
   const [searchCreators, setSearchCreators] = useState('');
   const [searchBusinesses, setSearchBusinesses] = useState('');
@@ -152,33 +155,35 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-secondary/30">
-      <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12">
-        <div className="flex items-center justify-between mb-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-6 sm:py-12">
+        {/* Header - responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-10 gap-4">
           <div>
-            <h1 className="text-3xl font-light mb-2">Admin Panel</h1>
-            <p className="text-muted">Upravljaj platformom</p>
+            <h1 className="text-2xl sm:text-3xl font-light mb-1 sm:mb-2">Admin Panel</h1>
+            <p className="text-sm sm:text-base text-muted">Upravljaj platformom</p>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted">Ulogovan kao:</span>
-            <span className="px-4 py-2 bg-primary text-white rounded-full text-sm">Admin</span>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <span className="text-xs sm:text-sm text-muted">Ulogovan kao:</span>
+            <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-primary text-white rounded-full text-xs sm:text-sm">Admin</span>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+        {/* Tabs - responsive horizontal scroll on mobile */}
+        <div className="flex gap-2 mb-6 sm:mb-8 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-3 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
                 activeTab === tab.id
                   ? 'bg-primary text-white'
                   : 'bg-white border border-border hover:bg-secondary'
               }`}
             >
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.id === 'pending' ? 'Čekaju' : tab.id === 'creators' ? 'Kreatori' : tab.id === 'businesses' ? 'Biznisi' : 'Kat.'}</span>
               {tab.count !== undefined && (
-                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                <span className={`ml-1.5 sm:ml-2 px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${
                   activeTab === tab.id ? 'bg-white/20' : 'bg-secondary'
                 }`}>
                   {tab.count}
@@ -189,62 +194,125 @@ export default function AdminPage() {
         </div>
 
         {/* Content */}
-        <div className="bg-white rounded-2xl border border-border p-6">
+        <div className="bg-white rounded-2xl border border-border p-4 sm:p-6">
           {/* Pending */}
           {activeTab === 'pending' && (
             <div>
-              <h2 className="text-lg font-medium mb-6">Kreatori koji čekaju odobrenje</h2>
+              <h2 className="text-base sm:text-lg font-medium mb-4 sm:mb-6">Kreatori koji čekaju odobrenje</h2>
               
               {pendingCreatorsList.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-4xl mb-4">✅</div>
-                  <p className="text-muted">Nema kreatora koji čekaju odobrenje</p>
+                <div className="text-center py-8 sm:py-12">
+                  <div className="text-3xl sm:text-4xl mb-4">✅</div>
+                  <p className="text-muted text-sm sm:text-base">Nema kreatora koji čekaju odobrenje</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {pendingCreatorsList.map((creator) => (
-                    <div key={creator.id} className="border border-border rounded-xl p-6">
-                      <div className="flex items-start gap-6">
-                        <div className="w-20 h-20 rounded-full overflow-hidden relative flex-shrink-0">
-                          <Image src={creator.photo} alt={creator.name} fill className="object-cover" />
+                    <div key={creator.id} className="border border-border rounded-xl p-4 sm:p-6">
+                      {/* Mobile layout */}
+                      <div className="sm:hidden">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-14 h-14 rounded-full overflow-hidden relative flex-shrink-0">
+                            <Image src={creator.photo} alt={creator.name} fill className="object-cover" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-base truncate">{creator.name}</h3>
+                            <p className="text-xs text-muted truncate">{creator.location}</p>
+                            <p className="text-xs text-muted truncate">{creator.email}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-medium text-sm">€{creator.priceFrom}</p>
+                          </div>
                         </div>
                         
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="font-medium text-lg">{creator.name}</h3>
-                              <p className="text-sm text-muted">{creator.location}</p>
-                              <p className="text-sm text-muted">{creator.email}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-medium">€{creator.priceFrom}</p>
-                              <p className="text-sm text-muted">Registrovan: {creator.createdAt}</p>
-                            </div>
-                          </div>
-                          
-                          <p className="text-sm mt-4">{creator.bio}</p>
-                          
-                          <div className="flex flex-wrap gap-2 mt-4">
-                            {creator.categories.map((cat) => (
-                              <span key={cat} className="px-3 py-1 bg-secondary rounded-full text-xs">
-                                {cat}
-                              </span>
-                            ))}
-                          </div>
-                          
-                          <div className="flex gap-3 mt-6">
+                        <p className="text-xs text-muted line-clamp-2 mb-3">{creator.bio}</p>
+                        
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {creator.categories.slice(0, 3).map((cat) => (
+                            <span key={cat} className="px-2 py-0.5 bg-secondary rounded-full text-xs">
+                              {cat}
+                            </span>
+                          ))}
+                          {creator.categories.length > 3 && (
+                            <span className="px-2 py-0.5 bg-secondary rounded-full text-xs">+{creator.categories.length - 3}</span>
+                          )}
+                        </div>
+                        
+                        {/* Mobile buttons - stack vertically */}
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => setViewingCreator(creator)}
+                            className="w-full py-2.5 border border-primary text-primary rounded-xl text-sm font-medium hover:bg-primary/5 transition-colors"
+                          >
+                            👁 Pogledaj detalje
+                          </button>
+                          <div className="flex gap-2">
                             <button
                               onClick={() => handleApprove(creator.id)}
-                              className="px-6 py-2.5 bg-success text-white rounded-xl text-sm font-medium hover:bg-success/90 transition-colors"
+                              className="flex-1 py-2.5 bg-success text-white rounded-xl text-sm font-medium hover:bg-success/90 transition-colors"
                             >
                               ✓ Odobri
                             </button>
                             <button
                               onClick={() => handleReject(creator.id)}
-                              className="px-6 py-2.5 bg-error text-white rounded-xl text-sm font-medium hover:bg-error/90 transition-colors"
+                              className="flex-1 py-2.5 bg-error text-white rounded-xl text-sm font-medium hover:bg-error/90 transition-colors"
                             >
                               ✕ Odbij
                             </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Desktop layout */}
+                      <div className="hidden sm:block">
+                        <div className="flex items-start gap-6">
+                          <div className="w-20 h-20 rounded-full overflow-hidden relative flex-shrink-0">
+                            <Image src={creator.photo} alt={creator.name} fill className="object-cover" />
+                          </div>
+                          
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="font-medium text-lg">{creator.name}</h3>
+                                <p className="text-sm text-muted">{creator.location}</p>
+                                <p className="text-sm text-muted">{creator.email}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium">€{creator.priceFrom}</p>
+                                <p className="text-sm text-muted">Registrovan: {creator.createdAt}</p>
+                              </div>
+                            </div>
+                            
+                            <p className="text-sm mt-4 line-clamp-2">{creator.bio}</p>
+                            
+                            <div className="flex flex-wrap gap-2 mt-4">
+                              {creator.categories.map((cat) => (
+                                <span key={cat} className="px-3 py-1 bg-secondary rounded-full text-xs">
+                                  {cat}
+                                </span>
+                              ))}
+                            </div>
+                            
+                            <div className="flex gap-3 mt-6">
+                              <button
+                                onClick={() => setViewingCreator(creator)}
+                                className="px-6 py-2.5 border border-primary text-primary rounded-xl text-sm font-medium hover:bg-primary/5 transition-colors"
+                              >
+                                👁 Pogledaj detalje
+                              </button>
+                              <button
+                                onClick={() => handleApprove(creator.id)}
+                                className="px-6 py-2.5 bg-success text-white rounded-xl text-sm font-medium hover:bg-success/90 transition-colors"
+                              >
+                                ✓ Odobri
+                              </button>
+                              <button
+                                onClick={() => handleReject(creator.id)}
+                                className="px-6 py-2.5 bg-error text-white rounded-xl text-sm font-medium hover:bg-error/90 transition-colors"
+                              >
+                                ✕ Odbij
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -258,100 +326,181 @@ export default function AdminPage() {
           {/* Creators */}
           {activeTab === 'creators' && (
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-medium">Svi kreatori ({filteredCreators.length})</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+                <h2 className="text-base sm:text-lg font-medium">Svi kreatori ({filteredCreators.length})</h2>
                 <input
                   type="text"
-                  placeholder="Pretraži po imenu ili emailu..."
+                  placeholder="Pretraži..."
                   value={searchCreators}
                   onChange={(e) => setSearchCreators(e.target.value)}
-                  className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-muted w-64"
+                  className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-muted w-full sm:w-64 text-sm"
                 />
               </div>
               
               {filteredCreators.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted">Nema rezultata</p>
+                <div className="text-center py-8 sm:py-12">
+                  <p className="text-muted text-sm sm:text-base">Nema rezultata</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border text-left">
-                        <th className="pb-4 font-medium text-sm text-muted">Kreator</th>
-                        <th className="pb-4 font-medium text-sm text-muted">Kategorije</th>
-                        <th className="pb-4 font-medium text-sm text-muted">Cena</th>
-                        <th className="pb-4 font-medium text-sm text-muted">Status</th>
-                        <th className="pb-4 font-medium text-sm text-muted">Akcije</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredCreators.map((creator) => (
-                        <tr key={creator.id} className="border-b border-border">
-                          <td className="py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full overflow-hidden relative">
-                                <Image src={creator.photo} alt="" fill className="object-cover" />
-                              </div>
-                              <div>
-                                <div className="font-medium">{creator.name}</div>
-                                <div className="text-sm text-muted">{creator.email}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4">
-                            <div className="flex gap-1 flex-wrap">
-                              {creator.categories.slice(0, 2).map((cat) => (
-                                <span key={cat} className="px-2 py-0.5 bg-secondary rounded text-xs">
-                                  {cat}
-                                </span>
-                              ))}
-                              {creator.categories.length > 2 && (
-                                <span className="px-2 py-0.5 bg-secondary rounded text-xs">
-                                  +{creator.categories.length - 2}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-4">€{creator.priceFrom}</td>
-                          <td className="py-4">
-                            <select
-                              value={creator.status || (creator.approved ? 'approved' : 'pending')}
-                              onChange={(e) => handleChangeStatus(creator.id, e.target.value as CreatorStatus)}
-                              className={`px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                                (creator.status === 'approved' || (creator.approved && !creator.status))
-                                  ? 'bg-black text-white' 
-                                  : creator.status === 'pending'
-                                  ? 'bg-amber-100 text-amber-700'
-                                  : 'bg-red-100 text-red-700'
-                              }`}
+                <>
+                  {/* Mobile view - cards */}
+                  <div className="sm:hidden space-y-3">
+                    {filteredCreators.map((creator) => (
+                      <div key={creator.id} className="border border-border rounded-xl p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-12 h-12 rounded-full overflow-hidden relative flex-shrink-0">
+                            <Image src={creator.photo} alt="" fill className="object-cover" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm truncate">{creator.name}</div>
+                            <div className="text-xs text-muted truncate">{creator.email}</div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-medium text-sm">€{creator.priceFrom}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {creator.categories.slice(0, 2).map((cat) => (
+                            <span key={cat} className="px-2 py-0.5 bg-secondary rounded text-xs">
+                              {cat}
+                            </span>
+                          ))}
+                          {creator.categories.length > 2 && (
+                            <span className="px-2 py-0.5 bg-secondary rounded text-xs">
+                              +{creator.categories.length - 2}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between gap-2">
+                          <select
+                            value={creator.status || (creator.approved ? 'approved' : 'pending')}
+                            onChange={(e) => handleChangeStatus(creator.id, e.target.value as CreatorStatus)}
+                            className={`px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors border-0 focus:outline-none ${
+                              (creator.status === 'approved' || (creator.approved && !creator.status))
+                                ? 'bg-black text-white' 
+                                : creator.status === 'pending'
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}
+                          >
+                            <option value="approved">Aktivan</option>
+                            <option value="pending">Na čekanju</option>
+                            <option value="deactivated">Neaktivan</option>
+                          </select>
+                          
+                          <div className="flex gap-3">
+                            <button 
+                              onClick={() => setViewingCreator(creator)}
+                              className="text-xs text-muted hover:text-primary"
                             >
-                              <option value="approved">Aktivan</option>
-                              <option value="pending">Na čekanju</option>
-                              <option value="deactivated">Neaktivan</option>
-                            </select>
-                          </td>
-                          <td className="py-4">
-                            <div className="flex gap-2">
-                              <button 
-                                onClick={() => setEditingCreator(creator)}
-                                className="text-sm text-primary hover:underline"
-                              >
-                                Uredi
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteCreator(creator.id)}
-                                className="text-sm text-error hover:underline"
-                              >
-                                Obriši
-                              </button>
-                            </div>
-                          </td>
+                              👁
+                            </button>
+                            <button 
+                              onClick={() => setEditingCreator(creator)}
+                              className="text-xs text-primary hover:underline"
+                            >
+                              Uredi
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteCreator(creator.id)}
+                              className="text-xs text-error hover:underline"
+                            >
+                              Obriši
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Desktop view - table */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-left">
+                          <th className="pb-4 font-medium text-sm text-muted">Kreator</th>
+                          <th className="pb-4 font-medium text-sm text-muted">Kategorije</th>
+                          <th className="pb-4 font-medium text-sm text-muted">Cena</th>
+                          <th className="pb-4 font-medium text-sm text-muted">Status</th>
+                          <th className="pb-4 font-medium text-sm text-muted">Akcije</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {filteredCreators.map((creator) => (
+                          <tr key={creator.id} className="border-b border-border">
+                            <td className="py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full overflow-hidden relative">
+                                  <Image src={creator.photo} alt="" fill className="object-cover" />
+                                </div>
+                                <div>
+                                  <div className="font-medium">{creator.name}</div>
+                                  <div className="text-sm text-muted">{creator.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4">
+                              <div className="flex gap-1 flex-wrap">
+                                {creator.categories.slice(0, 2).map((cat) => (
+                                  <span key={cat} className="px-2 py-0.5 bg-secondary rounded text-xs">
+                                    {cat}
+                                  </span>
+                                ))}
+                                {creator.categories.length > 2 && (
+                                  <span className="px-2 py-0.5 bg-secondary rounded text-xs">
+                                    +{creator.categories.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-4">€{creator.priceFrom}</td>
+                            <td className="py-4">
+                              <select
+                                value={creator.status || (creator.approved ? 'approved' : 'pending')}
+                                onChange={(e) => handleChangeStatus(creator.id, e.target.value as CreatorStatus)}
+                                className={`px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                                  (creator.status === 'approved' || (creator.approved && !creator.status))
+                                    ? 'bg-black text-white' 
+                                    : creator.status === 'pending'
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-red-100 text-red-700'
+                                }`}
+                              >
+                                <option value="approved">Aktivan</option>
+                                <option value="pending">Na čekanju</option>
+                                <option value="deactivated">Neaktivan</option>
+                              </select>
+                            </td>
+                            <td className="py-4">
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => setViewingCreator(creator)}
+                                  className="text-sm text-muted hover:text-primary"
+                                >
+                                  👁
+                                </button>
+                                <button 
+                                  onClick={() => setEditingCreator(creator)}
+                                  className="text-sm text-primary hover:underline"
+                                >
+                                  Uredi
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteCreator(creator.id)}
+                                  className="text-sm text-error hover:underline"
+                                >
+                                  Obriši
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -359,69 +508,113 @@ export default function AdminPage() {
           {/* Businesses */}
           {activeTab === 'businesses' && (
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-medium">Svi biznisi ({filteredBusinesses.length})</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+                <h2 className="text-base sm:text-lg font-medium">Svi biznisi ({filteredBusinesses.length})</h2>
                 <input
                   type="text"
-                  placeholder="Pretraži po imenu ili emailu..."
+                  placeholder="Pretraži..."
                   value={searchBusinesses}
                   onChange={(e) => setSearchBusinesses(e.target.value)}
-                  className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-muted w-64"
+                  className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-muted w-full sm:w-64 text-sm"
                 />
               </div>
               
               {filteredBusinesses.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted">Nema rezultata</p>
+                <div className="text-center py-8 sm:py-12">
+                  <p className="text-muted text-sm sm:text-base">Nema rezultata</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border text-left">
-                        <th className="pb-4 font-medium text-sm text-muted">Kompanija</th>
-                        <th className="pb-4 font-medium text-sm text-muted">Email</th>
-                        <th className="pb-4 font-medium text-sm text-muted">Plan</th>
-                        <th className="pb-4 font-medium text-sm text-muted">Status</th>
-                        <th className="pb-4 font-medium text-sm text-muted">Ističe</th>
-                        <th className="pb-4 font-medium text-sm text-muted">Akcije</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredBusinesses.map((business) => (
-                        <tr key={business.id} className="border-b border-border">
-                          <td className="py-4 font-medium">{business.companyName}</td>
-                          <td className="py-4 text-muted">{business.email}</td>
-                          <td className="py-4">
-                            {business.subscriptionType === 'yearly' ? 'Godišnji' : 
-                             business.subscriptionType === 'monthly' ? 'Mesečni' : '—'}
-                          </td>
-                          <td className="py-4">
-                            <span className={`px-3 py-1 rounded-full text-xs ${
-                              business.subscriptionStatus === 'active' 
-                                ? 'bg-success/10 text-success' 
-                                : business.subscriptionStatus === 'expired'
-                                ? 'bg-error/10 text-error'
-                                : 'bg-secondary text-muted'
-                            }`}>
-                              {business.subscriptionStatus === 'active' ? 'Aktivan' : 
-                               business.subscriptionStatus === 'expired' ? 'Istekao' : 'Neaktivan'}
-                            </span>
-                          </td>
-                          <td className="py-4 text-muted">{business.expiresAt || '—'}</td>
-                          <td className="py-4">
-                            <button 
-                              onClick={() => handleDeleteBusiness(business.id)}
-                              className="text-sm text-error hover:underline"
-                            >
-                              Obriši
-                            </button>
-                          </td>
+                <>
+                  {/* Mobile view - cards */}
+                  <div className="sm:hidden space-y-3">
+                    {filteredBusinesses.map((business) => (
+                      <div key={business.id} className="border border-border rounded-xl p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-sm truncate">{business.companyName}</h3>
+                            <p className="text-xs text-muted truncate">{business.email}</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-xs flex-shrink-0 ml-2 ${
+                            business.subscriptionStatus === 'active' 
+                              ? 'bg-success/10 text-success' 
+                              : business.subscriptionStatus === 'expired'
+                              ? 'bg-error/10 text-error'
+                              : 'bg-secondary text-muted'
+                          }`}>
+                            {business.subscriptionStatus === 'active' ? 'Aktivan' : 
+                             business.subscriptionStatus === 'expired' ? 'Istekao' : 'Neaktivan'}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-xs text-muted">
+                          <span>
+                            Plan: {business.subscriptionType === 'yearly' ? 'Godišnji' : 
+                                   business.subscriptionType === 'monthly' ? 'Mesečni' : '—'}
+                          </span>
+                          <span>Ističe: {business.expiresAt || '—'}</span>
+                        </div>
+                        
+                        <div className="mt-3 pt-3 border-t border-border">
+                          <button 
+                            onClick={() => handleDeleteBusiness(business.id)}
+                            className="text-xs text-error hover:underline"
+                          >
+                            Obriši nalog
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Desktop view - table */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-left">
+                          <th className="pb-4 font-medium text-sm text-muted">Kompanija</th>
+                          <th className="pb-4 font-medium text-sm text-muted">Email</th>
+                          <th className="pb-4 font-medium text-sm text-muted">Plan</th>
+                          <th className="pb-4 font-medium text-sm text-muted">Status</th>
+                          <th className="pb-4 font-medium text-sm text-muted">Ističe</th>
+                          <th className="pb-4 font-medium text-sm text-muted">Akcije</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {filteredBusinesses.map((business) => (
+                          <tr key={business.id} className="border-b border-border">
+                            <td className="py-4 font-medium">{business.companyName}</td>
+                            <td className="py-4 text-muted">{business.email}</td>
+                            <td className="py-4">
+                              {business.subscriptionType === 'yearly' ? 'Godišnji' : 
+                               business.subscriptionType === 'monthly' ? 'Mesečni' : '—'}
+                            </td>
+                            <td className="py-4">
+                              <span className={`px-3 py-1 rounded-full text-xs ${
+                                business.subscriptionStatus === 'active' 
+                                  ? 'bg-success/10 text-success' 
+                                  : business.subscriptionStatus === 'expired'
+                                  ? 'bg-error/10 text-error'
+                                  : 'bg-secondary text-muted'
+                              }`}>
+                                {business.subscriptionStatus === 'active' ? 'Aktivan' : 
+                                 business.subscriptionStatus === 'expired' ? 'Istekao' : 'Neaktivan'}
+                              </span>
+                            </td>
+                            <td className="py-4 text-muted">{business.expiresAt || '—'}</td>
+                            <td className="py-4">
+                              <button 
+                                onClick={() => handleDeleteBusiness(business.id)}
+                                className="text-sm text-error hover:underline"
+                              >
+                                Obriši
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -429,36 +622,36 @@ export default function AdminPage() {
           {/* Categories */}
           {activeTab === 'categories' && (
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-medium">Kategorije ({localCategories.length})</h2>
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h2 className="text-base sm:text-lg font-medium">Kategorije ({localCategories.length})</h2>
               </div>
               
-              <form onSubmit={handleAddCategory} className="flex gap-4 mb-8">
+              <form onSubmit={handleAddCategory} className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6 sm:mb-8">
                 <input
                   type="text"
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
                   placeholder="Nova kategorija..."
-                  className="flex-1 px-5 py-3 border border-border rounded-xl focus:outline-none focus:border-muted"
+                  className="flex-1 px-4 sm:px-5 py-2.5 sm:py-3 border border-border rounded-xl focus:outline-none focus:border-muted text-sm"
                 />
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+                  className="px-6 py-2.5 sm:py-3 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
                 >
                   Dodaj
                 </button>
               </form>
               
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                 {localCategories.map((category) => (
                   <div 
                     key={category}
-                    className="flex items-center justify-between p-4 bg-secondary rounded-xl group"
+                    className="flex items-center justify-between p-3 sm:p-4 bg-secondary rounded-xl group"
                   >
-                    <span>{category}</span>
+                    <span className="text-sm truncate">{category}</span>
                     <button 
                       onClick={() => handleDeleteCategory(category)}
-                      className="text-muted hover:text-error transition-colors opacity-0 group-hover:opacity-100"
+                      className="text-muted hover:text-error transition-colors sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0 ml-2"
                     >
                       ✕
                     </button>
@@ -468,6 +661,179 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+
+        {/* View Creator Details Modal */}
+        {viewingCreator && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              {/* Header with photo */}
+              <div className="relative h-32 sm:h-48 bg-gradient-to-br from-primary/20 to-primary/5">
+                <button 
+                  onClick={() => setViewingCreator(null)}
+                  className="absolute top-4 right-4 w-8 h-8 bg-white rounded-full flex items-center justify-center text-muted hover:text-foreground shadow-lg"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="px-4 sm:px-6 pb-6">
+                {/* Profile photo */}
+                <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12 sm:-mt-16 mb-6">
+                  <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden relative border-4 border-white shadow-lg flex-shrink-0">
+                    <Image src={viewingCreator.photo} alt={viewingCreator.name} fill className="object-cover" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-xl sm:text-2xl font-medium">{viewingCreator.name}</h2>
+                    <p className="text-sm text-muted">{viewingCreator.location}</p>
+                    <p className="text-lg font-medium text-primary mt-1">od €{viewingCreator.priceFrom}</p>
+                  </div>
+                </div>
+                
+                {/* Contact info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 p-4 bg-secondary/50 rounded-xl">
+                  <div>
+                    <span className="text-xs text-muted block">Email</span>
+                    <span className="text-sm font-medium">{viewingCreator.email}</span>
+                  </div>
+                  {viewingCreator.phone && (
+                    <div>
+                      <span className="text-xs text-muted block">Telefon</span>
+                      <span className="text-sm font-medium">{viewingCreator.phone}</span>
+                    </div>
+                  )}
+                  {viewingCreator.instagram && (
+                    <div>
+                      <span className="text-xs text-muted block">Instagram</span>
+                      <span className="text-sm font-medium">{viewingCreator.instagram}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-xs text-muted block">Registrovan</span>
+                    <span className="text-sm font-medium">{viewingCreator.createdAt}</span>
+                  </div>
+                </div>
+                
+                {/* Bio */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-muted mb-2">Bio</h3>
+                  <p className="text-sm leading-relaxed">{viewingCreator.bio}</p>
+                </div>
+                
+                {/* Categories */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-muted mb-2">Kategorije</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingCreator.categories.map((cat) => (
+                      <span key={cat} className="px-3 py-1.5 bg-secondary rounded-full text-xs font-medium">
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Platforms */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-muted mb-2">Platforme</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingCreator.platforms.map((platform) => (
+                      <span key={platform} className="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-medium flex items-center gap-1">
+                        {platform === 'TikTok' && '📱'}
+                        {platform === 'Instagram' && '📸'}
+                        {platform === 'YouTube' && '🎬'}
+                        {platform === 'Twitter/X' && '🐦'}
+                        {platform === 'LinkedIn' && '💼'}
+                        {platform}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Languages */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-muted mb-2">Jezici</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingCreator.languages.map((lang) => (
+                      <span key={lang} className="px-3 py-1.5 bg-secondary rounded-full text-xs">
+                        {lang}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Portfolio */}
+                {viewingCreator.portfolio && viewingCreator.portfolio.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium text-muted mb-3">Portfolio ({viewingCreator.portfolio.length} video{viewingCreator.portfolio.length > 1 ? 'a' : ''})</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {viewingCreator.portfolio.map((item, index) => (
+                        <a 
+                          key={index}
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group relative aspect-[9/16] rounded-xl overflow-hidden bg-secondary"
+                        >
+                          <Image 
+                            src={item.thumbnail} 
+                            alt={`Portfolio ${index + 1}`} 
+                            fill 
+                            className="object-cover group-hover:scale-105 transition-transform"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-white text-xs font-medium px-3 py-1.5 bg-black/50 rounded-full flex items-center gap-1">
+                              {item.type === 'tiktok' && '📱 TikTok'}
+                              {item.type === 'instagram' && '📸 Instagram'}
+                              {item.type === 'youtube' && '🎬 YouTube'}
+                            </span>
+                          </div>
+                          <div className="absolute top-2 right-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                              item.type === 'tiktok' ? 'bg-black text-white' :
+                              item.type === 'instagram' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' :
+                              'bg-red-600 text-white'
+                            }`}>
+                              {item.type === 'tiktok' && 'TikTok'}
+                              {item.type === 'instagram' && 'IG'}
+                              {item.type === 'youtube' && 'YT'}
+                            </span>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Action buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
+                  <button
+                    onClick={() => {
+                      handleApprove(viewingCreator.id);
+                      setViewingCreator(null);
+                    }}
+                    className="flex-1 py-3 bg-success text-white rounded-xl text-sm font-medium hover:bg-success/90 transition-colors"
+                  >
+                    ✓ Odobri kreatora
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleReject(viewingCreator.id);
+                      setViewingCreator(null);
+                    }}
+                    className="flex-1 py-3 bg-error text-white rounded-xl text-sm font-medium hover:bg-error/90 transition-colors"
+                  >
+                    ✕ Odbij kreatora
+                  </button>
+                  <button
+                    onClick={() => setViewingCreator(null)}
+                    className="flex-1 py-3 border border-border rounded-xl text-sm font-medium hover:bg-secondary transition-colors"
+                  >
+                    Zatvori
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Edit Creator Modal */}
         {editingCreator && (
