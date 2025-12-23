@@ -143,7 +143,7 @@ export default function KreatoriPage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           <h1 className="text-4xl lg:text-5xl font-light mb-4">Pretraži kreatore</h1>
           <p className="text-muted max-w-xl">
-            Pronađi savršenog UGC kreatora za tvoj brend među stotinama talenata
+            Pronađi savršenog UGC kreatora za tvoj brend
           </p>
         </div>
       </section>
