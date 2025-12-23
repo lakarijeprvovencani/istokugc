@@ -291,14 +291,27 @@ export interface DemoUser {
   type: UserType;
   name: string;
   email: string;
-  isPaid?: boolean;
+  // Business-specific fields (for future Supabase integration)
+  companyName?: string;
+  subscriptionStatus?: 'active' | 'expired' | 'cancelled';
+  subscriptionPlan?: 'monthly' | 'yearly';
+  subscriptionExpiresAt?: string;
 }
 
-export const demoUsers: Record<string, DemoUser> = {
+// Note: In production, all business users must have active subscription to use the app
+// Unpaid businesses are redirected to payment page
+export const demoUsers: Record<UserType, DemoUser> = {
   guest: { type: 'guest', name: 'Gost', email: '' },
   creator: { type: 'creator', name: 'Marija Petrović', email: 'marija@example.com' },
-  business: { type: 'business', name: 'TechStart d.o.o.', email: 'marketing@techstart.rs', isPaid: true },
-  businessUnpaid: { type: 'business', name: 'Nova Firma', email: 'info@novafirma.rs', isPaid: false },
+  business: { 
+    type: 'business', 
+    name: 'TechStart d.o.o.', 
+    email: 'marketing@techstart.rs',
+    companyName: 'TechStart d.o.o.',
+    subscriptionStatus: 'active',
+    subscriptionPlan: 'yearly',
+    subscriptionExpiresAt: '2025-01-15',
+  },
   admin: { type: 'admin', name: 'Admin', email: 'admin@ugcselect.com' },
 };
 

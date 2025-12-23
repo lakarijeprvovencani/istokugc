@@ -12,7 +12,8 @@ interface CreatorCardProps {
 export default function CreatorCard({ creator }: CreatorCardProps) {
   const { currentUser } = useDemo();
   // Admin and paid business can see contact info
-  const canSeeContact = currentUser.type === 'admin' || (currentUser.type === 'business' && currentUser.isPaid);
+  // Admin and business users can see contact info (all business users have active subscription)
+  const canSeeContact = currentUser.type === 'admin' || currentUser.type === 'business';
   const isAdmin = currentUser.type === 'admin';
   
   // Determine status for display

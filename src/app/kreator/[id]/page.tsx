@@ -40,9 +40,8 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   
   const isAdmin = currentUser.type === 'admin';
 
-  // Admin and paid business can see contact info
-  const canSeeContact = currentUser.type === 'admin' || (currentUser.type === 'business' && currentUser.isPaid);
-  const needsToPay = currentUser.type === 'business' && !currentUser.isPaid;
+  // Admin and business users can see contact info (all business users have active subscription)
+  const canSeeContact = currentUser.type === 'admin' || currentUser.type === 'business';
 
   // If not logged in, show login prompt
   if (!isLoggedIn) {
@@ -167,18 +166,6 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                         <span className="text-sm">{creator.instagram}</span>
                       </div>
                     )}
-                  </div>
-                ) : needsToPay ? (
-                  <div>
-                    <p className="text-sm text-muted mb-4">
-                      Kontakt informacije su dostupne samo za korisnike sa aktivnom pretplatom.
-                    </p>
-                    <Link 
-                      href="/dashboard"
-                      className="block w-full text-center py-3 bg-primary text-white rounded-xl text-sm hover:bg-primary/90 transition-colors"
-                    >
-                      Aktiviraj pretplatu
-                    </Link>
                   </div>
                 ) : (
                   <div>

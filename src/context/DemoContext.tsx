@@ -27,7 +27,7 @@ interface CreatorModification {
 
 interface DemoContextType {
   currentUser: DemoUser;
-  setUserType: (type: UserType | 'businessUnpaid') => void;
+  setUserType: (type: UserType) => void;
   isLoggedIn: boolean;
   logout: () => void;
   isHydrated: boolean;
@@ -56,7 +56,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       // Load user type
       const savedUserType = localStorage.getItem(STORAGE_KEY);
       if (savedUserType && (savedUserType in demoUsers)) {
-        setCurrentUser(demoUsers[savedUserType as UserType | 'businessUnpaid']);
+        setCurrentUser(demoUsers[savedUserType as UserType]);
       }
       
       // Load creator modifications
@@ -73,7 +73,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const setUserType = (type: UserType | 'businessUnpaid') => {
+  const setUserType = (type: UserType) => {
     setCurrentUser(demoUsers[type]);
     // Save to localStorage
     if (typeof window !== 'undefined') {

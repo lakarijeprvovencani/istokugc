@@ -8,11 +8,11 @@ export default function DemoSwitcher() {
   const { currentUser, setUserType } = useDemo();
   const [isOpen, setIsOpen] = useState(true);
 
-  const options: { value: UserType | 'businessUnpaid'; label: string; description: string }[] = [
+  // Note: No unpaid business option - all businesses must have active subscription
+  const options: { value: UserType; label: string; description: string }[] = [
     { value: 'guest', label: '👤 Gost', description: 'Nije ulogovan' },
     { value: 'creator', label: '🎨 Kreator', description: 'Ulogovan kreator' },
-    { value: 'business', label: '🏢 Biznis (plaćen)', description: 'Ima aktivnu pretplatu' },
-    { value: 'businessUnpaid', label: '🏢 Biznis (neplaćen)', description: 'Nema pretplatu' },
+    { value: 'business', label: '🏢 Biznis', description: 'Aktivna pretplata' },
     { value: 'admin', label: '⚙️ Admin', description: 'Pun pristup' },
   ];
 
@@ -39,18 +39,16 @@ export default function DemoSwitcher() {
             {options.map((option) => (
               <button
                 key={option.value}
-                onClick={() => setUserType(option.value as UserType | 'businessUnpaid')}
+                onClick={() => setUserType(option.value)}
                 className={`w-full text-left px-4 py-3 rounded-xl transition-all ${
-                  (currentUser.type === option.value || 
-                   (option.value === 'businessUnpaid' && currentUser.type === 'business' && !currentUser.isPaid))
+                  currentUser.type === option.value
                     ? 'bg-primary text-white'
                     : 'bg-secondary hover:bg-accent'
                 }`}
               >
                 <div className="font-medium text-sm">{option.label}</div>
                 <div className={`text-xs mt-0.5 ${
-                  (currentUser.type === option.value || 
-                   (option.value === 'businessUnpaid' && currentUser.type === 'business' && !currentUser.isPaid))
+                  currentUser.type === option.value
                     ? 'text-white/70'
                     : 'text-muted'
                 }`}>

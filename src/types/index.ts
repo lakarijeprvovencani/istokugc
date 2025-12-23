@@ -110,7 +110,10 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
-  isPaid?: boolean; // Za business korisnike
+  // Business-specific fields (all businesses must have active subscription)
+  subscriptionStatus?: SubscriptionStatus;
+  subscriptionPlan?: SubscriptionType;
+  subscriptionExpiresAt?: string;
   creatorId?: string; // Ako je kreator, link ka Creator profilu
   businessId?: string; // Ako je biznis, link ka Business profilu
   createdAt: string;

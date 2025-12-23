@@ -25,7 +25,9 @@ interface UseAuthReturn {
     name: string;
     email: string;
     role: UserRole;
-    isPaid?: boolean;
+    // Business-specific fields (all businesses have active subscription)
+    subscriptionStatus?: 'active' | 'expired' | 'cancelled';
+    subscriptionPlan?: 'monthly' | 'yearly';
   } | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -46,7 +48,8 @@ export function useAuth(): UseAuthReturn {
     name: currentUser.name,
     email: currentUser.email,
     role: currentUser.type as UserRole,
-    isPaid: currentUser.isPaid,
+    subscriptionStatus: currentUser.subscriptionStatus,
+    subscriptionPlan: currentUser.subscriptionPlan,
   } : null;
   
   const login = useCallback(async (email: string, password: string) => {
@@ -93,7 +96,8 @@ export function useAuth(): UseAuthReturn {
     name: session.user.name ?? '',
     email: session.user.email ?? '',
     role: session.user.role,
-    isPaid: session.user.isPaid,
+    subscriptionStatus: session.user.subscriptionStatus,
+    subscriptionPlan: session.user.subscriptionPlan,
   } : null;
   
   const login = useCallback(async (email: string, password: string) => {
@@ -156,11 +160,10 @@ export function usePermissions(): UsePermissionsReturn {
   const { user } = useAuth();
   
   const userRole = user?.role ?? 'guest';
-  const isPaid = user?.isPaid;
   
   return {
     isAdmin: isAdmin(userRole),
-    canViewCreators: canViewCreators(userRole, isPaid),
+    canViewCreators: canViewCreators(userRole), // All businesses have active subscription
     canEditCreator: (isOwnProfile?: boolean) => canEditCreator(userRole, isOwnProfile),
     canDeleteCreator: canDeleteCreator(userRole),
     hasRole: (role: UserRole | UserRole[]) => hasRole(userRole, role),

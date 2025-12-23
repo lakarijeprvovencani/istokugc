@@ -26,7 +26,8 @@ export default function DashboardPage() {
     return <CreatorDashboard />;
   }
 
-  return <BusinessDashboard isPaid={currentUser.isPaid || false} />;
+  // All business users have active subscription (payment required to access)
+  return <BusinessDashboard />;
 }
 
 function CreatorDashboard() {
@@ -175,106 +176,9 @@ function CreatorDashboard() {
   );
 }
 
-function BusinessDashboard({ isPaid }: { isPaid: boolean }) {
-  const handlePayment = (plan: 'monthly' | 'yearly') => {
-    // Demo: this would redirect to Stripe
-    alert(`Demo: Redirecting to Stripe for ${plan} plan...`);
-  };
-
-  if (!isPaid) {
-    return (
-      <div className="min-h-screen bg-secondary/30">
-        <div className="max-w-4xl mx-auto px-6 lg:px-12 py-12">
-          <div className="text-center mb-12">
-            <h1 className="text-3xl font-light mb-3">Izaberi svoj plan</h1>
-            <p className="text-muted">Aktiviraj pretplatu da dobiješ pristup kreatorima</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
-            {/* Monthly */}
-            <div className="bg-white rounded-3xl p-8 border border-border">
-              <div className="text-sm uppercase tracking-wider text-muted mb-4">Mesečno</div>
-              <div className="text-4xl font-light mb-1">€49</div>
-              <div className="text-muted mb-8">mesečno</div>
-              
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center gap-3 text-sm">
-                  <span className="text-success">✓</span>
-                  Pristup svim kreatorima
-                </li>
-                <li className="flex items-center gap-3 text-sm">
-                  <span className="text-success">✓</span>
-                  Kontakt informacije
-                </li>
-                <li className="flex items-center gap-3 text-sm">
-                  <span className="text-success">✓</span>
-                  Neograničena pretraga
-                </li>
-                <li className="flex items-center gap-3 text-sm">
-                  <span className="text-success">✓</span>
-                  Email podrška
-                </li>
-              </ul>
-
-              <button 
-                onClick={() => handlePayment('monthly')}
-                className="w-full py-4 border border-border rounded-xl font-medium hover:bg-secondary transition-colors"
-              >
-                Izaberi mesečno
-              </button>
-            </div>
-
-            {/* Yearly */}
-            <div className="bg-white rounded-3xl p-8 border-2 border-primary relative">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white text-sm px-4 py-1.5 rounded-full">
-                Najpopularniji
-              </div>
-              
-              <div className="text-sm uppercase tracking-wider text-muted mb-4">Godišnje</div>
-              <div className="text-4xl font-light mb-1">€490</div>
-              <div className="text-muted mb-2">godišnje</div>
-              <div className="text-sm text-success mb-8">Uštedi €98 (2 meseca besplatno)</div>
-              
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center gap-3 text-sm">
-                  <span className="text-success">✓</span>
-                  Sve od mesečnog plana
-                </li>
-                <li className="flex items-center gap-3 text-sm">
-                  <span className="text-success">✓</span>
-                  2 meseca besplatno
-                </li>
-                <li className="flex items-center gap-3 text-sm">
-                  <span className="text-success">✓</span>
-                  Prioritetna podrška
-                </li>
-                <li className="flex items-center gap-3 text-sm">
-                  <span className="text-success">✓</span>
-                  Rani pristup novim funkcijama
-                </li>
-              </ul>
-
-              <button 
-                onClick={() => handlePayment('yearly')}
-                className="w-full py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
-              >
-                Izaberi godišnje
-              </button>
-            </div>
-          </div>
-
-          <div className="text-center mt-12">
-            <p className="text-sm text-muted">
-              Sigurno plaćanje preko <span className="font-medium">Stripe</span>. 
-              Možeš otkazati pretplatu u bilo kom trenutku.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Paid business dashboard
+// Note: All business users must have active subscription to access the app
+// Pricing/payment page will be shown during registration (via Stripe integration)
+function BusinessDashboard() {
   return (
     <div className="min-h-screen bg-secondary/30">
       <div className="max-w-6xl mx-auto px-6 lg:px-12 py-12">

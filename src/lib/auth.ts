@@ -47,12 +47,12 @@ export function isAdmin(userRole: UserRole): boolean {
 
 /**
  * Provera da li korisnik ima pristup kreatorima
- * (business sa plaćenom pretplatom, creator, ili admin)
+ * Note: All business users have active subscription (required to access the app)
  */
-export function canViewCreators(userRole: UserRole, isPaid?: boolean): boolean {
+export function canViewCreators(userRole: UserRole): boolean {
   if (userRole === 'admin') return true;
   if (userRole === 'creator') return true;
-  if (userRole === 'business' && isPaid) return true;
+  if (userRole === 'business') return true; // All businesses have active subscription
   return false;
 }
 
@@ -115,6 +115,8 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Note: Business users can only login if they have active subscription
+        // Subscription validation happens during registration/payment flow
         return {
           id: user.id,
           email: user.email,
@@ -122,7 +124,8 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           creatorId: user.creator?.id,
           businessId: user.business?.id,
-          isPaid: user.business?.subscriptionStatus === 'ACTIVE',
+          subscriptionStatus: user.business?.subscriptionStatus,
+          subscriptionPlan: user.business?.subscriptionPlan,
         };
       },
     }),
@@ -140,7 +143,8 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.creatorId = user.creatorId;
         token.businessId = user.businessId;
-        token.isPaid = user.isPaid;
+        token.subscriptionStatus = user.subscriptionStatus;
+        token.subscriptionPlan = user.subscriptionPlan;
       }
       return token;
     },
@@ -151,7 +155,8 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as UserRole;
         session.user.creatorId = token.creatorId as string | undefined;
         session.user.businessId = token.businessId as string | undefined;
-        session.user.isPaid = token.isPaid as boolean | undefined;
+        session.user.subscriptionStatus = token.subscriptionStatus as string | undefined;
+        session.user.subscriptionPlan = token.subscriptionPlan as string | undefined;
       }
       return session;
     },
@@ -201,14 +206,15 @@ export async function requireAdmin() {
 /*
 // Dodati u types/next-auth.d.ts kada se aktivira NextAuth:
 
-import { UserRole } from '@/types';
+import { UserRole, SubscriptionStatus, SubscriptionType } from '@/types';
 
 declare module 'next-auth' {
   interface User {
     role: UserRole;
     creatorId?: string;
     businessId?: string;
-    isPaid?: boolean;
+    subscriptionStatus?: SubscriptionStatus;
+    subscriptionPlan?: SubscriptionType;
   }
   
   interface Session {
@@ -223,7 +229,8 @@ declare module 'next-auth/jwt' {
     role: UserRole;
     creatorId?: string;
     businessId?: string;
-    isPaid?: boolean;
+    subscriptionStatus?: SubscriptionStatus;
+    subscriptionPlan?: SubscriptionType;
   }
 }
 */

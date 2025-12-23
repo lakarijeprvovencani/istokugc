@@ -17,9 +17,6 @@ export default function KreatoriPage() {
   const [priceRange, setPriceRange] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Check if user needs to pay (business without subscription)
-  const needsToPay = currentUser.type === 'business' && !currentUser.isPaid;
-
   const filteredCreators = useMemo(() => {
     return allCreators.filter((creator) => {
       // For admins, show all (already filtered in getCreators)
@@ -110,25 +107,6 @@ export default function KreatoriPage() {
           </p>
         </div>
       </section>
-
-      {/* Paywall notice for unpaid businesses */}
-      {needsToPay && (
-        <div className="bg-warning/10 border-b border-warning/20">
-          <div className="max-w-7xl mx-auto px-6 lg:px-12 py-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm">
-                ⚠️ Možeš pregledati kreatore, ali za kontakt informacije je potrebna pretplata.
-              </p>
-              <Link 
-                href="/dashboard"
-                className="text-sm font-medium text-warning hover:underline"
-              >
-                Aktiviraj pretplatu →
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12">
         <div className="lg:flex gap-12">
