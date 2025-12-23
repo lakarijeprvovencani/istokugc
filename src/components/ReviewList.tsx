@@ -12,12 +12,15 @@ interface ReviewListProps {
   showStatus?: boolean;              // Prikaži status badge (za admin)
   showActions?: boolean;             // Prikaži admin akcije
   canReply?: boolean;                // Da li kreator može odgovoriti
+  canDeleteOwn?: boolean;            // Da li biznis može obrisati svoje recenzije
+  currentBusinessId?: string;        // ID trenutnog biznis korisnika za proveru vlasništva
   emptyMessage?: string;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onDelete?: (id: string) => void;
   onReply?: (id: string, reply: string) => void;
   getCreatorName?: (creatorId: string) => string; // Za admin prikaz
+  getCreatorLink?: (creatorId: string) => string; // Link ka profilu kreatora
   pageSize?: number;
 }
 
@@ -27,12 +30,15 @@ export default function ReviewList({
   showStatus = false,
   showActions = false,
   canReply = false,
+  canDeleteOwn = false,
+  currentBusinessId,
   emptyMessage = 'Još uvek nema recenzija.',
   onApprove,
   onReject,
   onDelete,
   onReply,
   getCreatorName,
+  getCreatorLink,
   pageSize = 5,
 }: ReviewListProps) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -132,20 +138,27 @@ export default function ReviewList({
 
       {/* Reviews list */}
       <div className="space-y-4">
-        {paginatedReviews.map((review) => (
-          <ReviewCard
-            key={review.id}
-            review={review}
-            showStatus={showStatus}
-            showActions={showActions}
-            canReply={canReply}
-            onApprove={onApprove}
-            onReject={onReject}
-            onDelete={onDelete}
-            onReply={onReply}
-            creatorName={getCreatorName ? getCreatorName(review.creatorId) : undefined}
-          />
-        ))}
+        {paginatedReviews.map((review) => {
+          // Check if current business owns this review
+          const isOwnReview = canDeleteOwn && currentBusinessId && review.businessId === currentBusinessId;
+          
+          return (
+            <ReviewCard
+              key={review.id}
+              review={review}
+              showStatus={showStatus}
+              showActions={showActions}
+              canReply={canReply}
+              canDelete={isOwnReview}
+              onApprove={onApprove}
+              onReject={onReject}
+              onDelete={onDelete}
+              onReply={onReply}
+              creatorName={getCreatorName ? getCreatorName(review.creatorId) : undefined}
+              creatorLink={getCreatorLink ? getCreatorLink(review.creatorId) : undefined}
+            />
+          );
+        })}
       </div>
 
       {/* Pagination */}

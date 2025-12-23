@@ -10,11 +10,13 @@ interface ReviewCardProps {
   showStatus?: boolean;          // Prikaži status badge (za admin)
   showActions?: boolean;         // Prikaži approve/reject dugmad (za admin)
   canReply?: boolean;            // Može li kreator odgovoriti
+  canDelete?: boolean;           // Može li korisnik obrisati svoju recenziju (biznis)
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onDelete?: (id: string) => void;
   onReply?: (id: string, reply: string) => void;
   creatorName?: string;          // Za admin prikaz - ime kreatora
+  creatorLink?: string;          // Link ka kreatoru (za biznis prikaz)
 }
 
 export default function ReviewCard({
@@ -22,11 +24,13 @@ export default function ReviewCard({
   showStatus = false,
   showActions = false,
   canReply = false,
+  canDelete = false,
   onApprove,
   onReject,
   onDelete,
   onReply,
   creatorName,
+  creatorLink,
 }: ReviewCardProps) {
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -94,8 +98,8 @@ export default function ReviewCard({
           </div>
         )}
 
-        {/* Delete button for admin */}
-        {showActions && (
+        {/* Delete button for admin or business owner */}
+        {(showActions || canDelete) && (
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="text-muted hover:text-error transition-colors p-1"
@@ -108,10 +112,17 @@ export default function ReviewCard({
         )}
       </div>
 
-      {/* Creator name (for admin view) */}
+      {/* Creator name (for admin or business view) */}
       {creatorName && (
         <div className="text-sm text-muted mb-3">
-          Za kreatora: <span className="font-medium text-foreground">{creatorName}</span>
+          Za kreatora:{' '}
+          {creatorLink ? (
+            <a href={creatorLink} className="font-medium text-primary hover:underline">
+              {creatorName}
+            </a>
+          ) : (
+            <span className="font-medium text-foreground">{creatorName}</span>
+          )}
         </div>
       )}
 

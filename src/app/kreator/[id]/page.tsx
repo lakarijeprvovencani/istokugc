@@ -26,6 +26,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
     getBusinessReviewForCreator,
     addReview,
     addReplyToReview,
+    deleteReview,
     isFavorite,
     addToFavorites,
     removeFromFavorites,
@@ -497,8 +498,13 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                     reviews={reviews}
                     showStats={false}
                     canReply={isOwner}
+                    canDeleteOwn={currentUser.type === 'business'}
+                    currentBusinessId={currentUser.businessId}
                     onReply={(reviewId, reply) => {
                       addReplyToReview(reviewId, reply);
+                    }}
+                    onDelete={(reviewId) => {
+                      deleteReview(reviewId);
                     }}
                     emptyMessage="Još uvek nema recenzija za ovog kreatora."
                   />
