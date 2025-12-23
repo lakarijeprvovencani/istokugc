@@ -169,6 +169,8 @@ export async function PUT(
         ...(body.priceFrom !== undefined && { priceFrom: body.priceFrom }),
         ...(body.phone !== undefined && { phone: body.phone }),
         ...(body.instagram !== undefined && { instagram: body.instagram }),
+        ...(body.tiktok !== undefined && { tiktok: body.tiktok }),
+        ...(body.youtube !== undefined && { youtube: body.youtube }),
         ...(body.status && { status: body.status.toUpperCase() }),
         ...(body.approved !== undefined && { approved: body.approved }),
       },

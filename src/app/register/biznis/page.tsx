@@ -15,6 +15,7 @@ export default function RegisterBusinessPage() {
     password: '',
     website: '',
     industry: '',
+    description: '',
   });
 
   const handleInfoSubmit = (e: React.FormEvent) => {
@@ -255,6 +256,18 @@ export default function RegisterBusinessPage() {
               <option value="finance">Finansije</option>
               <option value="other">Drugo</option>
             </select>
+          </div>
+
+          <div>
+            <label className="text-sm text-muted mb-2 block">O kompaniji <span className="text-muted font-normal">(opciono)</span></label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Napiši nešto o svojoj kompaniji..."
+              rows={4}
+              className="w-full px-5 py-4 border border-border rounded-xl focus:outline-none focus:border-primary transition-colors resize-none"
+            />
+            <p className="text-xs text-muted mt-1 text-right">{formData.description.length} karaktera</p>
           </div>
 
           <label className="flex items-start gap-3 mt-6">

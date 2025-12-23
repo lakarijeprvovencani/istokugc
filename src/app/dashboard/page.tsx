@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDemo } from '@/context/DemoContext';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -12,7 +12,7 @@ import PortfolioModal, { PortfolioItem } from '@/components/PortfolioModal';
 import VideoPlayerModal from '@/components/VideoPlayerModal';
 
 export default function DashboardPage() {
-  const { currentUser } = useDemo();
+  const { currentUser, updateCreator } = useDemo();
 
   // Redirect logic would go here in real app
   if (currentUser.type === 'guest') {
@@ -47,12 +47,28 @@ function CreatorDashboard() {
   const [editingPlatforms, setEditingPlatforms] = useState(false);
   const [editingLanguages, setEditingLanguages] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
+  const [editingPassword, setEditingPassword] = useState(false);
+  
+  // Password form state
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
   
   // Portfolio state
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
   const [activeVideo, setActiveVideo] = useState<PortfolioItem | null>(null);
   const [activeImage, setActiveImage] = useState<PortfolioItem | null>(null);
   const [detailItem, setDetailItem] = useState<PortfolioItem | null>(null);
+  
+  // Profile photo state
+  const [editingPhoto, setEditingPhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(
     creator.portfolio.map((item, index) => ({
       id: `existing-${index}`,
@@ -71,6 +87,8 @@ function CreatorDashboard() {
     email: creator.email,
     phone: creator.phone || '',
     instagram: creator.instagram || '',
+    tiktok: creator.tiktok || '',
+    youtube: creator.youtube || '',
     priceFrom: creator.priceFrom,
   });
   
@@ -111,12 +129,79 @@ function CreatorDashboard() {
 
   const handleSaveSection = (section: string) => {
     console.log(`📝 [DEMO] ${section} would be updated`);
-    // Close editing mode
-    if (section === 'bio') setEditingBio(false);
-    if (section === 'categories') setEditingCategories(false);
-    if (section === 'platforms') setEditingPlatforms(false);
-    if (section === 'languages') setEditingLanguages(false);
-    if (section === 'contact') setEditingContact(false);
+    
+    // Update creator in demo context
+    if (section === 'bio') {
+      updateCreator(creator.id, { bio: bioText });
+      setEditingBio(false);
+    } else if (section === 'categories') {
+      updateCreator(creator.id, { categories: selectedCategories });
+      setEditingCategories(false);
+    } else if (section === 'platforms') {
+      updateCreator(creator.id, { platforms: selectedPlatforms });
+      setEditingPlatforms(false);
+    } else if (section === 'languages') {
+      updateCreator(creator.id, { languages: selectedLanguages });
+      setEditingLanguages(false);
+    } else if (section === 'contact') {
+      updateCreator(creator.id, {
+        email: contactInfo.email,
+        phone: contactInfo.phone || undefined,
+        instagram: contactInfo.instagram || undefined,
+        tiktok: contactInfo.tiktok || undefined,
+        youtube: contactInfo.youtube || undefined,
+        priceFrom: contactInfo.priceFrom,
+      });
+      setEditingContact(false);
+    }
+  };
+
+  const handleChangePassword = () => {
+    setPasswordError('');
+    setPasswordSuccess(false);
+
+    // Validation
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError('Sva polja su obavezna');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      setPasswordError('Nova lozinka mora imati minimum 8 karaktera');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Nove lozinke se ne poklapaju');
+      return;
+    }
+
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
+      setPasswordError('Nova lozinka mora biti različita od trenutne');
+      return;
+    }
+
+    // In production, this would call API endpoint
+    // const response = await fetch('/api/settings/password', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({
+    //     currentPassword: passwordForm.currentPassword,
+    //     newPassword: passwordForm.newPassword,
+    //   }),
+    // });
+
+    // Demo mode: simulate success
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+    setPasswordSuccess(true);
+    setTimeout(() => {
+      setPasswordSuccess(false);
+      setEditingPassword(false);
+    }, 2000);
   };
 
   const toggleArrayItem = (arr: string[], item: string, setArr: (arr: string[]) => void) => {
@@ -125,6 +210,47 @@ function CreatorDashboard() {
     } else {
       setArr([...arr, item]);
     }
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      alert('Molimo izaberite sliku');
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Slika je prevelika. Maksimalna veličina je 5MB.');
+      return;
+    }
+
+    setSelectedPhoto(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPhotoPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSavePhoto = () => {
+    if (!selectedPhoto) return;
+
+    // In production, this would upload to cloud storage and update creator profile
+    // const formData = new FormData();
+    // formData.append('photo', selectedPhoto);
+    // await fetch('/api/creators/me/photo', { method: 'POST', body: formData });
+
+    // Demo mode: just close edit mode
+    setEditingPhoto(false);
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
+    alert('Demo režim: U produkciji bi se slika uploadovala i ažurirala.');
   };
 
   const tabs = [
@@ -205,15 +331,84 @@ function CreatorDashboard() {
                 </div>
                 
                 <div className="flex items-center gap-6">
-                  <div className="w-20 h-20 rounded-full overflow-hidden relative">
-                    <Image src={creator.photo} alt={creator.name} fill className="object-cover" />
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-full overflow-hidden relative border-2 border-border">
+                      <Image 
+                        src={photoPreview || creator.photo} 
+                        alt={creator.name} 
+                        fill 
+                        className="object-cover"
+                        unoptimized={!!photoPreview}
+                      />
+                    </div>
+                    {editingPhoto ? (
+                      <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 border-2 border-border">
+                        <button
+                          onClick={() => {
+                            setEditingPhoto(false);
+                            setPhotoPreview(null);
+                            setSelectedPhoto(null);
+                          }}
+                          className="p-1 hover:bg-secondary rounded-full transition-colors"
+                          title="Otkaži"
+                        >
+                          <svg className="w-4 h-4 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingPhoto(true);
+                          photoInputRef.current?.click();
+                        }}
+                        className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-1.5 hover:bg-primary/90 transition-colors shadow-lg"
+                        title="Promeni sliku"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    )}
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoSelect}
+                      className="hidden"
+                    />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="font-medium text-lg">{creator.name}</h3>
                     <p className="text-sm text-muted">{creator.location}</p>
                     <p className="text-sm text-muted mt-1">Od €{creator.priceFrom} po projektu</p>
                   </div>
                 </div>
+                
+                {editingPhoto && photoPreview && (
+                  <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+                    <p className="text-sm text-muted">Nova profilna slika</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setEditingPhoto(false);
+                          setPhotoPreview(null);
+                          setSelectedPhoto(null);
+                        }}
+                        className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-secondary transition-colors"
+                      >
+                        Otkaži
+                      </button>
+                      <button
+                        onClick={handleSavePhoto}
+                        className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      >
+                        Sačuvaj
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Bio section with inline edit */}
@@ -676,6 +871,26 @@ function CreatorDashboard() {
                       />
                     </div>
                     <div>
+                      <label className="block text-xs text-muted mb-1">TikTok</label>
+                      <input
+                        type="text"
+                        value={contactInfo.tiktok}
+                        onChange={(e) => setContactInfo({ ...contactInfo, tiktok: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary"
+                        placeholder="@username"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted mb-1">YouTube</label>
+                      <input
+                        type="text"
+                        value={contactInfo.youtube}
+                        onChange={(e) => setContactInfo({ ...contactInfo, youtube: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary"
+                        placeholder="@username ili URL kanala"
+                      />
+                    </div>
+                    <div>
                       <label className="block text-xs text-muted mb-1">Cena od (€)</label>
                       <input
                         type="number"
@@ -688,7 +903,14 @@ function CreatorDashboard() {
                     <div className="flex gap-2 pt-2">
                       <button
                         onClick={() => { 
-                          setContactInfo({ email: creator.email, phone: creator.phone || '', instagram: creator.instagram || '', priceFrom: creator.priceFrom }); 
+                          setContactInfo({ 
+                            email: creator.email, 
+                            phone: creator.phone || '', 
+                            instagram: creator.instagram || '', 
+                            tiktok: creator.tiktok || '',
+                            youtube: creator.youtube || '',
+                            priceFrom: creator.priceFrom 
+                          }); 
                           setEditingContact(false); 
                         }}
                         className="flex-1 px-3 py-2 text-xs border border-border rounded-lg hover:bg-secondary transition-colors"
@@ -713,14 +935,108 @@ function CreatorDashboard() {
                       <span className="text-muted">Telefon</span>
                       <span>{contactInfo.phone || '—'}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted">Instagram</span>
-                      <span>{contactInfo.instagram || '—'}</span>
-                    </div>
+                    {contactInfo.instagram && (
+                      <div className="flex justify-between">
+                        <span className="text-muted">Instagram</span>
+                        <span>{contactInfo.instagram}</span>
+                      </div>
+                    )}
+                    {contactInfo.tiktok && (
+                      <div className="flex justify-between">
+                        <span className="text-muted">TikTok</span>
+                        <span>{contactInfo.tiktok}</span>
+                      </div>
+                    )}
+                    {contactInfo.youtube && (
+                      <div className="flex justify-between">
+                        <span className="text-muted">YouTube</span>
+                        <span>{contactInfo.youtube}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-muted">Cena od</span>
                       <span>€{contactInfo.priceFrom}</span>
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Change Password Section */}
+              <div className="bg-white rounded-2xl p-6 border border-border">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium">Promena lozinke</h3>
+                  <PencilButton onClick={() => setEditingPassword(!editingPassword)} editing={editingPassword} />
+                </div>
+                
+                {editingPassword ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-muted mb-1">Trenutna lozinka</label>
+                      <input
+                        type="password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted mb-1">Nova lozinka</label>
+                      <input
+                        type="password"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary"
+                        placeholder="••••••••"
+                      />
+                      <p className="text-xs text-muted mt-1">Minimum 8 karaktera</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted mb-1">Potvrdi novu lozinku</label>
+                      <input
+                        type="password"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    
+                    {passwordError && (
+                      <div className="bg-error/10 border border-error/20 rounded-lg p-2">
+                        <p className="text-xs text-error">{passwordError}</p>
+                      </div>
+                    )}
+                    
+                    {passwordSuccess && (
+                      <div className="bg-success/10 border border-success/20 rounded-lg p-2">
+                        <p className="text-xs text-success">Lozinka je uspešno promenjena!</p>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => {
+                          setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                          setPasswordError('');
+                          setPasswordSuccess(false);
+                          setEditingPassword(false);
+                        }}
+                        className="flex-1 px-3 py-2 text-xs border border-border rounded-lg hover:bg-secondary transition-colors"
+                      >
+                        Otkaži
+                      </button>
+                      <button
+                        onClick={handleChangePassword}
+                        className="flex-1 px-3 py-2 text-xs bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      >
+                        Sačuvaj
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted">
+                    <p>Klikni na olovku da promeniš lozinku</p>
                   </div>
                 )}
               </div>
@@ -830,6 +1146,36 @@ function CreatorDashboard() {
             )}
           </div>
         )}
+
+        {/* Delete Account Section */}
+        <div className="mt-12 pt-8 border-t border-border">
+          <div className="bg-white rounded-2xl p-6 border border-error/20">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="font-medium text-error mb-1">Opasna zona</h3>
+                <p className="text-sm text-muted">
+                  Brisanje naloga je trajno i ne može se poništiti. Svi tvoji podaci, portfolio i recenzije će biti obrisani.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                if (confirm('Da li si siguran da želiš da obrišeš svoj nalog? Ova akcija je trajna i ne može se poništiti.')) {
+                  // In production, this would call API endpoint
+                  // await fetch('/api/creators/me', { method: 'DELETE' });
+                  // logout();
+                  // router.push('/');
+                  
+                  // Demo mode: show alert
+                  alert('Demo režim: U produkciji bi se nalog obrisao i korisnik bi bio odjavljen.');
+                }
+              }}
+              className="px-6 py-3 border border-error text-error rounded-xl font-medium hover:bg-error/10 transition-colors"
+            >
+              Obriši nalog
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -850,6 +1196,21 @@ function BusinessDashboard() {
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const [visibleReviews, setVisibleReviews] = useState(3); // Number of reviews to show initially
   const [viewingReview, setViewingReview] = useState<Review | null>(null); // For viewing full review in modal
+  
+  // Company info editing state
+  const [editingCompany, setEditingCompany] = useState(false);
+  const [companyName, setCompanyName] = useState('');
+  const [website, setWebsite] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [description, setDescription] = useState('');
+
+  // Initialize state from currentUser when component mounts or user changes
+  useEffect(() => {
+    setCompanyName(currentUser.companyName || '');
+    setWebsite(currentUser.website || '');
+    setIndustry(currentUser.industry || '');
+    setDescription(currentUser.description || '');
+  }, [currentUser]);
   
   // Get recently viewed creators
   const recentCreators = getRecentlyViewedCreators(3);
@@ -890,6 +1251,33 @@ function BusinessDashboard() {
     // Demo mode: show message
     setShowPortalMessage(true);
     setTimeout(() => setShowPortalMessage(false), 3000);
+  };
+
+  // Pencil icon component for editing
+  const PencilButton = ({ onClick, editing }: { onClick: () => void; editing?: boolean }) => (
+    <button
+      onClick={onClick}
+      className={`p-2 rounded-lg transition-colors ${editing ? 'bg-primary text-white' : 'hover:bg-secondary text-muted hover:text-foreground'}`}
+      title="Uredi"
+    >
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+      </svg>
+    </button>
+  );
+
+  // Handle save company info
+  const handleSaveCompanyInfo = () => {
+    // In production, this would call API endpoint
+    // await fetch('/api/businesses', { 
+    //   method: 'PUT', 
+    //   body: JSON.stringify({ companyName, website, industry, description }) 
+    // });
+    
+    // Demo mode: update currentUser through context (would need to add updateBusiness function)
+    // For now, just close edit mode
+    setEditingCompany(false);
+    // TODO: Integrate with DemoContext to persist changes
   };
 
   return (
@@ -953,6 +1341,132 @@ function BusinessDashboard() {
                 </div>
               </div>
 
+            </div>
+
+            {/* Company Information */}
+            <div className="bg-white rounded-2xl p-6 border border-border">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-medium">Informacije o kompaniji</h2>
+                <PencilButton onClick={() => setEditingCompany(!editingCompany)} editing={editingCompany} />
+              </div>
+              
+              {editingCompany ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm text-muted mb-2 block">Ime kompanije</label>
+                    <input
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm text-muted mb-2 block">Website</label>
+                    <input
+                      type="url"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      placeholder="https://www.example.com"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm text-muted mb-2 block">Industrija</label>
+                    <select
+                      value={industry}
+                      onChange={(e) => setIndustry(e.target.value)}
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                    >
+                      <option value="">Izaberi industriju</option>
+                      <option value="beauty">Beauty & Kozmetika</option>
+                      <option value="fashion">Moda</option>
+                      <option value="tech">Tehnologija</option>
+                      <option value="food">Hrana & Piće</option>
+                      <option value="fitness">Fitness & Zdravlje</option>
+                      <option value="travel">Putovanja</option>
+                      <option value="finance">Finansije</option>
+                      <option value="other">Drugo</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm text-muted mb-2 block">O kompaniji</label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary resize-none"
+                      placeholder="Napiši nešto o svojoj kompaniji..."
+                    />
+                    <p className="text-xs text-muted mt-1 text-right">{description.length} karaktera</p>
+                  </div>
+                  
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      onClick={() => {
+                        setCompanyName(currentUser.companyName || '');
+                        setWebsite(currentUser.website || '');
+                        setIndustry(currentUser.industry || '');
+                        setDescription(currentUser.description || '');
+                        setEditingCompany(false);
+                      }}
+                      className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-secondary transition-colors"
+                    >
+                      Otkaži
+                    </button>
+                    <button
+                      onClick={handleSaveCompanyInfo}
+                      className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      Sačuvaj
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-muted">Ime kompanije</p>
+                    <p className="font-medium">{companyName || currentUser.companyName || 'Nije uneto'}</p>
+                  </div>
+                  
+                  {(website || currentUser.website) && (
+                    <div>
+                      <p className="text-sm text-muted">Website</p>
+                      <a 
+                        href={website || currentUser.website || '#'} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-primary hover:underline"
+                      >
+                        {website || currentUser.website}
+                      </a>
+                    </div>
+                  )}
+                  
+                  {(industry || currentUser.industry) && (
+                    <div>
+                      <p className="text-sm text-muted">Industrija</p>
+                      <p className="font-medium capitalize">
+                        {industry || currentUser.industry}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {(description || currentUser.description) && (
+                    <div>
+                      <p className="text-sm text-muted mb-2">O kompaniji</p>
+                      <p className="text-muted leading-relaxed">{description || currentUser.description}</p>
+                    </div>
+                  )}
+                  
+                  {!description && !currentUser.description && !website && !currentUser.website && !industry && !currentUser.industry && (
+                    <p className="text-muted text-sm italic">Nema dodatnih informacija o kompaniji.</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Recent creators */}
@@ -1149,19 +1663,19 @@ function BusinessDashboard() {
                   href="/kreatori"
                   className="block w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-accent transition-colors text-sm"
                 >
-                  🔍 Pretraži kreatore
+                  Pretraži kreatore
                 </Link>
                 <Link 
                   href="/dashboard/favorites"
                   className="block w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-accent transition-colors text-sm"
                 >
-                  ❤️ Sačuvani kreatori
+                  Sačuvani kreatori
                 </Link>
                 <Link 
                   href="/dashboard/settings"
                   className="block w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-accent transition-colors text-sm"
                 >
-                  ⚙️ Podešavanja naloga
+                  Podešavanja naloga
                 </Link>
               </div>
             </div>
@@ -1292,6 +1806,36 @@ function BusinessDashboard() {
           </div>
         </div>
       )}
+
+      {/* Delete Account Section */}
+      <div className="mt-12 pt-8 border-t border-border">
+        <div className="bg-white rounded-2xl p-6 border border-error/20">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="font-medium text-error mb-1">Opasna zona</h3>
+              <p className="text-sm text-muted">
+                Brisanje naloga je trajno i ne može se poništiti. Svi tvoji podaci, pretplata i recenzije će biti obrisani.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              if (confirm('Da li si siguran da želiš da obrišeš svoj nalog? Ova akcija je trajna i ne može se poništiti.')) {
+                // In production, this would call API endpoint
+                // await fetch('/api/businesses/me', { method: 'DELETE' });
+                // logout();
+                // router.push('/');
+                
+                // Demo mode: show alert
+                alert('Demo režim: U produkciji bi se nalog obrisao i korisnik bi bio odjavljen.');
+              }
+            }}
+            className="px-6 py-3 border border-error text-error rounded-xl font-medium hover:bg-error/10 transition-colors"
+          >
+            Obriši nalog
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

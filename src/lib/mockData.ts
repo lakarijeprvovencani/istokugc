@@ -22,6 +22,8 @@ export interface Creator {
   email: string;
   phone?: string;
   instagram?: string;
+  tiktok?: string;
+  youtube?: string;
   approved: boolean;
   status?: CreatorStatus; // 'pending' | 'approved' | 'deactivated'
   createdAt: string;
@@ -31,6 +33,9 @@ export interface Business {
   id: string;
   companyName: string;
   email: string;
+  description?: string;
+  website?: string;
+  industry?: string;
   subscriptionType: 'monthly' | 'yearly' | null;
   subscriptionStatus: 'active' | 'expired' | 'none';
   subscribedAt?: string;
@@ -314,6 +319,9 @@ export interface DemoUser {
   // Business-specific fields (for future Supabase integration)
   businessId?: string;
   companyName?: string;
+  website?: string;
+  industry?: string;
+  description?: string;
   subscriptionStatus?: 'active' | 'expired' | 'cancelled';
   subscriptionPlan?: 'monthly' | 'yearly';
   subscriptionExpiresAt?: string;
@@ -351,6 +359,9 @@ export const demoUsers: Record<UserType, DemoUser> = {
     email: 'marketing@techstart.rs',
     businessId: 'b1', // Links to mockBusinesses[0]
     companyName: 'TechStart d.o.o.',
+    website: 'https://techstart.rs',
+    industry: 'tech',
+    description: 'TechStart je inovativna kompanija koja se bavi razvojem softverskih rešenja i digitalnim transformacijama. Specijalizovani smo za kreiranje custom aplikacija koje pomažu biznisima da rastu i uspeju u digitalnom svetu.',
     subscriptionStatus: 'active',
     subscriptionPlan: 'yearly',
     // Dynamic date: 1 year from now for yearly plan

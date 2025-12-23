@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDemo } from '@/context/DemoContext';
 import { categories, platforms, languages } from '@/lib/mockData';
+import Image from 'next/image';
 
 export default function RegisterCreatorPage() {
   const router = useRouter();
@@ -22,8 +23,13 @@ export default function RegisterCreatorPage() {
     platforms: [] as string[],
     languages: [] as string[],
     instagram: '',
+    tiktok: '',
+    youtube: '',
     phone: '',
+    photo: null as File | null,
   });
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCategoryToggle = (category: string) => {
     setFormData(prev => ({
@@ -52,8 +58,41 @@ export default function RegisterCreatorPage() {
     }));
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      alert('Molimo izaberite sliku');
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Slika je prevelika. Maksimalna veličina je 5MB.');
+      return;
+    }
+
+    setFormData(prev => ({ ...prev, photo: file }));
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPhotoPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate photo on step 1
+    if (step === 1 && !formData.photo) {
+      alert('Molimo izaberite profilnu sliku');
+      return;
+    }
+    
     if (step < 3) {
       setStep(step + 1);
     } else {
@@ -93,6 +132,49 @@ export default function RegisterCreatorPage() {
           {step === 1 && (
             <div className="space-y-6">
               <h2 className="text-xl font-medium mb-6">Osnovne informacije</h2>
+              
+              {/* Profile Photo Upload */}
+              <div>
+                <label className="text-sm text-muted mb-2 block">Profilna slika *</label>
+                <div className="flex items-center gap-6">
+                  <div className="w-24 h-24 rounded-full overflow-hidden relative border-2 border-border flex-shrink-0">
+                    {photoPreview ? (
+                      <Image
+                        src={photoPreview}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-secondary flex items-center justify-center text-muted">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 border border-border rounded-xl text-sm hover:bg-secondary transition-colors"
+                    >
+                      {photoPreview ? 'Promeni sliku' : 'Izaberi sliku'}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoSelect}
+                      className="hidden"
+                    />
+                    <p className="text-xs text-muted mt-2">
+                      Kvadratna slika, preporučeno 400x400px. Maksimalna veličina: 5MB
+                    </p>
+                  </div>
+                </div>
+              </div>
               
               <div>
                 <label className="text-sm text-muted mb-2 block">Ime i prezime *</label>
@@ -248,6 +330,28 @@ export default function RegisterCreatorPage() {
                   value={formData.instagram}
                   onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
                   placeholder="@tvojhandle"
+                  className="w-full px-5 py-4 border border-border rounded-xl focus:outline-none focus:border-muted"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-muted mb-2 block">TikTok handle</label>
+                <input
+                  type="text"
+                  value={formData.tiktok}
+                  onChange={(e) => setFormData({ ...formData, tiktok: e.target.value })}
+                  placeholder="@tvojhandle"
+                  className="w-full px-5 py-4 border border-border rounded-xl focus:outline-none focus:border-muted"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-muted mb-2 block">YouTube kanal</label>
+                <input
+                  type="text"
+                  value={formData.youtube}
+                  onChange={(e) => setFormData({ ...formData, youtube: e.target.value })}
+                  placeholder="@tvojkanal ili URL kanala"
                   className="w-full px-5 py-4 border border-border rounded-xl focus:outline-none focus:border-muted"
                 />
               </div>

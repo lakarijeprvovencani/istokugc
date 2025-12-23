@@ -31,8 +31,12 @@ src/
     ├── auth/route.ts         # ✅ Auth placeholder
     ├── creators/
     │   ├── route.ts          # ✅ GET/POST kreatori
-    │   └── [id]/route.ts     # ✅ GET/PUT/DELETE kreator
-    ├── businesses/route.ts   # ✅ GET/POST biznisi
+    │   ├── [id]/route.ts     # ✅ GET/PUT/DELETE kreator
+    │   ├── [id]/photo/       # ✅ POST upload profilne slike
+    │   └── me/delete/         # ✅ DELETE brisanje profila
+    ├── businesses/
+    │   ├── route.ts          # ✅ GET/POST biznisi
+    │   └── me/delete/         # ✅ DELETE brisanje profila
     ├── reviews/
     │   ├── route.ts          # ✅ GET/POST recenzije
     │   └── [id]/
@@ -118,6 +122,8 @@ model Creator {
   email         String
   phone         String?
   instagram     String?
+  tiktok        String?
+  youtube       String?
   
   status        CreatorStatus  @default(PENDING)
   approved      Boolean        @default(false)
@@ -161,6 +167,7 @@ model Business {
   
   companyName       String
   email             String
+  description       String?        // Opis kompanije
   website           String?
   industry          String?
   
@@ -466,6 +473,13 @@ Komponente koje koriste `useDemo()` treba da koriste:
 ### Database
 - [ ] Aktiviraj Prisma u db.ts
 - [ ] Ažuriraj sve API routes
+- [ ] Dodaj `description` polje u Business model
+
+### Storage (Supabase Storage)
+- [ ] Kreiraj Storage bucket `creator-photos`
+- [ ] Konfiguriši CORS za bucket
+- [ ] Aktiviraj `/api/creators/[id]/photo` endpoint
+- [ ] Testiraj upload profilnih slika
 
 ### Stripe
 - [ ] Kreiraj Stripe products/prices
@@ -476,6 +490,9 @@ Komponente koje koriste `useDemo()` treba da koriste:
 - [ ] Zameni DemoContext pozive
 - [ ] Aktiviraj middleware
 - [ ] Testiraj sve funkcionalnosti
+- [ ] Testiraj upload profilnih slika
+- [ ] Testiraj promenu lozinke
+- [ ] Testiraj brisanje profila
 
 ### Final
 - [ ] Security audit

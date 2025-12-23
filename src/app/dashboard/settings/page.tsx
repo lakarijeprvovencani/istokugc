@@ -26,6 +26,14 @@ export default function SettingsPage() {
     promotions: false,
   });
 
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
   // Initialize form with current user data
   useEffect(() => {
     if (isHydrated) {
@@ -94,6 +102,60 @@ export default function SettingsPage() {
     }, 500);
   };
 
+  const handleChangePassword = () => {
+    setPasswordError('');
+    setPasswordSuccess(false);
+
+    // Validation
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError('Sva polja su obavezna');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      setPasswordError('Nova lozinka mora imati minimum 8 karaktera');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Nove lozinke se ne poklapaju');
+      return;
+    }
+
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
+      setPasswordError('Nova lozinka mora biti različita od trenutne');
+      return;
+    }
+
+    // In production, this would call API endpoint
+    // const response = await fetch('/api/settings/password', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({
+    //     currentPassword: passwordForm.currentPassword,
+    //     newPassword: passwordForm.newPassword,
+    //   }),
+    // });
+    // if (!response.ok) {
+    //   const error = await response.json();
+    //   setPasswordError(error.message || 'Greška pri promeni lozinke');
+    //   return;
+    // }
+
+    // Demo mode: simulate success
+    setIsSaving(true);
+    setTimeout(() => {
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+      setIsSaving(false);
+      setPasswordSuccess(true);
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    }, 500);
+  };
+
   const tabs = [
     { id: 'profile' as const, label: '👤 Profil', icon: '👤' },
     { id: 'notifications' as const, label: '🔔 Obaveštenja', icon: '🔔' },
@@ -120,6 +182,16 @@ export default function SettingsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
             <p className="text-sm text-success font-medium">Podešavanja su uspešno sačuvana!</p>
+          </div>
+        )}
+
+        {/* Password success message */}
+        {passwordSuccess && (
+          <div className="mb-6 bg-success/10 border border-success/20 rounded-xl p-4 flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-success">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+            <p className="text-sm text-success font-medium">Lozinka je uspešno promenjena!</p>
           </div>
         )}
 
@@ -362,6 +434,8 @@ export default function SettingsPage() {
                     <label className="block text-sm text-muted mb-2">Trenutna lozinka</label>
                     <input
                       type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                       className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
                       placeholder="••••••••"
                     />
@@ -370,6 +444,8 @@ export default function SettingsPage() {
                     <label className="block text-sm text-muted mb-2">Nova lozinka</label>
                     <input
                       type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                       className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
                       placeholder="••••••••"
                     />
@@ -379,24 +455,53 @@ export default function SettingsPage() {
                     <label className="block text-sm text-muted mb-2">Potvrdi novu lozinku</label>
                     <input
                       type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                       className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
                       placeholder="••••••••"
                     />
                   </div>
                 </div>
 
+                {passwordError && (
+                  <div className="bg-error/10 border border-error/20 rounded-xl p-4">
+                    <p className="text-sm text-error">{passwordError}</p>
+                  </div>
+                )}
+
                 <div className="pt-6 border-t border-border flex justify-end">
-                  <button className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors">
-                    Promeni lozinku
+                  <button 
+                    onClick={handleChangePassword}
+                    disabled={isSaving}
+                    className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {isSaving ? 'Čuvanje...' : 'Promeni lozinku'}
                   </button>
                 </div>
 
                 <div className="pt-6 border-t border-border">
                   <h3 className="font-medium text-error mb-2">Opasna zona</h3>
                   <p className="text-sm text-muted mb-4">
-                    Brisanje naloga je trajno i ne može se poništiti.
+                    Brisanje naloga je trajno i ne može se poništiti. Svi tvoji podaci će biti obrisani.
                   </p>
-                  <button className="px-6 py-3 border border-error text-error rounded-xl font-medium hover:bg-error/10 transition-colors">
+                  <button 
+                    onClick={() => {
+                      if (confirm('Da li si siguran da želiš da obrišeš svoj nalog? Ova akcija je trajna i ne može se poništiti.')) {
+                        // In production, this would call API endpoint
+                        // if (currentUser.type === 'creator') {
+                        //   await fetch('/api/creators/me', { method: 'DELETE' });
+                        // } else if (currentUser.type === 'business') {
+                        //   await fetch('/api/businesses/me', { method: 'DELETE' });
+                        // }
+                        // logout();
+                        // router.push('/');
+                        
+                        // Demo mode: show alert
+                        alert('Demo režim: U produkciji bi se nalog obrisao i korisnik bi bio odjavljen.');
+                      }
+                    }}
+                    className="px-6 py-3 border border-error text-error rounded-xl font-medium hover:bg-error/10 transition-colors"
+                  >
                     Obriši nalog
                   </button>
                 </div>

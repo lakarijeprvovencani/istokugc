@@ -52,6 +52,8 @@ export interface CreateCreatorInput {
   priceFrom: number;
   phone?: string;
   instagram?: string;
+  tiktok?: string;
+  youtube?: string;
 }
 
 export interface UpdateCreatorInput {
@@ -65,6 +67,8 @@ export interface UpdateCreatorInput {
   priceFrom?: number;
   phone?: string;
   instagram?: string;
+  tiktok?: string;
+  youtube?: string;
   status?: CreatorStatus;
   approved?: boolean;
 }
@@ -80,6 +84,9 @@ export interface Business {
   id: string;
   companyName: string;
   email: string;
+  description?: string;
+  website?: string;
+  industry?: string;
   subscriptionType: SubscriptionType | null;
   subscriptionStatus: SubscriptionStatus;
   subscribedAt?: string;
@@ -92,11 +99,17 @@ export interface CreateBusinessInput {
   companyName: string;
   email: string;
   password: string; // Za registraciju
+  description?: string;
+  website?: string;
+  industry?: string;
 }
 
 export interface UpdateBusinessInput {
   companyName?: string;
   email?: string;
+  description?: string;
+  website?: string;
+  industry?: string;
 }
 
 // ============================================

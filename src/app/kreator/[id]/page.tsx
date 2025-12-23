@@ -228,6 +228,22 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                         <span className="text-sm">{creator.instagram}</span>
                       </div>
                     )}
+                    {creator.tiktok && (
+                      <div className="flex items-center gap-3">
+                        <svg className="w-5 h-5 text-muted" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                        </svg>
+                        <span className="text-sm">{creator.tiktok}</span>
+                      </div>
+                    )}
+                    {creator.youtube && (
+                      <div className="flex items-center gap-3">
+                        <svg className="w-5 h-5 text-muted" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                        </svg>
+                        <span className="text-sm">{creator.youtube}</span>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>
@@ -600,7 +616,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                 </div>
                 
                 {/* Review button for business users */}
-                {currentUser.type === 'business' && !hasBusinessReviewedCreator('b1', creator.id) && !showReviewForm && (
+                {currentUser.type === 'business' && !hasBusinessReviewedCreator(currentUser.businessId || 'b1', creator.id) && !showReviewForm && (
                   <button
                     onClick={() => setShowReviewForm(true)}
                     className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
@@ -650,7 +666,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
               )}
 
               {/* Business's existing review notice */}
-              {currentUser.type === 'business' && hasBusinessReviewedCreator('b1', creator.id) && (
+              {currentUser.type === 'business' && hasBusinessReviewedCreator(currentUser.businessId || 'b1', creator.id) && (
                 <div className="mb-6 bg-secondary rounded-xl p-4 flex items-center gap-3">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-muted">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
@@ -658,7 +674,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                   <p className="text-sm text-muted">
                     Već ste ostavili recenziju za ovog kreatora. 
                     {(() => {
-                      const review = getBusinessReviewForCreator('b1', creator.id);
+                      const review = getBusinessReviewForCreator(currentUser.businessId || 'b1', creator.id);
                       if (review?.status === 'pending') {
                         return ' Vaša recenzija čeka odobrenje.';
                       }
@@ -676,7 +692,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                     <div className="text-center py-12 bg-secondary/30 rounded-2xl">
                       <div className="text-4xl mb-4">📝</div>
                       <p className="text-muted">Još uvek nema recenzija za ovog kreatora.</p>
-                      {currentUser.type === 'business' && !hasBusinessReviewedCreator('b1', creator.id) && (
+                      {currentUser.type === 'business' && !hasBusinessReviewedCreator(currentUser.businessId || 'b1', creator.id) && (
                         <button
                           onClick={() => setShowReviewForm(true)}
                           className="mt-4 text-sm text-primary hover:underline"
@@ -796,6 +812,24 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                     type="text"
                     value={editedCreator.instagram || ''}
                     onChange={(e) => setEditedCreator({ ...editedCreator, instagram: e.target.value })}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-muted mb-2">TikTok</label>
+                  <input
+                    type="text"
+                    value={editedCreator.tiktok || ''}
+                    onChange={(e) => setEditedCreator({ ...editedCreator, tiktok: e.target.value })}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-muted mb-2">YouTube</label>
+                  <input
+                    type="text"
+                    value={editedCreator.youtube || ''}
+                    onChange={(e) => setEditedCreator({ ...editedCreator, youtube: e.target.value })}
                     className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
                   />
                 </div>

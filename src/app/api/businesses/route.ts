@@ -119,6 +119,9 @@ export async function POST(request: NextRequest) {
       id: `business_${Date.now()}`,
       companyName: body.companyName,
       email: body.email,
+      description: body.description,
+      website: body.website,
+      industry: body.industry,
       subscriptionType: null,
       subscriptionStatus: 'none',
     };
@@ -164,6 +167,9 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           companyName: body.companyName,
           email: body.email,
+          description: body.description,
+          website: body.website,
+          industry: body.industry,
           subscriptionStatus: 'NONE',
         },
       });

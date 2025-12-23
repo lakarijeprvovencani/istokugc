@@ -129,14 +129,8 @@ export default function FavoritesPage() {
                       ))}
                     </div>
 
-                    {/* Contact */}
-                    <div className="pt-4 border-t border-border flex items-center justify-between">
-                      <a 
-                        href={`mailto:${creator.email}`}
-                        className="text-sm text-primary hover:underline"
-                      >
-                        📧 Kontaktiraj
-                      </a>
+                    {/* Remove button */}
+                    <div className="pt-4 border-t border-border flex items-center justify-end">
                       <button
                         onClick={() => removeFromFavorites(creator.id)}
                         className="text-sm text-muted hover:text-error transition-colors flex items-center gap-1"

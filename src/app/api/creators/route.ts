@@ -198,6 +198,8 @@ export async function POST(request: NextRequest) {
       priceFrom: body.priceFrom || 0,
       phone: body.phone,
       instagram: body.instagram,
+      tiktok: body.tiktok,
+      youtube: body.youtube,
       portfolio: [],
       approved: false, // Novi kreatori čekaju odobrenje
       status: 'pending',
@@ -255,6 +257,8 @@ export async function POST(request: NextRequest) {
         priceFrom: body.priceFrom || 0,
         phone: body.phone,
         instagram: body.instagram,
+        tiktok: body.tiktok,
+        youtube: body.youtube,
         status: 'PENDING',
         approved: false,
       },
