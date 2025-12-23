@@ -1,21 +1,23 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useDemo } from '@/context/DemoContext';
 
 export default function Header() {
   const { currentUser, isLoggedIn, logout, isHydrated } = useDemo();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md z-50 border-b border-border">
-      <div className="max-w-7xl mx-auto px-6 lg:px-12">
-        <div className="flex items-center justify-between h-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+        <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo */}
-          <Link href="/" className="text-2xl font-medium tracking-tight">
+          <Link href="/" className="text-xl sm:text-2xl font-medium tracking-tight">
             UGC Select
           </Link>
 
-          {/* Navigation */}
+          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-10">
             <Link 
               href="/kreatori" 
@@ -25,10 +27,9 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Auth buttons */}
-          <div className="flex items-center gap-4">
+          {/* Desktop Auth buttons */}
+          <div className="hidden md:flex items-center gap-4">
             {!isHydrated ? (
-              // Show default state during SSR to prevent hydration mismatch
               <>
                 <Link 
                   href="/login" 
@@ -75,7 +76,133 @@ export default function Header() {
               </div>
             )}
           </div>
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 -mr-2 text-muted hover:text-foreground transition-colors"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-border">
+            {/* Navigation section */}
+            <div className="py-3 px-2">
+              <p className="px-3 py-2 text-xs font-medium text-muted uppercase tracking-wider">Navigacija</p>
+              <Link 
+                href="/kreatori"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-3 text-foreground hover:bg-secondary rounded-xl transition-colors"
+              >
+                <span className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </span>
+                <span className="font-medium">Kreatori</span>
+              </Link>
+            </div>
+            
+            {/* Divider */}
+            <div className="h-px bg-border mx-4" />
+            
+            {!isHydrated ? (
+              <div className="py-3 px-2">
+                <p className="px-3 py-2 text-xs font-medium text-muted uppercase tracking-wider">Nalog</p>
+                <Link 
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3 py-3 text-foreground hover:bg-secondary rounded-xl transition-colors"
+                >
+                  <span className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    </svg>
+                  </span>
+                  <span className="font-medium">Prijava</span>
+                </Link>
+                <Link 
+                  href="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 mx-3 mt-2 py-3 bg-primary text-white rounded-xl font-medium"
+                >
+                  Registracija
+                </Link>
+              </div>
+            ) : !isLoggedIn ? (
+              <div className="py-3 px-2">
+                <p className="px-3 py-2 text-xs font-medium text-muted uppercase tracking-wider">Nalog</p>
+                <Link 
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3 py-3 text-foreground hover:bg-secondary rounded-xl transition-colors"
+                >
+                  <span className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    </svg>
+                  </span>
+                  <span className="font-medium">Prijava</span>
+                </Link>
+                <Link 
+                  href="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 mx-3 mt-2 py-3 bg-primary text-white rounded-xl font-medium"
+                >
+                  Registracija
+                </Link>
+              </div>
+            ) : (
+              <div className="py-3 px-2">
+                <p className="px-3 py-2 text-xs font-medium text-muted uppercase tracking-wider">Tvoj nalog</p>
+                <Link 
+                  href={currentUser.type === 'admin' ? '/admin' : '/dashboard'}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3 py-3 hover:bg-secondary rounded-xl transition-colors"
+                >
+                  <span className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="font-medium text-foreground">{currentUser.name}</p>
+                    <p className="text-xs text-muted">Pogledaj profil</p>
+                  </div>
+                </Link>
+                
+                <div className="mt-2 pt-2 border-t border-border mx-3">
+                  <button 
+                    onClick={() => {
+                      logout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                  >
+                    <span className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </span>
+                    <span className="font-medium">Odjava</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

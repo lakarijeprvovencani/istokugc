@@ -8,6 +8,7 @@ import { mockCreators } from '@/lib/mockData';
 import ReviewCard from '@/components/ReviewCard';
 import { AverageRating } from '@/components/StarRating';
 import { generateReviewStats, Review } from '@/types/review';
+import PortfolioModal, { PortfolioItem } from '@/components/PortfolioModal';
 
 export default function DashboardPage() {
   const { currentUser } = useDemo();
@@ -46,6 +47,17 @@ function CreatorDashboard() {
   const [editingLanguages, setEditingLanguages] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
   
+  // Portfolio state
+  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(
+    creator.portfolio.map((item, index) => ({
+      id: `existing-${index}`,
+      type: item.type,
+      url: item.url,
+      thumbnail: item.thumbnail,
+    }))
+  );
+  
   // Editable form values
   const [bio, setBio] = useState(creator.bio);
   const [categories, setCategories] = useState<string[]>(creator.categories);
@@ -57,6 +69,17 @@ function CreatorDashboard() {
     instagram: creator.instagram || '',
     priceFrom: creator.priceFrom,
   });
+  
+  // Portfolio handlers
+  const handleAddPortfolioItem = (item: PortfolioItem) => {
+    setPortfolioItems([...portfolioItems, item]);
+    // In production: API call to save to database
+  };
+  
+  const handleRemovePortfolioItem = (id: string) => {
+    setPortfolioItems(portfolioItems.filter(item => item.id !== id));
+    // In production: API call to delete from database
+  };
   
   // Available options for multi-select
   const availableCategories = ['Beauty', 'Lifestyle', 'Fashion', 'Tech', 'Food', 'Travel', 'Fitness', 'Gaming', 'Music', 'Art'];
@@ -359,25 +382,77 @@ function CreatorDashboard() {
               <div className="bg-white rounded-2xl p-6 border border-border">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-lg font-medium">Portfolio</h2>
-                  <button className="text-sm text-primary hover:underline">
+                  <button 
+                    onClick={() => setShowPortfolioModal(true)}
+                    className="text-sm text-primary hover:underline"
+                  >
                     + Dodaj video
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-4">
-                  {creator.portfolio.map((item, index) => (
-                    <div key={index} className="aspect-[3/4] relative rounded-xl overflow-hidden">
-                      <Image src={item.thumbnail} alt="" fill className="object-cover" />
-                      <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded-full text-xs">
-                        {item.type}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {portfolioItems.map((item) => (
+                    <div key={item.id} className="aspect-[3/4] relative rounded-xl overflow-hidden group">
+                      {item.type === 'upload' && item.url.startsWith('data:video') ? (
+                        <video
+                          src={item.url}
+                          className="w-full h-full object-cover"
+                          muted
+                        />
+                      ) : (
+                        <Image 
+                          src={item.thumbnail} 
+                          alt="" 
+                          fill 
+                          className="object-cover" 
+                          unoptimized={item.thumbnail.startsWith('data:')}
+                        />
+                      )}
+                      <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded-full text-xs capitalize">
+                        {item.type === 'upload' ? '📤' : item.type}
                       </div>
+                      {/* Delete button on hover */}
+                      <button
+                        onClick={() => handleRemovePortfolioItem(item.id)}
+                        className="absolute bottom-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Obriši"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      {/* Link for external URLs */}
+                      {item.originalUrl && (
+                        <a
+                          href={item.originalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute bottom-2 left-2 bg-white/90 text-foreground p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Otvori original"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      )}
                     </div>
                   ))}
-                  <button className="aspect-[3/4] rounded-xl border-2 border-dashed border-border flex items-center justify-center text-muted hover:border-muted transition-colors">
-                    <span className="text-3xl">+</span>
+                  <button 
+                    onClick={() => setShowPortfolioModal(true)}
+                    className="aspect-[3/4] rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center text-muted hover:border-primary hover:text-primary transition-colors"
+                  >
+                    <span className="text-3xl mb-2">+</span>
+                    <span className="text-xs">Dodaj</span>
                   </button>
                 </div>
               </div>
+              
+              {/* Portfolio Modal */}
+              <PortfolioModal
+                isOpen={showPortfolioModal}
+                onClose={() => setShowPortfolioModal(false)}
+                onAdd={handleAddPortfolioItem}
+              />
             </div>
 
             {/* Sidebar */}
