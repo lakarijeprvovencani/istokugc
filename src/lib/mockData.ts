@@ -301,6 +301,22 @@ export interface DemoUser {
   subscriptionExpiresAt?: string;
 }
 
+// Helper functions for dynamic dates (used in demo mode)
+// In production, these would come from the database
+export function getSubscriptionExpiresAt(plan: 'monthly' | 'yearly'): string {
+  const now = new Date();
+  if (plan === 'yearly') {
+    now.setFullYear(now.getFullYear() + 1);
+  } else {
+    now.setMonth(now.getMonth() + 1);
+  }
+  return now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+}
+
+export function getSubscriptionStartDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 // Note: In production, all business users must have active subscription to use the app
 // Unpaid businesses are redirected to payment page
 export const demoUsers: Record<UserType, DemoUser> = {
@@ -319,7 +335,8 @@ export const demoUsers: Record<UserType, DemoUser> = {
     companyName: 'TechStart d.o.o.',
     subscriptionStatus: 'active',
     subscriptionPlan: 'yearly',
-    subscriptionExpiresAt: '2025-01-15',
+    // Dynamic date: 1 year from now for yearly plan
+    subscriptionExpiresAt: getSubscriptionExpiresAt('yearly'),
   },
   admin: { type: 'admin', name: 'Admin', email: 'admin@ugcselect.com' },
 };

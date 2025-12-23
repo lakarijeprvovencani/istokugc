@@ -442,7 +442,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     const newReview: Review = {
       id: `rev-${Date.now()}`,
       creatorId: input.creatorId,
-      businessId: currentUser.type === 'business' ? 'b1' : 'unknown', // Demo business ID
+      businessId: currentUser.type === 'business' ? (currentUser.businessId || 'b1') : 'unknown', // Uses businessId from user profile
       businessName: currentUser.companyName || currentUser.name,
       rating: input.rating,
       comment: input.comment,
