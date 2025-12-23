@@ -316,8 +316,11 @@ function CreatorDashboard() {
 // Note: All business users must have active subscription to access the app
 // Pricing/payment page will be shown during registration (via Stripe integration)
 function BusinessDashboard() {
-  const { currentUser } = useDemo();
+  const { currentUser, favorites, getReviewsByBusiness } = useDemo();
   const [showPortalMessage, setShowPortalMessage] = useState(false);
+  
+  // Get business reviews count
+  const businessReviews = getReviewsByBusiness('b1'); // Demo business ID
   
   // Demo subscription data (in production, this would come from database)
   const subscription = {
@@ -475,12 +478,12 @@ function BusinessDashboard() {
                   <span className="font-medium">34</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted">Kontaktiranih kreatora</span>
-                  <span className="font-medium">8</span>
+                  <span className="text-muted">Ostavljenih recenzija</span>
+                  <span className="font-medium">{businessReviews.length}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted">Sačuvanih kreatora</span>
-                  <span className="font-medium">12</span>
+                  <span className="font-medium">{favorites.length}</span>
                 </div>
               </div>
             </div>
@@ -495,12 +498,18 @@ function BusinessDashboard() {
                 >
                   🔍 Pretraži kreatore
                 </Link>
-                <button className="block w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-accent transition-colors text-sm">
+                <Link 
+                  href="/dashboard/favorites"
+                  className="block w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-accent transition-colors text-sm"
+                >
                   ❤️ Sačuvani kreatori
-                </button>
-                <button className="block w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-accent transition-colors text-sm">
+                </Link>
+                <Link 
+                  href="/dashboard/settings"
+                  className="block w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-accent transition-colors text-sm"
+                >
                   ⚙️ Podešavanja naloga
-                </button>
+                </Link>
               </div>
             </div>
 

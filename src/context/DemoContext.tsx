@@ -52,6 +52,15 @@ interface DemoContextType {
   updateCreator: (id: string, updates: Partial<Creator>) => void;
   deleteCreator: (id: string) => void;
   creatorModifications: Record<string, CreatorModification>;
+  // Favorites management
+  favorites: string[];
+  addToFavorites: (creatorId: string) => void;
+  removeFromFavorites: (creatorId: string) => void;
+  isFavorite: (creatorId: string) => boolean;
+  getFavoriteCreators: () => Creator[];
+  // Settings management
+  userSettings: UserSettings;
+  updateSettings: (settings: Partial<UserSettings>) => void;
   // Review management
   reviews: Review[];
   getReviewsForCreator: (creatorId: string, onlyApproved?: boolean) => Review[];
@@ -73,6 +82,38 @@ const DemoContext = createContext<DemoContextType | undefined>(undefined);
 const STORAGE_KEY = 'demoUserType';
 const CREATOR_MODS_KEY = 'creatorModifications';
 const REVIEWS_KEY = 'reviews';
+const FAVORITES_KEY = 'favoriteCreators';
+const SETTINGS_KEY = 'userSettings';
+
+// User settings interface
+export interface UserSettings {
+  notifications: {
+    email: boolean;
+    newCreators: boolean;
+    promotions: boolean;
+  };
+  profile: {
+    name: string;
+    email: string;
+    phone?: string;
+    companyName?: string;
+  };
+}
+
+// Default settings
+const defaultSettings: UserSettings = {
+  notifications: {
+    email: true,
+    newCreators: true,
+    promotions: false,
+  },
+  profile: {
+    name: '',
+    email: '',
+    phone: '',
+    companyName: '',
+  },
+};
 
 export function DemoProvider({ children }: { children: ReactNode }) {
   // Initialize with guest, will be updated by useEffect if localStorage has saved value
@@ -80,6 +121,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const [creatorModifications, setCreatorModifications] = useState<Record<string, CreatorModification>>({});
   const [reviews, setReviews] = useState<Review[]>(mockReviews);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [userSettings, setUserSettings] = useState<UserSettings>(defaultSettings);
 
   // Load saved data from localStorage on mount
   useEffect(() => {
@@ -107,6 +150,26 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           setReviews(JSON.parse(savedReviews));
         } catch (e) {
           console.error('Failed to parse reviews:', e);
+        }
+      }
+      
+      // Load favorites
+      const savedFavorites = localStorage.getItem(FAVORITES_KEY);
+      if (savedFavorites) {
+        try {
+          setFavorites(JSON.parse(savedFavorites));
+        } catch (e) {
+          console.error('Failed to parse favorites:', e);
+        }
+      }
+      
+      // Load settings
+      const savedSettings = localStorage.getItem(SETTINGS_KEY);
+      if (savedSettings) {
+        try {
+          setUserSettings(JSON.parse(savedSettings));
+        } catch (e) {
+          console.error('Failed to parse settings:', e);
         }
       }
       
@@ -151,6 +214,70 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     if (currentUser.type !== 'creator') return undefined;
     return currentUser.creatorId;
   };
+
+  // ============================================
+  // FAVORITES MANAGEMENT
+  // ============================================
+
+  // Save favorites to localStorage
+  const saveFavorites = (newFavorites: string[]) => {
+    setFavorites(newFavorites);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(newFavorites));
+    }
+  };
+
+  // Add creator to favorites
+  const addToFavorites = (creatorId: string) => {
+    if (!favorites.includes(creatorId)) {
+      saveFavorites([...favorites, creatorId]);
+    }
+  };
+
+  // Remove creator from favorites
+  const removeFromFavorites = (creatorId: string) => {
+    saveFavorites(favorites.filter(id => id !== creatorId));
+  };
+
+  // Check if creator is in favorites
+  const isFavorite = (creatorId: string): boolean => {
+    return favorites.includes(creatorId);
+  };
+
+  // Get all favorite creators
+  const getFavoriteCreators = (): Creator[] => {
+    return favorites
+      .map(id => getCreatorById(id))
+      .filter((c): c is Creator => c !== undefined);
+  };
+
+  // ============================================
+  // SETTINGS MANAGEMENT
+  // ============================================
+
+  // Update user settings
+  const updateSettings = (newSettings: Partial<UserSettings>) => {
+    const updated = {
+      ...userSettings,
+      ...newSettings,
+      notifications: {
+        ...userSettings.notifications,
+        ...(newSettings.notifications || {}),
+      },
+      profile: {
+        ...userSettings.profile,
+        ...(newSettings.profile || {}),
+      },
+    };
+    setUserSettings(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+    }
+  };
+
+  // ============================================
+  // CREATOR MANAGEMENT
+  // ============================================
 
   // Get all creators with modifications applied
   const getCreators = (includeHidden = false): Creator[] => {
@@ -370,6 +497,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateCreator,
       deleteCreator,
       creatorModifications,
+      // Favorites management
+      favorites,
+      addToFavorites,
+      removeFromFavorites,
+      isFavorite,
+      getFavoriteCreators,
+      // Settings management
+      userSettings,
+      updateSettings,
       // Review management
       reviews,
       getReviewsForCreator,
