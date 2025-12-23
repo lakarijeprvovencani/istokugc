@@ -79,6 +79,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
   const [description, setDescription] = useState('');
   const [urlDescription, setUrlDescription] = useState(''); // Description for URL links
   const [selectedPlatform, setSelectedPlatform] = useState<'instagram' | 'tiktok' | 'youtube' | 'other'>('instagram');
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -122,10 +123,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
     resetAndClose();
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = (file: File) => {
     // Check file type
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm'];
     if (!validTypes.includes(file.type)) {
@@ -148,6 +146,34 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
       setUploadPreview(e.target?.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    processFile(file);
   };
 
   const handleUploadSubmit = () => {
@@ -181,6 +207,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
     setUrlDescription('');
     setSelectedPlatform('instagram');
     setActiveTab('url');
+    setIsDragging(false);
     onClose();
   };
 
@@ -203,7 +230,10 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
         {/* Tabs */}
         <div className="flex border-b border-border">
           <button
-            onClick={() => setActiveTab('url')}
+            onClick={() => {
+              setActiveTab('url');
+              setIsDragging(false);
+            }}
             className={`flex-1 py-4 text-sm font-medium transition-colors ${
               activeTab === 'url'
                 ? 'text-primary border-b-2 border-primary'
@@ -213,14 +243,17 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
             🔗 Link (URL)
           </button>
           <button
-            onClick={() => setActiveTab('upload')}
+            onClick={() => {
+              setActiveTab('upload');
+              setIsDragging(false);
+            }}
             className={`flex-1 py-4 text-sm font-medium transition-colors ${
               activeTab === 'upload'
                 ? 'text-primary border-b-2 border-primary'
                 : 'text-muted hover:text-foreground'
             }`}
           >
-            📤 Upload fajl
+            📤 Dodaj fajl
           </button>
         </div>
 
@@ -316,7 +349,14 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
               {/* Upload area */}
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-muted transition-colors"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                  isDragging 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border hover:border-muted'
+                }`}
               >
                 {uploadPreview ? (
                   <div className="space-y-4">
@@ -345,7 +385,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd }: PortfolioModa
                   <>
                     <div className="text-4xl mb-4">📁</div>
                     <p className="font-medium mb-2">
-                      Kliknite ili prevucite fajl
+                      {isDragging ? 'Spustite fajl ovde' : 'Kliknite ili prevucite fajl'}
                     </p>
                     <p className="text-sm text-muted">
                       Slike (JPG, PNG, GIF, WebP) ili Video (MP4, MOV, WebM)

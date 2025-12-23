@@ -51,6 +51,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [activeVideo, setActiveVideo] = useState<{url: string; type: string; originalUrl?: string; description?: string} | null>(null);
+  const [activeImage, setActiveImage] = useState<{url: string; type: string; originalUrl?: string; description?: string} | null>(null);
   const [portfolioDetail, setPortfolioDetail] = useState<{url: string; type: string; description?: string; platform?: string} | null>(null);
   
   // Update state after hydration - only run once when hydrated
@@ -375,34 +376,64 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                     other: 'Ostalo'
                   };
                   
+                  // Check if item is a video or image
+                  const isVideo = item.type === 'youtube' || 
+                                 item.type === 'instagram' || 
+                                 item.type === 'tiktok' ||
+                                 (item.type === 'upload' && item.url.includes('video'));
+                  const isImage = !isVideo;
+                  
                   return (
                     <div key={index} className="flex flex-col">
                       <div 
-                        className="group relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer"
-                        onClick={() => setActiveVideo({
-                          url: item.url,
-                          type: item.type,
-                          originalUrl: item.url,
-                          description: item.description
-                        })}
+                        className={`group relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer ${isImage ? 'hover:scale-105 transition-transform duration-300' : ''}`}
+                        onClick={() => {
+                          if (isVideo) {
+                            setActiveVideo({
+                              url: item.url,
+                              type: item.type,
+                              originalUrl: item.url,
+                              description: item.description
+                            });
+                          } else {
+                            setActiveImage({
+                              url: item.url,
+                              type: item.type,
+                              originalUrl: item.url,
+                              description: item.description
+                            });
+                          }
+                        }}
                       >
                         <Image
                           src={item.thumbnail}
                           alt={`Portfolio ${index + 1}`}
                           fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          className={`object-cover ${isImage ? 'group-hover:scale-110 transition-transform duration-300' : 'group-hover:scale-105 transition-transform duration-500'}`}
                         />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          {/* Play button */}
-                          <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center">
-                            <svg className="w-7 h-7 text-foreground ml-1" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
+                        {/* Hover overlay - different for video vs image */}
+                        {isVideo ? (
+                          // Play button for videos
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center">
+                              <svg className="w-7 h-7 text-foreground ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          // Zoom indicator for images
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                              <svg className="w-6 h-6 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
                         {/* Platform badge - text only */}
-                        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                          <span className="text-xs font-medium">{platformLabels[displayPlatform] || displayPlatform}</span>
+                        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-medium">{platformLabels[displayPlatform] || displayPlatform}</span>
                         </div>
                       </div>
                       {/* Details button below image */}
@@ -448,6 +479,42 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
               originalUrl={activeVideo?.originalUrl}
               description={activeVideo?.description}
             />
+
+            {/* Image Zoom Modal */}
+            {activeImage && (
+              <div 
+                className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+                onClick={() => setActiveImage(null)}
+              >
+                <div 
+                  className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Image
+                    src={activeImage.url || activeImage.originalUrl || ''}
+                    alt={activeImage.description || 'Portfolio image'}
+                    fill
+                    className="object-contain"
+                    unoptimized
+                  />
+                  {/* Close button */}
+                  <button
+                    onClick={() => setActiveImage(null)}
+                    className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  {/* Description if available */}
+                  {activeImage.description && (
+                    <div className="absolute bottom-4 left-4 right-4 bg-black/60 text-white p-4 rounded-lg max-w-2xl">
+                      <p className="text-sm">{activeImage.description}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Portfolio Detail Modal */}
             {portfolioDetail && (
