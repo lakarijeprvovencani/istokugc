@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useDemo } from '@/context/DemoContext';
 
 export default function Header() {
-  const { currentUser, isLoggedIn, logout } = useDemo();
+  const { currentUser, isLoggedIn, logout, isHydrated } = useDemo();
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md z-50 border-b border-border">
@@ -27,7 +27,23 @@ export default function Header() {
 
           {/* Auth buttons */}
           <div className="flex items-center gap-4">
-            {!isLoggedIn ? (
+            {!isHydrated ? (
+              // Show default state during SSR to prevent hydration mismatch
+              <>
+                <Link 
+                  href="/login" 
+                  className="text-sm text-muted hover:text-foreground transition-colors"
+                >
+                  Prijava
+                </Link>
+                <Link 
+                  href="/register" 
+                  className="text-sm px-5 py-2.5 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors"
+                >
+                  Registracija
+                </Link>
+              </>
+            ) : !isLoggedIn ? (
               <>
                 <Link 
                   href="/login" 

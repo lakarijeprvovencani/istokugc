@@ -1,5 +1,7 @@
 // Mock data za demo
 
+export type CreatorStatus = 'pending' | 'approved' | 'deactivated';
+
 export interface Creator {
   id: string;
   name: string;
@@ -15,6 +17,7 @@ export interface Creator {
   phone?: string;
   instagram?: string;
   approved: boolean;
+  status?: CreatorStatus; // 'pending' | 'approved' | 'deactivated'
   createdAt: string;
 }
 

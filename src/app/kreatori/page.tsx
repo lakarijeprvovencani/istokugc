@@ -2,12 +2,15 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { mockCreators, categories, platforms, languages } from '@/lib/mockData';
+import { categories, platforms, languages } from '@/lib/mockData';
 import CreatorCard from '@/components/CreatorCard';
 import { useDemo } from '@/context/DemoContext';
 
 export default function KreatoriPage() {
-  const { currentUser, isLoggedIn } = useDemo();
+  const { currentUser, isLoggedIn, getCreators } = useDemo();
+  
+  // Get creators from context (filtered by status for non-admins)
+  const allCreators = getCreators(currentUser.type === 'admin');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedPlatform, setSelectedPlatform] = useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
@@ -18,8 +21,10 @@ export default function KreatoriPage() {
   const needsToPay = currentUser.type === 'business' && !currentUser.isPaid;
 
   const filteredCreators = useMemo(() => {
-    return mockCreators.filter((creator) => {
-      if (!creator.approved) return false;
+    return allCreators.filter((creator) => {
+      // For admins, show all (already filtered in getCreators)
+      // For others, only show approved (already handled in getCreators)
+      if (currentUser.type !== 'admin' && !creator.approved) return false;
       
       if (selectedCategory && !creator.categories.includes(selectedCategory)) return false;
       if (selectedPlatform && !creator.platforms.includes(selectedPlatform)) return false;
@@ -47,7 +52,7 @@ export default function KreatoriPage() {
 
       return true;
     });
-  }, [selectedCategory, selectedPlatform, selectedLanguage, priceRange, searchQuery]);
+  }, [allCreators, currentUser.type, selectedCategory, selectedPlatform, selectedLanguage, priceRange, searchQuery]);
 
   const clearFilters = () => {
     setSelectedCategory('');

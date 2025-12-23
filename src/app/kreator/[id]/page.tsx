@@ -1,15 +1,40 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { mockCreators } from '@/lib/mockData';
+import { Creator, CreatorStatus, categories, platforms, languages } from '@/lib/mockData';
 import { useDemo } from '@/context/DemoContext';
 
 export default function CreatorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const { currentUser, isLoggedIn } = useDemo();
-  const creator = mockCreators.find((c) => c.id === resolvedParams.id);
+  const { currentUser, isLoggedIn, isHydrated, getCreatorById, updateCreator, deleteCreator } = useDemo();
+  
+  // Get creator from context (with any saved modifications)
+  const savedCreator = getCreatorById(resolvedParams.id);
+  
+  // State for editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedCreator, setEditedCreator] = useState<Creator | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  
+  // Update editedCreator when savedCreator changes (after hydration) or when modal opens
+  useEffect(() => {
+    if (savedCreator) {
+      setEditedCreator(savedCreator);
+      setIsDeleted(false);
+    } else if (isHydrated) {
+      // Creator was deleted or doesn't exist
+      setIsDeleted(true);
+    }
+  }, [savedCreator, isHydrated]);
+  
+  // Use edited version if available, otherwise saved
+  const creator = editedCreator || savedCreator;
+  
+  const isAdmin = currentUser.type === 'admin';
 
   // Admin and paid business can see contact info
   const canSeeContact = currentUser.type === 'admin' || (currentUser.type === 'business' && currentUser.isPaid);
@@ -54,6 +79,35 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
           <Link href="/kreatori" className="text-muted hover:text-foreground">
             ← Nazad na listu
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Show deleted state
+  if (isDeleted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-secondary/30">
+        <div className="max-w-md mx-auto px-6 text-center">
+          <div className="bg-white rounded-3xl p-10 border border-border shadow-sm">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600">
+                <path d="M3 6h18"/>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+              </svg>
+            </div>
+            <h1 className="text-2xl font-medium mb-3">Profil obrisan</h1>
+            <p className="text-muted mb-8">
+              Profil kreatora <strong>{editedCreator?.name}</strong> je uspešno obrisan.
+            </p>
+            <Link 
+              href="/kreatori"
+              className="block w-full py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+            >
+              Nazad na kreatore
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -150,8 +204,29 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
           <div className="flex-1">
             {/* Header */}
             <div className="mb-10">
-              <h1 className="text-4xl lg:text-5xl font-light mb-3">{creator.name}</h1>
-              <p className="text-lg text-muted">{creator.location}</p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <h1 className="text-4xl lg:text-5xl font-light mb-3">{creator.name}</h1>
+                  <p className="text-lg text-muted">{creator.location}</p>
+                </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      if (savedCreator) {
+                        setEditedCreator(savedCreator);
+                      }
+                      setIsEditing(true);
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                      <path d="m15 5 4 4"/>
+                    </svg>
+                    Uredi
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Bio */}
@@ -242,6 +317,377 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
           </div>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {isEditing && editedCreator && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-border px-8 py-6 flex items-center justify-between">
+              <h2 className="text-2xl font-medium">Uredi kreatora</h2>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="p-2 hover:bg-secondary rounded-full transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-8 space-y-6">
+              {/* Basic Info */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm text-muted mb-2">Ime i prezime</label>
+                  <input
+                    type="text"
+                    value={editedCreator.name}
+                    onChange={(e) => setEditedCreator({ ...editedCreator, name: e.target.value })}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-muted mb-2">Lokacija</label>
+                  <input
+                    type="text"
+                    value={editedCreator.location}
+                    onChange={(e) => setEditedCreator({ ...editedCreator, location: e.target.value })}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label className="block text-sm text-muted mb-2">Biografija</label>
+                <textarea
+                  value={editedCreator.bio}
+                  onChange={(e) => setEditedCreator({ ...editedCreator, bio: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary resize-none"
+                />
+              </div>
+
+              {/* Contact Info */}
+              <div className="grid md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm text-muted mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={editedCreator.email}
+                    onChange={(e) => setEditedCreator({ ...editedCreator, email: e.target.value })}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-muted mb-2">Telefon</label>
+                  <input
+                    type="text"
+                    value={editedCreator.phone || ''}
+                    onChange={(e) => setEditedCreator({ ...editedCreator, phone: e.target.value })}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-muted mb-2">Instagram</label>
+                  <input
+                    type="text"
+                    value={editedCreator.instagram || ''}
+                    onChange={(e) => setEditedCreator({ ...editedCreator, instagram: e.target.value })}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Price */}
+              <div className="w-48">
+                <label className="block text-sm text-muted mb-2">Početna cena (€)</label>
+                <input
+                  type="number"
+                  value={editedCreator.priceFrom}
+                  onChange={(e) => setEditedCreator({ ...editedCreator, priceFrom: Number(e.target.value) })}
+                  className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* Categories */}
+              <div>
+                <label className="block text-sm text-muted mb-3">Kategorije</label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        const newCategories = editedCreator.categories.includes(cat)
+                          ? editedCreator.categories.filter((c) => c !== cat)
+                          : [...editedCreator.categories, cat];
+                        setEditedCreator({ ...editedCreator, categories: newCategories });
+                      }}
+                      className={`px-4 py-2 rounded-full text-sm transition-colors ${
+                        editedCreator.categories.includes(cat)
+                          ? 'bg-primary text-white'
+                          : 'bg-secondary hover:bg-accent'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Platforms */}
+              <div>
+                <label className="block text-sm text-muted mb-3">Platforme</label>
+                <div className="flex flex-wrap gap-2">
+                  {platforms.map((plat) => (
+                    <button
+                      key={plat}
+                      type="button"
+                      onClick={() => {
+                        const newPlatforms = editedCreator.platforms.includes(plat)
+                          ? editedCreator.platforms.filter((p) => p !== plat)
+                          : [...editedCreator.platforms, plat];
+                        setEditedCreator({ ...editedCreator, platforms: newPlatforms });
+                      }}
+                      className={`px-4 py-2 rounded-full text-sm transition-colors ${
+                        editedCreator.platforms.includes(plat)
+                          ? 'bg-primary text-white'
+                          : 'bg-secondary hover:bg-accent'
+                      }`}
+                    >
+                      {plat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Languages */}
+              <div>
+                <label className="block text-sm text-muted mb-3">Jezici</label>
+                <div className="flex flex-wrap gap-2">
+                  {languages.map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => {
+                        const newLanguages = editedCreator.languages.includes(lang)
+                          ? editedCreator.languages.filter((l) => l !== lang)
+                          : [...editedCreator.languages, lang];
+                        setEditedCreator({ ...editedCreator, languages: newLanguages });
+                      }}
+                      className={`px-4 py-2 rounded-full text-sm transition-colors ${
+                        editedCreator.languages.includes(lang)
+                          ? 'bg-primary text-white'
+                          : 'bg-secondary hover:bg-accent'
+                      }`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Photo URL */}
+              <div>
+                <label className="block text-sm text-muted mb-2">URL fotografije</label>
+                <input
+                  type="text"
+                  value={editedCreator.photo}
+                  onChange={(e) => setEditedCreator({ ...editedCreator, photo: e.target.value })}
+                  className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* Status */}
+              <div className="pt-6 border-t border-border">
+                <label className="block text-sm text-muted mb-3">Status profila</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                    className="w-full md:w-auto min-w-[200px] px-5 py-3 border border-border rounded-xl text-sm font-medium bg-white hover:bg-secondary transition-colors flex items-center justify-between gap-4"
+                  >
+                    <span className="flex items-center gap-2">
+                      {(editedCreator.status === 'approved' || (editedCreator.approved && !editedCreator.status)) && (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-primary"></span>
+                          Aktivan
+                        </>
+                      )}
+                      {(editedCreator.status === 'pending' || (!editedCreator.approved && !editedCreator.status && editedCreator.status !== 'deactivated')) && (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-muted"></span>
+                          Na čekanju
+                        </>
+                      )}
+                      {editedCreator.status === 'deactivated' && (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                          Deaktiviran
+                        </>
+                      )}
+                    </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`}>
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
+                  
+                  {showStatusDropdown && (
+                    <div className="absolute top-full left-0 mt-2 w-full md:w-auto min-w-[200px] bg-white border border-border rounded-xl shadow-lg overflow-hidden z-10">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditedCreator({ ...editedCreator, approved: true, status: 'approved' });
+                          setShowStatusDropdown(false);
+                        }}
+                        className={`w-full px-5 py-3 text-sm text-left hover:bg-secondary transition-colors flex items-center gap-3 ${
+                          (editedCreator.status === 'approved' || (editedCreator.approved && !editedCreator.status)) ? 'bg-secondary font-medium' : ''
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-primary"></span>
+                        Aktivan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditedCreator({ ...editedCreator, approved: false, status: 'pending' });
+                          setShowStatusDropdown(false);
+                        }}
+                        className={`w-full px-5 py-3 text-sm text-left hover:bg-secondary transition-colors flex items-center gap-3 ${
+                          editedCreator.status === 'pending' ? 'bg-secondary font-medium' : ''
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-muted"></span>
+                        Na čekanju
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditedCreator({ ...editedCreator, approved: false, status: 'deactivated' });
+                          setShowStatusDropdown(false);
+                        }}
+                        className={`w-full px-5 py-3 text-sm text-left hover:bg-secondary transition-colors flex items-center gap-3 ${
+                          editedCreator.status === 'deactivated' ? 'bg-secondary font-medium' : ''
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                        Deaktiviran
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted mt-3">
+                  {editedCreator.status === 'deactivated'
+                    ? 'Deaktivirani profili se ne prikazuju u pretrazi.'
+                    : editedCreator.status === 'pending' || (!editedCreator.approved && !editedCreator.status)
+                    ? 'Profil čeka odobrenje i nije vidljiv u pretrazi.'
+                    : 'Profil je aktivan i vidljiv u pretrazi.'}
+                </p>
+              </div>
+
+              {/* Delete Section */}
+              <div className="pt-6 border-t border-red-200 bg-red-50 -mx-8 px-8 pb-6 mt-6 rounded-b-3xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-red-800">Opasna zona</h3>
+                    <p className="text-xs text-red-600 mt-1">Brisanje profila je trajno i ne može se poništiti.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-5 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18"/>
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                      <line x1="10" y1="11" x2="10" y2="17"/>
+                      <line x1="14" y1="11" x2="14" y2="17"/>
+                    </svg>
+                    Obriši profil
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-white border-t border-border px-8 py-6 flex justify-end gap-4">
+              <button
+                onClick={() => {
+                  setEditedCreator(savedCreator || null);
+                  setIsEditing(false);
+                  setShowStatusDropdown(false);
+                }}
+                className="px-6 py-3 border border-border rounded-xl text-sm font-medium hover:bg-secondary transition-colors"
+              >
+                Otkaži
+              </button>
+              <button
+                onClick={() => {
+                  if (editedCreator) {
+                    // Save to context (persisted in localStorage)
+                    updateCreator(editedCreator.id, editedCreator);
+                    setIsEditing(false);
+                    setShowStatusDropdown(false);
+                  }
+                }}
+                className="px-6 py-3 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                Sačuvaj izmene
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600">
+                  <path d="M3 6h18"/>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-medium mb-2">Obriši profil?</h3>
+              <p className="text-muted mb-6">
+                Da li si siguran da želiš da obrišeš profil <strong>{editedCreator?.name}</strong>? Ova akcija se ne može poništiti.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-6 py-3 border border-border rounded-xl text-sm font-medium hover:bg-secondary transition-colors"
+                >
+                  Otkaži
+                </button>
+                <button
+                  onClick={() => {
+                    if (editedCreator) {
+                      // Delete from context (persisted in localStorage)
+                      deleteCreator(editedCreator.id);
+                      setShowDeleteConfirm(false);
+                      setIsEditing(false);
+                      setIsDeleted(true);
+                    }
+                  }}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors"
+                >
+                  Da, obriši
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
