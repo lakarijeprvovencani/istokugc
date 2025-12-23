@@ -58,6 +58,10 @@ interface DemoContextType {
   removeFromFavorites: (creatorId: string) => void;
   isFavorite: (creatorId: string) => boolean;
   getFavoriteCreators: () => Creator[];
+  // Recently viewed management
+  recentlyViewed: string[];
+  addToRecentlyViewed: (creatorId: string) => void;
+  getRecentlyViewedCreators: (limit?: number) => Creator[];
   // Settings management
   userSettings: UserSettings;
   updateSettings: (settings: Partial<UserSettings>) => void;
@@ -84,6 +88,7 @@ const CREATOR_MODS_KEY = 'creatorModifications';
 const REVIEWS_KEY = 'reviews';
 const FAVORITES_KEY = 'favoriteCreators';
 const SETTINGS_KEY = 'userSettings';
+const RECENTLY_VIEWED_KEY = 'recentlyViewedCreators';
 
 // User settings interface
 export interface UserSettings {
@@ -122,6 +127,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [creatorModifications, setCreatorModifications] = useState<Record<string, CreatorModification>>({});
   const [reviews, setReviews] = useState<Review[]>(mockReviews);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
   const [userSettings, setUserSettings] = useState<UserSettings>(defaultSettings);
 
   // Load saved data from localStorage on mount
@@ -160,6 +166,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           setFavorites(JSON.parse(savedFavorites));
         } catch (e) {
           console.error('Failed to parse favorites:', e);
+        }
+      }
+      
+      // Load recently viewed
+      const savedRecentlyViewed = localStorage.getItem(RECENTLY_VIEWED_KEY);
+      if (savedRecentlyViewed) {
+        try {
+          setRecentlyViewed(JSON.parse(savedRecentlyViewed));
+        } catch (e) {
+          console.error('Failed to parse recently viewed:', e);
         }
       }
       
@@ -247,6 +263,34 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   // Get all favorite creators
   const getFavoriteCreators = (): Creator[] => {
     return favorites
+      .map(id => getCreatorById(id))
+      .filter((c): c is Creator => c !== undefined);
+  };
+
+  // ============================================
+  // RECENTLY VIEWED MANAGEMENT
+  // ============================================
+
+  // Save recently viewed to localStorage
+  const saveRecentlyViewed = (newRecentlyViewed: string[]) => {
+    setRecentlyViewed(newRecentlyViewed);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(newRecentlyViewed));
+    }
+  };
+
+  // Add creator to recently viewed (max 10, most recent first)
+  const addToRecentlyViewed = (creatorId: string) => {
+    // Remove if already exists, then add to front
+    const filtered = recentlyViewed.filter(id => id !== creatorId);
+    const newList = [creatorId, ...filtered].slice(0, 10); // Keep max 10
+    saveRecentlyViewed(newList);
+  };
+
+  // Get recently viewed creators
+  const getRecentlyViewedCreators = (limit: number = 5): Creator[] => {
+    return recentlyViewed
+      .slice(0, limit)
       .map(id => getCreatorById(id))
       .filter((c): c is Creator => c !== undefined);
   };
@@ -503,6 +547,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       removeFromFavorites,
       isFavorite,
       getFavoriteCreators,
+      // Recently viewed management
+      recentlyViewed,
+      addToRecentlyViewed,
+      getRecentlyViewedCreators,
       // Settings management
       userSettings,
       updateSettings,

@@ -316,11 +316,11 @@ function CreatorDashboard() {
 // Note: All business users must have active subscription to access the app
 // Pricing/payment page will be shown during registration (via Stripe integration)
 function BusinessDashboard() {
-  const { currentUser, favorites, getReviewsByBusiness } = useDemo();
+  const { currentUser, getRecentlyViewedCreators } = useDemo();
   const [showPortalMessage, setShowPortalMessage] = useState(false);
   
-  // Get business reviews count
-  const businessReviews = getReviewsByBusiness('b1'); // Demo business ID
+  // Get recently viewed creators
+  const recentCreators = getRecentlyViewedCreators(3);
   
   // Demo subscription data (in production, this would come from database)
   const subscription = {
@@ -443,51 +443,42 @@ function BusinessDashboard() {
                 </Link>
               </div>
               
-              <div className="space-y-4">
-                {mockCreators.slice(0, 3).map((creator) => (
-                  <Link 
-                    key={creator.id} 
-                    href={`/kreator/${creator.id}`}
-                    className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary transition-colors"
-                  >
-                    <div className="w-14 h-14 rounded-full overflow-hidden relative flex-shrink-0">
-                      <Image src={creator.photo} alt={creator.name} fill className="object-cover" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium">{creator.name}</h3>
-                      <p className="text-sm text-muted">{creator.categories.join(', ')}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">€{creator.priceFrom}</p>
-                      <p className="text-sm text-muted">{creator.location}</p>
-                    </div>
+              {recentCreators.length > 0 ? (
+                <div className="space-y-4">
+                  {recentCreators.map((creator) => (
+                    <Link 
+                      key={creator.id} 
+                      href={`/kreator/${creator.id}`}
+                      className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary transition-colors"
+                    >
+                      <div className="w-14 h-14 rounded-full overflow-hidden relative flex-shrink-0">
+                        <Image src={creator.photo} alt={creator.name} fill className="object-cover" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium">{creator.name}</h3>
+                        <p className="text-sm text-muted">{creator.categories.join(', ')}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">€{creator.priceFrom}</p>
+                        <p className="text-sm text-muted">{creator.location}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted">
+                  <div className="text-3xl mb-2">👀</div>
+                  <p className="text-sm">Još uvek nisi pregledao nijednog kreatora.</p>
+                  <Link href="/kreatori" className="text-sm text-primary hover:underline mt-2 inline-block">
+                    Pretraži kreatore →
                   </Link>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Stats */}
-            <div className="bg-white rounded-2xl p-6 border border-border">
-              <h3 className="font-medium mb-4">Tvoja aktivnost</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-muted">Pregledanih profila</span>
-                  <span className="font-medium">34</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Ostavljenih recenzija</span>
-                  <span className="font-medium">{businessReviews.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Sačuvanih kreatora</span>
-                  <span className="font-medium">{favorites.length}</span>
-                </div>
-              </div>
-            </div>
-
             {/* Quick actions */}
             <div className="bg-white rounded-2xl p-6 border border-border">
               <h3 className="font-medium mb-4">Brze akcije</h3>

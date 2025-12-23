@@ -29,6 +29,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
     isFavorite,
     addToFavorites,
     removeFromFavorites,
+    addToRecentlyViewed,
   } = useDemo();
   
   // Get creator from context (with any saved modifications)
@@ -53,6 +54,10 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
       if (creator) {
         setEditedCreator(creator);
         setIsDeleted(false);
+        // Track as recently viewed (only for business users)
+        if (currentUser.type === 'business') {
+          addToRecentlyViewed(creator.id);
+        }
       } else {
         // Creator was deleted or doesn't exist
         setIsDeleted(true);

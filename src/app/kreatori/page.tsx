@@ -228,17 +228,47 @@ export default function KreatoriPage() {
               {/* Rating Filter */}
               <div className="mb-8">
                 <label className="text-sm text-muted mb-2 block">Minimalna ocena</label>
-                <select
-                  value={minRating}
-                  onChange={(e) => setMinRating(e.target.value)}
-                  className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-muted bg-white"
-                >
-                  <option value="">Sve ocene</option>
-                  <option value="4.5">⭐ 4.5+</option>
-                  <option value="4">⭐ 4.0+</option>
-                  <option value="3.5">⭐ 3.5+</option>
-                  <option value="3">⭐ 3.0+</option>
-                </select>
+                <div className="relative">
+                  <select
+                    value={minRating}
+                    onChange={(e) => setMinRating(e.target.value)}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-muted bg-white appearance-none"
+                  >
+                    <option value="">Sve ocene</option>
+                    <option value="5">5.0</option>
+                    <option value="4.5">4.5+</option>
+                    <option value="4">4.0+</option>
+                    <option value="3.5">3.5+</option>
+                    <option value="3">3.0+</option>
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+                {/* Rating preview with stars */}
+                {minRating && (
+                  <div className="mt-2 flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <svg
+                        key={star}
+                        viewBox="0 0 24 24"
+                        fill={star <= parseFloat(minRating) ? '#f59e0b' : 'none'}
+                        stroke={star <= parseFloat(minRating) ? '#f59e0b' : '#e5e5e5'}
+                        strokeWidth={2}
+                        className="w-4 h-4"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+                        />
+                      </svg>
+                    ))}
+                    <span className="text-sm text-muted ml-1">{minRating}+</span>
+                  </div>
+                )}
               </div>
 
               {/* Clear filters */}
