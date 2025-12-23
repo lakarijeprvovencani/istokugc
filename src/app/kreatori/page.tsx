@@ -235,11 +235,11 @@ export default function KreatoriPage() {
                     className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-muted bg-white appearance-none"
                   >
                     <option value="">Sve ocene</option>
-                    <option value="5">5.0</option>
-                    <option value="4.5">4.5+</option>
-                    <option value="4">4.0+</option>
-                    <option value="3.5">3.5+</option>
-                    <option value="3">3.0+</option>
+                    <option value="5">5.0 ⭐</option>
+                    <option value="4.5">4.5+ ⭐</option>
+                    <option value="4">4.0+ ⭐</option>
+                    <option value="3.5">3.5+ ⭐</option>
+                    <option value="3">3.0+ ⭐</option>
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                     <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
