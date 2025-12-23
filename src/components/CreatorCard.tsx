@@ -13,6 +13,10 @@ export default function CreatorCard({ creator }: CreatorCardProps) {
   const { currentUser } = useDemo();
   // Admin and paid business can see contact info
   const canSeeContact = currentUser.type === 'admin' || (currentUser.type === 'business' && currentUser.isPaid);
+  const isAdmin = currentUser.type === 'admin';
+  
+  // Determine status for display
+  const status = creator.status || (creator.approved ? 'approved' : 'pending');
 
   return (
     <Link href={`/kreator/${creator.id}`}>
@@ -27,6 +31,26 @@ export default function CreatorCard({ creator }: CreatorCardProps) {
           />
           {/* Overlay gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          
+          {/* Status badge - only visible to admin */}
+          {isAdmin && (
+            <div className={`absolute top-4 left-4 px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${
+              status === 'approved' 
+                ? 'bg-black text-white' 
+                : status === 'pending'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-red-100 text-red-700'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                status === 'approved' ? 'bg-green-400' :
+                status === 'pending' ? 'bg-amber-500' :
+                'bg-red-500'
+              }`}></span>
+              {status === 'approved' && 'Aktivan'}
+              {status === 'pending' && 'Na čekanju'}
+              {status === 'deactivated' && 'Neaktivan'}
+            </div>
+          )}
           
           {/* Price badge */}
           <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full">
