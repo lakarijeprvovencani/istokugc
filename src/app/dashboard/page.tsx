@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useDemo } from '@/context/DemoContext';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -179,11 +180,43 @@ function CreatorDashboard() {
 // Note: All business users must have active subscription to access the app
 // Pricing/payment page will be shown during registration (via Stripe integration)
 function BusinessDashboard() {
+  const { currentUser } = useDemo();
+  const [showPortalMessage, setShowPortalMessage] = useState(false);
+  
+  // Demo subscription data (in production, this would come from database)
+  const subscription = {
+    plan: currentUser.subscriptionPlan || 'yearly',
+    status: currentUser.subscriptionStatus || 'active',
+    expiresAt: currentUser.subscriptionExpiresAt || '2025-01-15',
+    price: currentUser.subscriptionPlan === 'monthly' ? '€49/mesec' : '€490/godina',
+  };
+
+  const handleManageSubscription = async () => {
+    // In production, this would redirect to Stripe Customer Portal
+    // const response = await fetch('/api/stripe/portal', { method: 'POST' });
+    // const { url } = await response.json();
+    // window.location.href = url;
+    
+    // Demo mode: show message
+    setShowPortalMessage(true);
+    setTimeout(() => setShowPortalMessage(false), 3000);
+  };
+
   return (
     <div className="min-h-screen bg-secondary/30">
       <div className="max-w-6xl mx-auto px-6 lg:px-12 py-12">
         <h1 className="text-3xl font-light mb-2">Dashboard</h1>
-        <p className="text-muted mb-10">Dobrodošao nazad</p>
+        <p className="text-muted mb-10">Dobrodošao nazad, {currentUser.companyName || currentUser.name}</p>
+
+        {/* Demo portal message */}
+        {showPortalMessage && (
+          <div className="mb-6 bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-center gap-3">
+            <span className="text-primary">ℹ️</span>
+            <p className="text-sm">
+              <strong>Demo režim:</strong> U produkciji, ovde bi se otvorio Stripe Customer Portal za upravljanje pretplatom.
+            </p>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main content */}
@@ -193,21 +226,54 @@ function BusinessDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-medium mb-1">Tvoja pretplata</h2>
-                  <p className="text-sm text-muted">Godišnji plan</p>
+                  <p className="text-sm text-muted">
+                    {subscription.plan === 'yearly' ? 'Godišnji' : 'Mesečni'} plan • {subscription.price}
+                  </p>
                 </div>
-                <span className="px-4 py-1.5 bg-success/10 text-success rounded-full text-sm">
-                  Aktivna
+                <span className={`px-4 py-1.5 rounded-full text-sm flex items-center gap-2 ${
+                  subscription.status === 'active' 
+                    ? 'bg-success/10 text-success' 
+                    : 'bg-error/10 text-error'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${
+                    subscription.status === 'active' ? 'bg-success' : 'bg-error'
+                  }`}></span>
+                  {subscription.status === 'active' ? 'Aktivna' : 'Istekla'}
                 </span>
               </div>
               
-              <div className="mt-6 pt-6 border-t border-border flex items-center justify-between">
+              <div className="mt-6 pt-6 border-t border-border grid sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted">Sledeće plaćanje</p>
-                  <p className="font-medium">15. januar 2025.</p>
+                  <p className="font-medium">
+                    {new Date(subscription.expiresAt).toLocaleDateString('sr-RS', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </p>
                 </div>
-                <button className="text-sm text-muted hover:text-foreground">
-                  Upravljaj pretplatom
-                </button>
+                <div className="sm:text-right">
+                  <button 
+                    onClick={handleManageSubscription}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Upravljaj pretplatom →
+                  </button>
+                </div>
+              </div>
+
+              {/* Subscription benefits */}
+              <div className="mt-6 pt-6 border-t border-border">
+                <p className="text-sm text-muted mb-3">Tvoj plan uključuje:</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-3 py-1 bg-secondary rounded-full text-xs">✓ Neograničena pretraga</span>
+                  <span className="px-3 py-1 bg-secondary rounded-full text-xs">✓ Kontakt info kreatora</span>
+                  <span className="px-3 py-1 bg-secondary rounded-full text-xs">✓ Email podrška</span>
+                  {subscription.plan === 'yearly' && (
+                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs">✓ Prioritetna podrška</span>
+                  )}
+                </div>
               </div>
             </div>
 
