@@ -55,6 +55,7 @@ function CreatorDashboard() {
     email: creator.email,
     phone: creator.phone || '',
     instagram: creator.instagram || '',
+    priceFrom: creator.priceFrom,
   });
   
   // Available options for multi-select
@@ -419,10 +420,20 @@ function CreatorDashboard() {
                         placeholder="@username"
                       />
                     </div>
+                    <div>
+                      <label className="block text-xs text-muted mb-1">Cena od (€)</label>
+                      <input
+                        type="number"
+                        value={contactInfo.priceFrom}
+                        onChange={(e) => setContactInfo({ ...contactInfo, priceFrom: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary"
+                        min="0"
+                      />
+                    </div>
                     <div className="flex gap-2 pt-2">
                       <button
                         onClick={() => { 
-                          setContactInfo({ email: creator.email, phone: creator.phone || '', instagram: creator.instagram || '' }); 
+                          setContactInfo({ email: creator.email, phone: creator.phone || '', instagram: creator.instagram || '', priceFrom: creator.priceFrom }); 
                           setEditingContact(false); 
                         }}
                         className="flex-1 px-3 py-2 text-xs border border-border rounded-lg hover:bg-secondary transition-colors"
@@ -450,6 +461,10 @@ function CreatorDashboard() {
                     <div className="flex justify-between">
                       <span className="text-muted">Instagram</span>
                       <span>{contactInfo.instagram || '—'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted">Cena od</span>
+                      <span>€{contactInfo.priceFrom}</span>
                     </div>
                   </div>
                 )}
@@ -485,41 +500,6 @@ function CreatorDashboard() {
                 )}
               </div>
 
-              {/* Categories */}
-              <div className="bg-white rounded-2xl p-6 border border-border">
-                <h3 className="font-medium mb-4">Kategorije</h3>
-                <div className="flex flex-wrap gap-2">
-                  {creator.categories.map((cat) => (
-                    <span key={cat} className="px-3 py-1.5 bg-secondary rounded-full text-sm">
-                      {cat}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Platforms */}
-              <div className="bg-white rounded-2xl p-6 border border-border">
-                <h3 className="font-medium mb-4">Platforme</h3>
-                <div className="flex flex-wrap gap-2">
-                  {creator.platforms.map((plat) => (
-                    <span key={plat} className="px-3 py-1.5 bg-secondary rounded-full text-sm">
-                      {plat}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Languages */}
-              <div className="bg-white rounded-2xl p-6 border border-border">
-                <h3 className="font-medium mb-4">Jezici</h3>
-                <div className="flex flex-wrap gap-2">
-                  {creator.languages.map((lang) => (
-                    <span key={lang} className="px-3 py-1.5 bg-secondary rounded-full text-sm">
-                      {lang}
-                    </span>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         )}
