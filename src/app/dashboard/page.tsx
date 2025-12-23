@@ -39,11 +39,65 @@ function CreatorDashboard() {
   const { getReviewsForCreator, addReplyToReview } = useDemo();
   const [activeTab, setActiveTab] = useState<'overview' | 'reviews'>('overview');
   
+  // Inline editing states for each section
+  const [editingBio, setEditingBio] = useState(false);
+  const [editingCategories, setEditingCategories] = useState(false);
+  const [editingPlatforms, setEditingPlatforms] = useState(false);
+  const [editingLanguages, setEditingLanguages] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
+  
+  // Editable form values
+  const [bio, setBio] = useState(creator.bio);
+  const [categories, setCategories] = useState<string[]>(creator.categories);
+  const [platforms, setPlatforms] = useState<string[]>(creator.platforms);
+  const [languages, setLanguages] = useState<string[]>(creator.languages);
+  const [contactInfo, setContactInfo] = useState({
+    email: creator.email,
+    phone: creator.phone || '',
+    instagram: creator.instagram || '',
+  });
+  
+  // Available options for multi-select
+  const availableCategories = ['Beauty', 'Lifestyle', 'Fashion', 'Tech', 'Food', 'Travel', 'Fitness', 'Gaming', 'Music', 'Art'];
+  const availablePlatforms = ['Instagram', 'TikTok', 'YouTube', 'Twitter', 'LinkedIn', 'Facebook'];
+  const availableLanguages = ['Srpski', 'Engleski', 'Nemački', 'Francuski', 'Španski', 'Italijanski'];
+  
   // Get reviews for this creator
   const allReviews = getReviewsForCreator(creator.id, false); // Include pending
   const approvedReviews = allReviews.filter(r => r.status === 'approved');
   const pendingReviews = allReviews.filter(r => r.status === 'pending');
   const stats = generateReviewStats(allReviews);
+
+  // Pencil icon component
+  const PencilButton = ({ onClick, editing }: { onClick: () => void; editing?: boolean }) => (
+    <button
+      onClick={onClick}
+      className={`p-2 rounded-lg transition-colors ${editing ? 'bg-primary text-white' : 'hover:bg-secondary text-muted hover:text-foreground'}`}
+      title="Uredi"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+      </svg>
+    </button>
+  );
+
+  const handleSaveSection = (section: string) => {
+    console.log(`📝 [DEMO] ${section} would be updated`);
+    // Close editing mode
+    if (section === 'bio') setEditingBio(false);
+    if (section === 'categories') setEditingCategories(false);
+    if (section === 'platforms') setEditingPlatforms(false);
+    if (section === 'languages') setEditingLanguages(false);
+    if (section === 'contact') setEditingContact(false);
+  };
+
+  const toggleArrayItem = (arr: string[], item: string, setArr: (arr: string[]) => void) => {
+    if (arr.includes(item)) {
+      setArr(arr.filter(i => i !== item));
+    } else {
+      setArr([...arr, item]);
+    }
+  };
 
   const tabs = [
     { id: 'overview' as const, label: 'Pregled', count: null },
@@ -103,26 +157,196 @@ function CreatorDashboard() {
                     <p className="text-sm text-muted mt-1">Od €{creator.priceFrom} po projektu</p>
                   </div>
                 </div>
+              </div>
 
-                <div className="mt-6 pt-6 border-t border-border">
-                  <Link 
-                    href="#"
-                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-                  >
-                    Uredi profil →
-                  </Link>
+              {/* Bio section with inline edit */}
+              <div className="bg-white rounded-2xl p-6 border border-border">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-medium">O meni</h2>
+                  <PencilButton onClick={() => setEditingBio(!editingBio)} editing={editingBio} />
                 </div>
+                
+                {editingBio ? (
+                  <div className="space-y-4">
+                    <textarea
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary resize-none"
+                      placeholder="Napiši nešto o sebi..."
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted">{bio.length} karaktera</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setBio(creator.bio); setEditingBio(false); }}
+                          className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-secondary transition-colors"
+                        >
+                          Otkaži
+                        </button>
+                        <button
+                          onClick={() => handleSaveSection('bio')}
+                          className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                        >
+                          Sačuvaj
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted leading-relaxed">{bio}</p>
+                )}
+              </div>
+
+              {/* Categories section with inline edit */}
+              <div className="bg-white rounded-2xl p-6 border border-border">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-medium">Kategorije</h2>
+                  <PencilButton onClick={() => setEditingCategories(!editingCategories)} editing={editingCategories} />
+                </div>
+                
+                {editingCategories ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {availableCategories.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => toggleArrayItem(categories, cat, setCategories)}
+                          className={`px-4 py-2 rounded-full text-sm transition-colors ${
+                            categories.includes(cat)
+                              ? 'bg-primary text-white'
+                              : 'bg-secondary hover:bg-accent'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button
+                        onClick={() => { setCategories(creator.categories); setEditingCategories(false); }}
+                        className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-secondary transition-colors"
+                      >
+                        Otkaži
+                      </button>
+                      <button
+                        onClick={() => handleSaveSection('categories')}
+                        className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      >
+                        Sačuvaj
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((cat, i) => (
+                      <span key={i} className="px-4 py-2 bg-secondary rounded-full text-sm">{cat}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Platforms section with inline edit */}
+              <div className="bg-white rounded-2xl p-6 border border-border">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-medium">Platforme</h2>
+                  <PencilButton onClick={() => setEditingPlatforms(!editingPlatforms)} editing={editingPlatforms} />
+                </div>
+                
+                {editingPlatforms ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {availablePlatforms.map((plat) => (
+                        <button
+                          key={plat}
+                          onClick={() => toggleArrayItem(platforms, plat, setPlatforms)}
+                          className={`px-4 py-2 rounded-full text-sm transition-colors ${
+                            platforms.includes(plat)
+                              ? 'bg-primary text-white'
+                              : 'bg-secondary hover:bg-accent'
+                          }`}
+                        >
+                          {plat}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button
+                        onClick={() => { setPlatforms(creator.platforms); setEditingPlatforms(false); }}
+                        className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-secondary transition-colors"
+                      >
+                        Otkaži
+                      </button>
+                      <button
+                        onClick={() => handleSaveSection('platforms')}
+                        className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      >
+                        Sačuvaj
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {platforms.map((plat, i) => (
+                      <span key={i} className="px-4 py-2 bg-secondary rounded-full text-sm">{plat}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Languages section with inline edit */}
+              <div className="bg-white rounded-2xl p-6 border border-border">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-medium">Jezici</h2>
+                  <PencilButton onClick={() => setEditingLanguages(!editingLanguages)} editing={editingLanguages} />
+                </div>
+                
+                {editingLanguages ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {availableLanguages.map((lang) => (
+                        <button
+                          key={lang}
+                          onClick={() => toggleArrayItem(languages, lang, setLanguages)}
+                          className={`px-4 py-2 rounded-full text-sm transition-colors ${
+                            languages.includes(lang)
+                              ? 'bg-primary text-white'
+                              : 'bg-secondary hover:bg-accent'
+                          }`}
+                        >
+                          {lang}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button
+                        onClick={() => { setLanguages(creator.languages); setEditingLanguages(false); }}
+                        className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-secondary transition-colors"
+                      >
+                        Otkaži
+                      </button>
+                      <button
+                        onClick={() => handleSaveSection('languages')}
+                        className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      >
+                        Sačuvaj
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {languages.map((lang, i) => (
+                      <span key={i} className="px-4 py-2 bg-secondary rounded-full text-sm">{lang}</span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white rounded-2xl p-6 border border-border text-center">
                   <div className="text-3xl font-light mb-1">247</div>
                   <div className="text-sm text-muted">Pregleda profila</div>
-                </div>
-                <div className="bg-white rounded-2xl p-6 border border-border text-center">
-                  <div className="text-3xl font-light mb-1">12</div>
-                  <div className="text-sm text-muted">Kontaktiranja</div>
                 </div>
                 <div className="bg-white rounded-2xl p-6 border border-border text-center">
                   <div className="text-3xl font-light mb-1">{stats.averageRating.toFixed(1)}</div>
@@ -157,23 +381,78 @@ function CreatorDashboard() {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Quick info */}
+              {/* Contact info with inline edit */}
               <div className="bg-white rounded-2xl p-6 border border-border">
-                <h3 className="font-medium mb-4">Tvoje informacije</h3>
-                <div className="space-y-4 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted">Email</span>
-                    <span>{creator.email}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted">Telefon</span>
-                    <span>{creator.phone || '—'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted">Instagram</span>
-                    <span>{creator.instagram || '—'}</span>
-                  </div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium">Tvoje informacije</h3>
+                  <PencilButton onClick={() => setEditingContact(!editingContact)} editing={editingContact} />
                 </div>
+                
+                {editingContact ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-muted mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={contactInfo.email}
+                        onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted mb-1">Telefon</label>
+                      <input
+                        type="tel"
+                        value={contactInfo.phone}
+                        onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary"
+                        placeholder="+381..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted mb-1">Instagram</label>
+                      <input
+                        type="text"
+                        value={contactInfo.instagram}
+                        onChange={(e) => setContactInfo({ ...contactInfo, instagram: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary"
+                        placeholder="@username"
+                      />
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => { 
+                          setContactInfo({ email: creator.email, phone: creator.phone || '', instagram: creator.instagram || '' }); 
+                          setEditingContact(false); 
+                        }}
+                        className="flex-1 px-3 py-2 text-xs border border-border rounded-lg hover:bg-secondary transition-colors"
+                      >
+                        Otkaži
+                      </button>
+                      <button
+                        onClick={() => handleSaveSection('contact')}
+                        className="flex-1 px-3 py-2 text-xs bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      >
+                        Sačuvaj
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted">Email</span>
+                      <span className="truncate ml-2">{contactInfo.email}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted">Telefon</span>
+                      <span>{contactInfo.phone || '—'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted">Instagram</span>
+                      <span>{contactInfo.instagram || '—'}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Reviews summary */}
@@ -309,6 +588,7 @@ function CreatorDashboard() {
           </div>
         )}
       </div>
+
     </div>
   );
 }
