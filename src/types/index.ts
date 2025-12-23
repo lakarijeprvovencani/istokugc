@@ -173,6 +173,32 @@ export interface CreatorFilters {
 }
 
 // ============================================
+// SUBSCRIPTION TYPES (export sve iz subscription.ts)
+// ============================================
+
+export type {
+  SubscriptionStatus as DetailedSubscriptionStatus,
+  SubscriptionPlan,
+  BillingInterval,
+  Subscription,
+  BusinessWithSubscription,
+  Invoice,
+  PaymentMethod,
+  WebhookEvent,
+  SubscriptionResponse,
+  CheckoutSessionResponse,
+  PortalSessionResponse,
+} from './subscription';
+
+export {
+  isSubscriptionActive,
+  canAccessPremiumFeatures,
+  getDaysUntilExpiry,
+  formatSubscriptionStatus,
+  getStatusColor,
+} from './subscription';
+
+// ============================================
 // CONSTANTS (re-export iz mockData dok se ne poveže baza)
 // ============================================
 
