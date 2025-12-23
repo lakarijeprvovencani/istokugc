@@ -48,8 +48,10 @@ export default function AdminPage() {
   // State za editovanje
   const [editingCreator, setEditingCreator] = useState<Creator | null>(null);
   
-  // State za pregled kreatora (detalji pre odobrenja)
+  // State za pregled kreatora (detalji)
   const [viewingCreator, setViewingCreator] = useState<Creator | null>(null);
+  // Da li se modal otvara iz pending liste (prikaži Odobri/Odbij) ili iz kreatori liste (prikaži samo status)
+  const [viewingFromPending, setViewingFromPending] = useState(false);
   
   // Pretraga
   const [searchCreators, setSearchCreators] = useState('');
@@ -241,7 +243,7 @@ export default function AdminPage() {
                         {/* Mobile buttons - stack vertically */}
                         <div className="flex flex-col gap-2">
                           <button
-                            onClick={() => setViewingCreator(creator)}
+                            onClick={() => { setViewingCreator(creator); setViewingFromPending(true); }}
                             className="w-full py-2.5 border border-primary text-primary rounded-xl text-sm font-medium hover:bg-primary/5 transition-colors"
                           >
                             👁 Pogledaj detalje
@@ -295,7 +297,7 @@ export default function AdminPage() {
                             
                             <div className="flex gap-3 mt-6">
                               <button
-                                onClick={() => setViewingCreator(creator)}
+                                onClick={() => { setViewingCreator(creator); setViewingFromPending(true); }}
                                 className="px-6 py-2.5 border border-primary text-primary rounded-xl text-sm font-medium hover:bg-primary/5 transition-colors"
                               >
                                 👁 Pogledaj detalje
@@ -392,7 +394,7 @@ export default function AdminPage() {
                           
                           <div className="flex gap-3">
                             <button 
-                              onClick={() => setViewingCreator(creator)}
+                              onClick={() => { setViewingCreator(creator); setViewingFromPending(false); }}
                               className="text-xs text-muted hover:text-primary"
                             >
                               👁
@@ -476,7 +478,7 @@ export default function AdminPage() {
                             <td className="py-4">
                               <div className="flex gap-2">
                                 <button 
-                                  onClick={() => setViewingCreator(creator)}
+                                  onClick={() => { setViewingCreator(creator); setViewingFromPending(false); }}
                                   className="text-sm text-muted hover:text-primary"
                                 >
                                   👁
@@ -803,29 +805,57 @@ export default function AdminPage() {
                   </div>
                 )}
                 
-                {/* Action buttons */}
+                {/* Action buttons - different for pending vs approved creators */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
-                  <button
-                    onClick={() => {
-                      handleApprove(viewingCreator.id);
-                      setViewingCreator(null);
-                    }}
-                    className="flex-1 py-3 bg-success text-white rounded-xl text-sm font-medium hover:bg-success/90 transition-colors"
-                  >
-                    ✓ Odobri kreatora
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleReject(viewingCreator.id);
-                      setViewingCreator(null);
-                    }}
-                    className="flex-1 py-3 bg-error text-white rounded-xl text-sm font-medium hover:bg-error/90 transition-colors"
-                  >
-                    ✕ Odbij kreatora
-                  </button>
+                  {viewingFromPending ? (
+                    // Pending kreatori - prikaži Odobri/Odbij
+                    <>
+                      <button
+                        onClick={() => {
+                          handleApprove(viewingCreator.id);
+                          setViewingCreator(null);
+                        }}
+                        className="flex-1 py-3 bg-success text-white rounded-xl text-sm font-medium hover:bg-success/90 transition-colors"
+                      >
+                        ✓ Odobri kreatora
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleReject(viewingCreator.id);
+                          setViewingCreator(null);
+                        }}
+                        className="flex-1 py-3 bg-error text-white rounded-xl text-sm font-medium hover:bg-error/90 transition-colors"
+                      >
+                        ✕ Odbij kreatora
+                      </button>
+                    </>
+                  ) : (
+                    // Već odobreni kreatori - prikaži status dropdown
+                    <div className="flex-1 flex items-center gap-3">
+                      <span className="text-sm text-muted">Status:</span>
+                      <select
+                        value={viewingCreator.status || (viewingCreator.approved ? 'approved' : 'pending')}
+                        onChange={(e) => {
+                          handleChangeStatus(viewingCreator.id, e.target.value as CreatorStatus);
+                          setViewingCreator({...viewingCreator, status: e.target.value as CreatorStatus});
+                        }}
+                        className={`px-4 py-2 rounded-xl text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                          (viewingCreator.status === 'approved' || (viewingCreator.approved && !viewingCreator.status))
+                            ? 'bg-black text-white' 
+                            : viewingCreator.status === 'pending'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        <option value="approved">Aktivan</option>
+                        <option value="pending">Na čekanju</option>
+                        <option value="deactivated">Neaktivan</option>
+                      </select>
+                    </div>
+                  )}
                   <button
                     onClick={() => setViewingCreator(null)}
-                    className="flex-1 py-3 border border-border rounded-xl text-sm font-medium hover:bg-secondary transition-colors"
+                    className={`${viewingFromPending ? 'flex-1' : ''} py-3 px-6 border border-border rounded-xl text-sm font-medium hover:bg-secondary transition-colors`}
                   >
                     Zatvori
                   </button>
