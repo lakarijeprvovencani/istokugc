@@ -17,6 +17,8 @@ src/
 ├── lib/
 │   ├── db.ts                 # ✅ Placeholder za bazu + Prisma schema
 │   ├── auth.ts               # ✅ Helper funkcije + NextAuth config
+│   ├── email.ts              # ✅ Email servis (Resend)
+│   ├── emailTemplates.ts     # ✅ HTML email template-i
 │   └── mockData.ts           # ✅ Mock podaci (zameniće se bazom)
 ├── hooks/
 │   ├── index.ts              # ✅ Centralni export
@@ -40,6 +42,7 @@ src/
     │       └── reply/        # ✅ POST reply
     ├── favorites/route.ts    # ✅ GET/POST/DELETE omiljeni
     ├── recently-viewed/      # ✅ GET/POST nedavno pregledani
+    ├── notifications/route.ts # ✅ POST slanje notifikacija
     ├── settings/
     │   ├── route.ts          # ✅ GET/PUT podešavanja
     │   └── password/         # ✅ POST promena lozinke
@@ -526,6 +529,85 @@ Komponente koje koriste `useDemo()` treba da koriste:
 | Testiranje | 3-4h |
 | **UKUPNO** | **13-19h** |
 
+---
+
+## 📧 Email Notifikacije
+
+### Pripremljeni Fajlovi
+
+```
+src/lib/
+├── email.ts           # ✅ Centralni email servis
+└── emailTemplates.ts  # ✅ HTML template-i za emailove
+
+src/app/api/
+└── notifications/route.ts  # ✅ API za slanje notifikacija (test)
+```
+
+### Podržane Notifikacije
+
+| Tip | Primatelj | Trigger |
+|-----|-----------|---------|
+| `admin_new_creator` | Admin | Novi kreator aplicira |
+| `admin_new_review` | Admin | Nova recenzija čeka odobrenje |
+| `creator_approved` | Kreator | Admin odobri profil |
+| `creator_rejected` | Kreator | Admin odbije profil |
+| `creator_new_review` | Kreator | Dobije novu recenziju |
+| `business_welcome` | Biznis | Uspešno plaćanje |
+| `business_review_approved` | Biznis | Recenzija odobrena |
+| `business_subscription_expiring` | Biznis | Pretplata ističe (7/3/1 dan pre) |
+
+### Setup Email Servisa (Resend)
+
+```bash
+# 1. Instaliraj Resend
+npm install resend
+
+# 2. Dodaj u .env
+RESEND_API_KEY=re_xxx
+ADMIN_EMAIL=admin@ugcselect.com
+FROM_EMAIL="UGC Select <noreply@ugcselect.com>"
+```
+
+### Aktiviranje u Produkciji
+
+U `src/lib/email.ts`, odkomentariši Resend import i zakomentariši demo logove:
+
+```typescript
+// Promeni ovo:
+import { Resend } from 'resend';
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Zakomentariši DEMO MODE blok i odkomentariši PRODUKCIJA blok
+```
+
+### Cron Job za Subscription Expiry
+
+Za automatsko obaveštavanje o isteku pretplate, koristi Vercel Cron ili sličan servis:
+
+```typescript
+// src/app/api/cron/subscription-expiry/route.ts
+// Poziva se svaki dan u 9:00
+
+export async function GET() {
+  // 1. Dohvati sve pretplate koje ističu za 7, 3 ili 1 dan
+  // 2. Pošalji email notifikaciju svakom biznis korisniku
+  // 3. Logiraj rezultate
+}
+```
+
+### Vreme za Setup
+
+| Zadatak | Vreme |
+|---------|-------|
+| Resend account + domen verifikacija | 30 min |
+| Aktivacija email funkcija | 30 min |
+| Kreiranje cron job-a | 1h |
+| Testiranje | 1h |
+| **UKUPNO EMAIL** | **3h** |
+
+---
+
 ## 📝 Notes
 
 - Svi API routes imaju zakomentarisanu produkcijsku verziju
@@ -534,3 +616,4 @@ Komponente koje koriste `useDemo()` treba da koriste:
 - Stripe webhook handler pokriva sve subscription lifecycle evente
 - Review sistem uključuje admin moderaciju i creator replies
 - Favorites i Recently Viewed su spremni za sinhronizaciju
+- **Email servis** je spreman - samo treba odkomentarisati Resend kod

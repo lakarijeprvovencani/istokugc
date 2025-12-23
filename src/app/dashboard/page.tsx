@@ -430,36 +430,6 @@ function BusinessDashboard() {
                 </div>
               </div>
 
-              {/* Subscription benefits */}
-              <div className="mt-6 pt-6 border-t border-border">
-                <p className="text-sm text-muted mb-3">Tvoj plan uključuje:</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-secondary rounded-full text-xs">✓ Neograničena pretraga</span>
-                  <span className="px-3 py-1 bg-secondary rounded-full text-xs">✓ Kontakt info kreatora</span>
-                  <span className="px-3 py-1 bg-secondary rounded-full text-xs">✓ Email podrška</span>
-                  {subscription.plan === 'yearly' && (
-                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs">✓ Prioritetna podrška</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Quick search */}
-            <div className="bg-white rounded-2xl p-6 border border-border">
-              <h2 className="text-lg font-medium mb-6">Pretraži kreatore</h2>
-              <div className="flex gap-4">
-                <input
-                  type="text"
-                  placeholder="Kategorija, ime, lokacija..."
-                  className="flex-1 px-5 py-3 border border-border rounded-xl focus:outline-none focus:border-muted"
-                />
-                <Link
-                  href="/kreatori"
-                  className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
-                >
-                  Pretraži
-                </Link>
-              </div>
             </div>
 
             {/* Recent creators */}
