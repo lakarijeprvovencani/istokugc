@@ -4,12 +4,26 @@ import { useState, useMemo } from 'react';
 import { useDemo } from '@/context/DemoContext';
 import Link from 'next/link';
 import Image from 'next/image';
-import { mockBusinesses, categories, Creator, CreatorStatus } from '@/lib/mockData';
+import { mockBusinesses, categories, Creator, CreatorStatus, Review } from '@/lib/mockData';
+import ReviewCard from '@/components/ReviewCard';
+import StarRating from '@/components/StarRating';
 
-type AdminTab = 'pending' | 'creators' | 'businesses' | 'categories';
+type AdminTab = 'pending' | 'creators' | 'businesses' | 'categories' | 'reviews';
 
 export default function AdminPage() {
-  const { currentUser, getCreators, updateCreator, deleteCreator, isHydrated } = useDemo();
+  const { 
+    currentUser, 
+    getCreators, 
+    updateCreator, 
+    deleteCreator, 
+    isHydrated,
+    getAllReviews,
+    getPendingReviews,
+    getCreatorById,
+    approveReview,
+    rejectReview,
+    deleteReview,
+  } = useDemo();
   const [activeTab, setActiveTab] = useState<AdminTab>('pending');
   
   // Get all creators from context (includes modifications from localStorage)
@@ -56,6 +70,46 @@ export default function AdminPage() {
   // Pretraga
   const [searchCreators, setSearchCreators] = useState('');
   const [searchBusinesses, setSearchBusinesses] = useState('');
+  
+  // State za recenzije
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [selectedReviewCreator, setSelectedReviewCreator] = useState<string>('all');
+  
+  // Get reviews
+  const allReviews = useMemo(() => {
+    if (!isHydrated) return [];
+    return getAllReviews();
+  }, [getAllReviews, isHydrated]);
+  
+  const pendingReviewsCount = useMemo(() => {
+    return allReviews.filter(r => r.status === 'pending').length;
+  }, [allReviews]);
+  
+  // Filtrirane recenzije
+  const filteredReviews = useMemo(() => {
+    let reviews = [...allReviews];
+    
+    if (reviewStatusFilter !== 'all') {
+      reviews = reviews.filter(r => r.status === reviewStatusFilter);
+    }
+    
+    if (selectedReviewCreator !== 'all') {
+      reviews = reviews.filter(r => r.creatorId === selectedReviewCreator);
+    }
+    
+    // Sort by date, pending first
+    return reviews.sort((a, b) => {
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (a.status !== 'pending' && b.status === 'pending') return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [allReviews, reviewStatusFilter, selectedReviewCreator]);
+  
+  // Helper za dobijanje imena kreatora
+  const getCreatorName = (creatorId: string): string => {
+    const creator = getCreatorById(creatorId);
+    return creator?.name || 'Nepoznat kreator';
+  };
 
   if (currentUser.type !== 'admin') {
     return (
@@ -148,11 +202,12 @@ export default function AdminPage() {
     b.email.toLowerCase().includes(searchBusinesses.toLowerCase())
   );
 
-  const tabs: { id: AdminTab; label: string; count?: number }[] = [
+  const tabs: { id: AdminTab; label: string; count?: number; highlight?: boolean }[] = [
     { id: 'pending', label: 'Čekaju odobrenje', count: pendingCreatorsList.length },
     { id: 'creators', label: 'Kreatori', count: allCreators.length },
     { id: 'businesses', label: 'Biznisi', count: localBusinesses.length },
     { id: 'categories', label: 'Kategorije', count: localCategories.length },
+    { id: 'reviews', label: 'Recenzije', count: pendingReviewsCount, highlight: pendingReviewsCount > 0 },
   ];
 
   return (
@@ -170,29 +225,67 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Tabs - responsive horizontal scroll on mobile */}
-        <div className="flex gap-2 mb-6 sm:mb-8 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
-                activeTab === tab.id
-                  ? 'bg-primary text-white'
-                  : 'bg-white border border-border hover:bg-secondary'
-              }`}
-            >
-              <span className="hidden sm:inline">{tab.label}</span>
-              <span className="sm:hidden">{tab.id === 'pending' ? 'Čekaju' : tab.id === 'creators' ? 'Kreatori' : tab.id === 'businesses' ? 'Biznisi' : 'Kat.'}</span>
-              {tab.count !== undefined && (
-                <span className={`ml-1.5 sm:ml-2 px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${
-                  activeTab === tab.id ? 'bg-white/20' : 'bg-secondary'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
+        {/* Tabs - grid on mobile, flex on desktop */}
+        <div className="mb-6 sm:mb-8">
+          {/* Mobile tabs - grid layout */}
+          <div className="grid grid-cols-3 gap-2 sm:hidden">
+            {tabs.map((tab) => {
+              const mobileLabels: Record<AdminTab, string> = {
+                pending: '⏳ Čekaju',
+                creators: '🎨 Kreatori',
+                businesses: '🏢 Biznisi',
+                categories: '📂 Kat.',
+                reviews: '⭐ Recenzije',
+              };
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-2 py-3 rounded-xl text-xs font-medium transition-colors flex flex-col items-center gap-1 ${
+                    activeTab === tab.id
+                      ? 'bg-primary text-white'
+                      : 'bg-white border border-border hover:bg-secondary'
+                  } ${tab.highlight && activeTab !== tab.id ? 'border-warning' : ''}`}
+                >
+                  <span>{mobileLabels[tab.id]}</span>
+                  {tab.count !== undefined && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                      activeTab === tab.id ? 'bg-white/20' : 
+                      tab.highlight ? 'bg-warning/20 text-warning' : 'bg-secondary'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          
+          {/* Desktop tabs - horizontal flex */}
+          <div className="hidden sm:flex gap-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-6 py-3 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-primary text-white'
+                    : 'bg-white border border-border hover:bg-secondary'
+                } ${tab.highlight && activeTab !== tab.id ? 'border-warning' : ''}`}
+              >
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                    activeTab === tab.id ? 'bg-white/20' : 
+                    tab.highlight ? 'bg-warning/20 text-warning' : 'bg-secondary'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Content */}
@@ -660,6 +753,176 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Reviews */}
+          {activeTab === 'reviews' && (
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+                <div>
+                  <h2 className="text-base sm:text-lg font-medium">Moderacija recenzija</h2>
+                  <p className="text-sm text-muted mt-1">
+                    {pendingReviewsCount > 0 
+                      ? `${pendingReviewsCount} recenzija čeka odobrenje`
+                      : 'Sve recenzije su pregledane'
+                    }
+                  </p>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {/* Status filter */}
+                  <select
+                    value={reviewStatusFilter}
+                    onChange={(e) => setReviewStatusFilter(e.target.value as typeof reviewStatusFilter)}
+                    className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-muted text-sm"
+                  >
+                    <option value="pending">Na čekanju ({allReviews.filter(r => r.status === 'pending').length})</option>
+                    <option value="approved">Odobrene ({allReviews.filter(r => r.status === 'approved').length})</option>
+                    <option value="rejected">Odbijene ({allReviews.filter(r => r.status === 'rejected').length})</option>
+                    <option value="all">Sve ({allReviews.length})</option>
+                  </select>
+                  
+                  {/* Creator filter */}
+                  <select
+                    value={selectedReviewCreator}
+                    onChange={(e) => setSelectedReviewCreator(e.target.value)}
+                    className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-muted text-sm"
+                  >
+                    <option value="all">Svi kreatori</option>
+                    {allCreators.map(creator => (
+                      <option key={creator.id} value={creator.id}>
+                        {creator.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              {filteredReviews.length === 0 ? (
+                <div className="text-center py-8 sm:py-12">
+                  <div className="text-3xl sm:text-4xl mb-4">
+                    {reviewStatusFilter === 'pending' ? '✅' : '📝'}
+                  </div>
+                  <p className="text-muted text-sm sm:text-base">
+                    {reviewStatusFilter === 'pending' 
+                      ? 'Nema recenzija koje čekaju odobrenje'
+                      : 'Nema recenzija sa ovim filterima'
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredReviews.map((review) => (
+                    <div key={review.id} className="border border-border rounded-xl p-4 sm:p-6">
+                      {/* Review header */}
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3">
+                          {/* Business avatar */}
+                          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm font-medium text-primary">
+                              {review.businessName.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="font-medium text-sm">{review.businessName}</div>
+                            <div className="text-xs text-muted">
+                              Za: <Link href={`/kreator/${review.creatorId}`} className="text-primary hover:underline">
+                                {getCreatorName(review.creatorId)}
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Status & date */}
+                        <div className="flex items-center gap-3">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                            review.status === 'pending' 
+                              ? 'bg-amber-100 text-amber-700'
+                              : review.status === 'approved'
+                              ? 'bg-success/10 text-success'
+                              : 'bg-error/10 text-error'
+                          }`}>
+                            {review.status === 'pending' ? 'Na čekanju' :
+                             review.status === 'approved' ? 'Odobrena' : 'Odbijena'}
+                          </span>
+                          <span className="text-xs text-muted">{review.createdAt}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Rating */}
+                      <div className="mb-3">
+                        <StarRating rating={review.rating} readonly size="sm" />
+                      </div>
+                      
+                      {/* Comment */}
+                      <p className="text-sm mb-4">{review.comment}</p>
+                      
+                      {/* Creator reply */}
+                      {review.creatorReply && (
+                        <div className="bg-secondary/50 rounded-xl p-4 mb-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-medium text-primary">Odgovor kreatora</span>
+                            {review.creatorReplyAt && (
+                              <span className="text-xs text-muted">{review.creatorReplyAt}</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted">{review.creatorReply}</p>
+                        </div>
+                      )}
+                      
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
+                        {review.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => approveReview(review.id)}
+                              className="px-4 py-2 bg-success text-white rounded-lg text-sm font-medium hover:bg-success/90 transition-colors"
+                            >
+                              ✓ Odobri
+                            </button>
+                            <button
+                              onClick={() => {
+                                const reason = prompt('Razlog odbijanja (opcionalno):');
+                                rejectReview(review.id, reason || undefined);
+                              }}
+                              className="px-4 py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors"
+                            >
+                              ✕ Odbij
+                            </button>
+                          </>
+                        )}
+                        {review.status === 'approved' && (
+                          <button
+                            onClick={() => rejectReview(review.id)}
+                            className="px-4 py-2 border border-error text-error rounded-lg text-sm font-medium hover:bg-error/10 transition-colors"
+                          >
+                            Povuci odobrenje
+                          </button>
+                        )}
+                        {review.status === 'rejected' && (
+                          <button
+                            onClick={() => approveReview(review.id)}
+                            className="px-4 py-2 border border-success text-success rounded-lg text-sm font-medium hover:bg-success/10 transition-colors"
+                          >
+                            Odobri
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (confirm('Da li ste sigurni da želite da obrišete ovu recenziju?')) {
+                              deleteReview(review.id);
+                            }
+                          }}
+                          className="px-4 py-2 text-muted hover:text-error text-sm transition-colors ml-auto"
+                        >
+                          Obriši
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

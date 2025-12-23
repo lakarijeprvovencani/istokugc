@@ -5,10 +5,28 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Creator, CreatorStatus, categories, platforms, languages } from '@/lib/mockData';
 import { useDemo } from '@/context/DemoContext';
+import ReviewList from '@/components/ReviewList';
+import ReviewForm from '@/components/ReviewForm';
+import { AverageRating } from '@/components/StarRating';
+import { generateReviewStats } from '@/types/review';
+import type { CreateReviewInput } from '@/types/review';
 
 export default function CreatorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const { currentUser, isLoggedIn, isHydrated, getCreatorById, updateCreator, deleteCreator } = useDemo();
+  const { 
+    currentUser, 
+    isLoggedIn, 
+    isHydrated, 
+    isOwnProfile,
+    getCreatorById, 
+    updateCreator, 
+    deleteCreator,
+    getReviewsForCreator,
+    hasBusinessReviewedCreator,
+    getBusinessReviewForCreator,
+    addReview,
+    addReplyToReview,
+  } = useDemo();
   
   // Get creator from context (with any saved modifications)
   const savedCreator = getCreatorById(resolvedParams.id);
@@ -19,6 +37,11 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  
+  // Review states
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
   
   // Update state after hydration - only run once when hydrated
   useEffect(() => {
@@ -39,9 +62,11 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   const creator = editedCreator || savedCreator;
   
   const isAdmin = currentUser.type === 'admin';
+  const isOwner = creator ? isOwnProfile(creator.id) : false;
 
   // Admin and business users can see contact info (all business users have active subscription)
-  const canSeeContact = currentUser.type === 'admin' || currentUser.type === 'business';
+  // Creators can also see their own contact info
+  const canSeeContact = currentUser.type === 'admin' || currentUser.type === 'business' || isOwner;
 
   // If not logged in, show login prompt
   if (!isLoggedIn) {
@@ -193,6 +218,23 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
 
           {/* Right - Details */}
           <div className="flex-1">
+            {/* Own Profile Banner */}
+            {isOwner && (
+              <div className="mb-6 bg-gradient-to-r from-primary to-primary/80 text-white rounded-2xl p-5 flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium mb-1">Ovo je tvoj profil</h3>
+                  <p className="text-sm text-white/80">
+                    Ovde možeš videti kako tvoj profil izgleda drugima i odgovoriti na recenzije.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Header */}
             <div className="mb-10">
               <div className="flex items-start justify-between">
@@ -277,7 +319,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
             </div>
 
             {/* Portfolio */}
-            <div>
+            <div className="mb-12">
               <h2 className="text-sm text-muted uppercase tracking-wider mb-6">Portfolio</h2>
               <div className="grid md:grid-cols-2 gap-6">
                 {creator.portfolio.map((item, index) => (
@@ -304,6 +346,129 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Reviews Section */}
+            <div className="pt-8 border-t border-border">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-sm text-muted uppercase tracking-wider mb-3">Recenzije</h2>
+                  {(() => {
+                    const reviews = getReviewsForCreator(creator.id, true);
+                    const stats = generateReviewStats(reviews);
+                    if (stats.totalReviews > 0) {
+                      return (
+                        <AverageRating 
+                          rating={stats.averageRating} 
+                          totalReviews={stats.totalReviews} 
+                          size="md"
+                        />
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+                
+                {/* Review button for business users */}
+                {currentUser.type === 'business' && !hasBusinessReviewedCreator('b1', creator.id) && !showReviewForm && (
+                  <button
+                    onClick={() => setShowReviewForm(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.562.562 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+                    </svg>
+                    Ostavi recenziju
+                  </button>
+                )}
+              </div>
+
+              {/* Success message after review submission */}
+              {reviewSubmitted && (
+                <div className="mb-6 bg-success/10 border border-success/20 rounded-xl p-4 flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-success">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-success">Recenzija je uspešno poslata!</p>
+                    <p className="text-xs text-muted mt-0.5">Biće vidljiva nakon odobrenja od strane administratora.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Review form for business users */}
+              {showReviewForm && currentUser.type === 'business' && (
+                <div className="mb-8">
+                  <ReviewForm
+                    creatorId={creator.id}
+                    creatorName={creator.name}
+                    onSubmit={(data: CreateReviewInput) => {
+                      setIsSubmittingReview(true);
+                      // Add review
+                      addReview(data);
+                      // Show success message
+                      setIsSubmittingReview(false);
+                      setShowReviewForm(false);
+                      setReviewSubmitted(true);
+                      // Hide success message after 5 seconds
+                      setTimeout(() => setReviewSubmitted(false), 5000);
+                    }}
+                    onCancel={() => setShowReviewForm(false)}
+                    isSubmitting={isSubmittingReview}
+                  />
+                </div>
+              )}
+
+              {/* Business's existing review notice */}
+              {currentUser.type === 'business' && hasBusinessReviewedCreator('b1', creator.id) && (
+                <div className="mb-6 bg-secondary rounded-xl p-4 flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-muted">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                  </svg>
+                  <p className="text-sm text-muted">
+                    Već ste ostavili recenziju za ovog kreatora. 
+                    {(() => {
+                      const review = getBusinessReviewForCreator('b1', creator.id);
+                      if (review?.status === 'pending') {
+                        return ' Vaša recenzija čeka odobrenje.';
+                      }
+                      return '';
+                    })()}
+                  </p>
+                </div>
+              )}
+
+              {/* Reviews list */}
+              {(() => {
+                const reviews = getReviewsForCreator(creator.id, true);
+                if (reviews.length === 0 && !showReviewForm) {
+                  return (
+                    <div className="text-center py-12 bg-secondary/30 rounded-2xl">
+                      <div className="text-4xl mb-4">📝</div>
+                      <p className="text-muted">Još uvek nema recenzija za ovog kreatora.</p>
+                      {currentUser.type === 'business' && !hasBusinessReviewedCreator('b1', creator.id) && (
+                        <button
+                          onClick={() => setShowReviewForm(true)}
+                          className="mt-4 text-sm text-primary hover:underline"
+                        >
+                          Budite prvi koji će ostaviti recenziju
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <ReviewList
+                    reviews={reviews}
+                    showStats={false}
+                    canReply={isOwner}
+                    onReply={(reviewId, reply) => {
+                      addReplyToReview(reviewId, reply);
+                    }}
+                    emptyMessage="Još uvek nema recenzija za ovog kreatora."
+                  />
+                );
+              })()}
             </div>
           </div>
         </div>

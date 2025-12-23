@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { categories, platforms, languages } from '@/lib/mockData';
 import CreatorCard from '@/components/CreatorCard';
 import { useDemo } from '@/context/DemoContext';
+import { generateReviewStats } from '@/types/review';
 
 export default function KreatoriPage() {
-  const { currentUser, isLoggedIn, getCreators } = useDemo();
+  const { currentUser, isLoggedIn, getCreators, getReviewsForCreator } = useDemo();
   
   // Get creators from context (filtered by status for non-admins)
   const allCreators = getCreators(currentUser.type === 'admin');
@@ -16,9 +17,23 @@ export default function KreatoriPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
   const [priceRange, setPriceRange] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [minRating, setMinRating] = useState<string>('');
+  const [sortBy, setSortBy] = useState<string>('');
+  
+  // Helper to get creator rating
+  const getCreatorRating = (creatorId: string): number => {
+    const reviews = getReviewsForCreator(creatorId, true);
+    const stats = generateReviewStats(reviews);
+    return stats.averageRating;
+  };
+  
+  const getCreatorReviewCount = (creatorId: string): number => {
+    const reviews = getReviewsForCreator(creatorId, true);
+    return reviews.length;
+  };
 
   const filteredCreators = useMemo(() => {
-    return allCreators.filter((creator) => {
+    let results = allCreators.filter((creator) => {
       // For admins, show all (already filtered in getCreators)
       // For others, only show approved (already handled in getCreators)
       if (currentUser.type !== 'admin' && !creator.approved) return false;
@@ -46,10 +61,32 @@ export default function KreatoriPage() {
           return false;
         }
       }
+      
+      // Filter by minimum rating
+      if (minRating) {
+        const creatorRating = getCreatorRating(creator.id);
+        const minRatingNum = parseFloat(minRating);
+        if (creatorRating < minRatingNum) return false;
+      }
 
       return true;
     });
-  }, [allCreators, currentUser.type, selectedCategory, selectedPlatform, selectedLanguage, priceRange, searchQuery]);
+    
+    // Sort results
+    if (sortBy === 'rating-desc') {
+      results.sort((a, b) => getCreatorRating(b.id) - getCreatorRating(a.id));
+    } else if (sortBy === 'rating-asc') {
+      results.sort((a, b) => getCreatorRating(a.id) - getCreatorRating(b.id));
+    } else if (sortBy === 'reviews') {
+      results.sort((a, b) => getCreatorReviewCount(b.id) - getCreatorReviewCount(a.id));
+    } else if (sortBy === 'price-asc') {
+      results.sort((a, b) => a.priceFrom - b.priceFrom);
+    } else if (sortBy === 'price-desc') {
+      results.sort((a, b) => b.priceFrom - a.priceFrom);
+    }
+    
+    return results;
+  }, [allCreators, currentUser.type, selectedCategory, selectedPlatform, selectedLanguage, priceRange, searchQuery, minRating, sortBy, getCreatorRating, getCreatorReviewCount]);
 
   const clearFilters = () => {
     setSelectedCategory('');
@@ -57,6 +94,8 @@ export default function KreatoriPage() {
     setSelectedLanguage('');
     setPriceRange('');
     setSearchQuery('');
+    setMinRating('');
+    setSortBy('');
   };
 
   // If not logged in, show login prompt
@@ -186,6 +225,22 @@ export default function KreatoriPage() {
                 </select>
               </div>
 
+              {/* Rating Filter */}
+              <div className="mb-8">
+                <label className="text-sm text-muted mb-2 block">Minimalna ocena</label>
+                <select
+                  value={minRating}
+                  onChange={(e) => setMinRating(e.target.value)}
+                  className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-muted bg-white"
+                >
+                  <option value="">Sve ocene</option>
+                  <option value="4.5">⭐ 4.5+</option>
+                  <option value="4">⭐ 4.0+</option>
+                  <option value="3.5">⭐ 3.5+</option>
+                  <option value="3">⭐ 3.0+</option>
+                </select>
+              </div>
+
               {/* Clear filters */}
               <button
                 onClick={clearFilters}
@@ -198,11 +253,24 @@ export default function KreatoriPage() {
 
           {/* Main content */}
           <main className="flex-1">
-            {/* Results count */}
-            <div className="mb-8 flex items-center justify-between">
+            {/* Results count & sorting */}
+            <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <p className="text-muted">
                 Prikazano <span className="font-medium text-foreground">{filteredCreators.length}</span> kreatora
               </p>
+              
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-muted bg-white text-sm"
+              >
+                <option value="">Sortiraj po</option>
+                <option value="rating-desc">Najviša ocena</option>
+                <option value="rating-asc">Najniža ocena</option>
+                <option value="reviews">Najviše recenzija</option>
+                <option value="price-asc">Cena: niska → visoka</option>
+                <option value="price-desc">Cena: visoka → niska</option>
+              </select>
             </div>
 
             {/* Grid */}

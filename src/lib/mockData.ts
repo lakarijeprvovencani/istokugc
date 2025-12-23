@@ -291,7 +291,10 @@ export interface DemoUser {
   type: UserType;
   name: string;
   email: string;
+  // Creator-specific fields (for matching profile)
+  creatorId?: string;
   // Business-specific fields (for future Supabase integration)
+  businessId?: string;
   companyName?: string;
   subscriptionStatus?: 'active' | 'expired' | 'cancelled';
   subscriptionPlan?: 'monthly' | 'yearly';
@@ -302,11 +305,17 @@ export interface DemoUser {
 // Unpaid businesses are redirected to payment page
 export const demoUsers: Record<UserType, DemoUser> = {
   guest: { type: 'guest', name: 'Gost', email: '' },
-  creator: { type: 'creator', name: 'Marija Petrović', email: 'marija@example.com' },
+  creator: { 
+    type: 'creator', 
+    name: 'Marija Petrović', 
+    email: 'marija@example.com',
+    creatorId: '1', // Links to mockCreators[0]
+  },
   business: { 
     type: 'business', 
     name: 'TechStart d.o.o.', 
     email: 'marketing@techstart.rs',
+    businessId: 'b1', // Links to mockBusinesses[0]
     companyName: 'TechStart d.o.o.',
     subscriptionStatus: 'active',
     subscriptionPlan: 'yearly',
@@ -314,4 +323,105 @@ export const demoUsers: Record<UserType, DemoUser> = {
   },
   admin: { type: 'admin', name: 'Admin', email: 'admin@ugcselect.com' },
 };
+
+// ============================================
+// REVIEW TYPES & MOCK DATA
+// ============================================
+
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
+export interface Review {
+  id: string;
+  creatorId: string;
+  businessId: string;
+  businessName: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  comment: string;
+  status: ReviewStatus;
+  creatorReply?: string;
+  creatorReplyAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export const mockReviews: Review[] = [
+  {
+    id: 'rev-1',
+    creatorId: '1', // Marija Petrović
+    businessId: 'b1',
+    businessName: 'TechStart d.o.o.',
+    rating: 5,
+    comment: 'Odlična saradnja sa Marijom! Kreiranje sadržaja je bilo profesionalno i kreativno. Rokovi su ispoštovani, a kvalitet je premašio naša očekivanja. Definitivno preporučujemo za beauty i lifestyle kampanje.',
+    status: 'approved',
+    creatorReply: 'Hvala vam puno na lepim rečima! Bilo mi je zadovoljstvo sarađivati sa vašim timom. Jedva čekam sledeću saradnju!',
+    creatorReplyAt: '2024-03-12',
+    createdAt: '2024-03-10',
+  },
+  {
+    id: 'rev-2',
+    creatorId: '1', // Marija Petrović
+    businessId: 'b2',
+    businessName: 'Beauty Box',
+    rating: 4,
+    comment: 'Marija je profesionalna i kreativna. Sadržaj je bio kvalitetan i u skladu sa našim brendom. Mala kašnjenja u komunikaciji, ali sveukupno pozitivno iskustvo.',
+    status: 'approved',
+    createdAt: '2024-02-25',
+  },
+  {
+    id: 'rev-3',
+    creatorId: '2', // Stefan Nikolić
+    businessId: 'b1',
+    businessName: 'TechStart d.o.o.',
+    rating: 5,
+    comment: 'Stefan je pravi profesionalac! Njegove recenzije gadgeta su detaljne i autentične. Video produkcija je na visokom nivou, a saradnja je bila besprekorna od početka do kraja.',
+    status: 'approved',
+    creatorReply: 'Hvala na odličnoj saradnji! TechStart tim razume vrednost kvalitetnog sadržaja i uvek je spreman da sarađuje na kreativnim idejama.',
+    creatorReplyAt: '2024-03-08',
+    createdAt: '2024-03-05',
+  },
+  {
+    id: 'rev-4',
+    creatorId: '3', // Ana Kovačević
+    businessId: 'b3',
+    businessName: 'FitLife Gym',
+    rating: 5,
+    comment: 'Ana je fantastična! Njen fitness sadržaj je motivišući i autentičan. Naša kampanja za novi program treninga je dobila sjajne reakcije zahvaljujući njenom angažmanu.',
+    status: 'approved',
+    createdAt: '2024-02-20',
+  },
+  {
+    id: 'rev-5',
+    creatorId: '5', // Emina Hadžić
+    businessId: 'b2',
+    businessName: 'Beauty Box',
+    rating: 4,
+    comment: 'Emina kreira prelepi fashion sadržaj. Saradnja je bila glatka i profesionalna. Jedino bismo voleli da je bilo više varijacija u stilovima fotografija.',
+    status: 'approved',
+    creatorReply: 'Hvala na povratnoj informaciji! Za sledeću saradnju ću pripremiti više opcija stilova unapred.',
+    creatorReplyAt: '2024-03-02',
+    createdAt: '2024-02-28',
+  },
+  // Pending reviews (čekaju odobrenje admina)
+  {
+    id: 'rev-6',
+    creatorId: '4', // Luka Horvat
+    businessId: 'b1',
+    businessName: 'TechStart d.o.o.',
+    rating: 5,
+    comment: 'Luka je kreirao fantastičan food sadržaj za naš team building event. Fotografije su bile profesionalne, a atmosfera na snimanju opuštena i kreativna.',
+    status: 'pending',
+    createdAt: '2024-03-18',
+  },
+  {
+    id: 'rev-7',
+    creatorId: '6', // Nikola Jovanović
+    businessId: 'b2',
+    businessName: 'Beauty Box',
+    rating: 3,
+    comment: 'Travel sadržaj je bio ok, ali smo očekivali nešto drugačije. Komunikacija mogla biti bolja, ali krajnji rezultat je bio prihvatljiv za naše potrebe promocije.',
+    status: 'pending',
+    createdAt: '2024-03-17',
+  },
+];
 

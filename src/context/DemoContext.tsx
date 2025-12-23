@@ -1,7 +1,19 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { UserType, DemoUser, demoUsers, Creator, mockCreators, pendingCreators, CreatorStatus } from '@/lib/mockData';
+import { 
+  UserType, 
+  DemoUser, 
+  demoUsers, 
+  Creator, 
+  mockCreators, 
+  pendingCreators, 
+  CreatorStatus,
+  Review,
+  ReviewStatus,
+  mockReviews,
+} from '@/lib/mockData';
+import type { Rating, CreateReviewInput } from '@/types/review';
 
 // Combine all creators into one source of truth
 const allBaseCreators: Creator[] = [...mockCreators, ...pendingCreators];
@@ -31,24 +43,43 @@ interface DemoContextType {
   isLoggedIn: boolean;
   logout: () => void;
   isHydrated: boolean;
+  // Profile ownership
+  isOwnProfile: (creatorId: string) => boolean;
+  getOwnCreatorId: () => string | undefined;
   // Creator management
   getCreators: (includeHidden?: boolean) => Creator[];
   getCreatorById: (id: string) => Creator | undefined;
   updateCreator: (id: string, updates: Partial<Creator>) => void;
   deleteCreator: (id: string) => void;
   creatorModifications: Record<string, CreatorModification>;
+  // Review management
+  reviews: Review[];
+  getReviewsForCreator: (creatorId: string, onlyApproved?: boolean) => Review[];
+  getReviewsByBusiness: (businessId: string) => Review[];
+  getPendingReviews: () => Review[];
+  getAllReviews: () => Review[];
+  addReview: (input: CreateReviewInput) => Review;
+  updateReview: (reviewId: string, updates: { rating?: Rating; comment?: string }) => void;
+  deleteReview: (reviewId: string) => void;
+  approveReview: (reviewId: string) => void;
+  rejectReview: (reviewId: string, reason?: string) => void;
+  addReplyToReview: (reviewId: string, reply: string) => void;
+  hasBusinessReviewedCreator: (businessId: string, creatorId: string) => boolean;
+  getBusinessReviewForCreator: (businessId: string, creatorId: string) => Review | undefined;
 }
 
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'demoUserType';
 const CREATOR_MODS_KEY = 'creatorModifications';
+const REVIEWS_KEY = 'reviews';
 
 export function DemoProvider({ children }: { children: ReactNode }) {
   // Initialize with guest, will be updated by useEffect if localStorage has saved value
   const [currentUser, setCurrentUser] = useState<DemoUser>(demoUsers.guest);
   const [isHydrated, setIsHydrated] = useState(false);
   const [creatorModifications, setCreatorModifications] = useState<Record<string, CreatorModification>>({});
+  const [reviews, setReviews] = useState<Review[]>(mockReviews);
 
   // Load saved data from localStorage on mount
   useEffect(() => {
@@ -69,9 +100,27 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         }
       }
       
+      // Load reviews
+      const savedReviews = localStorage.getItem(REVIEWS_KEY);
+      if (savedReviews) {
+        try {
+          setReviews(JSON.parse(savedReviews));
+        } catch (e) {
+          console.error('Failed to parse reviews:', e);
+        }
+      }
+      
       setIsHydrated(true);
     }
   }, []);
+
+  // Save reviews to localStorage whenever they change
+  const saveReviews = (newReviews: Review[]) => {
+    setReviews(newReviews);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(REVIEWS_KEY, JSON.stringify(newReviews));
+    }
+  };
 
   const setUserType = (type: UserType) => {
     setCurrentUser(demoUsers[type]);
@@ -90,6 +139,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   };
 
   const isLoggedIn = currentUser.type !== 'guest';
+
+  // Check if the current user owns a specific creator profile
+  const isOwnProfile = (creatorId: string): boolean => {
+    if (currentUser.type !== 'creator') return false;
+    return currentUser.creatorId === creatorId;
+  };
+
+  // Get the current user's creator ID (if they are a creator)
+  const getOwnCreatorId = (): string | undefined => {
+    if (currentUser.type !== 'creator') return undefined;
+    return currentUser.creatorId;
+  };
 
   // Get all creators with modifications applied
   const getCreators = (includeHidden = false): Creator[] => {
@@ -167,6 +228,132 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ============================================
+  // REVIEW MANAGEMENT FUNCTIONS
+  // ============================================
+
+  // Get reviews for a specific creator
+  const getReviewsForCreator = (creatorId: string, onlyApproved = true): Review[] => {
+    return reviews.filter(r => {
+      if (r.creatorId !== creatorId) return false;
+      if (onlyApproved) return r.status === 'approved';
+      return true;
+    });
+  };
+
+  // Get reviews left by a specific business
+  const getReviewsByBusiness = (businessId: string): Review[] => {
+    return reviews.filter(r => r.businessId === businessId);
+  };
+
+  // Get all pending reviews (for admin)
+  const getPendingReviews = (): Review[] => {
+    return reviews.filter(r => r.status === 'pending');
+  };
+
+  // Get all reviews (for admin)
+  const getAllReviews = (): Review[] => {
+    return reviews;
+  };
+
+  // Check if business has already reviewed a creator
+  const hasBusinessReviewedCreator = (businessId: string, creatorId: string): boolean => {
+    return reviews.some(r => r.businessId === businessId && r.creatorId === creatorId);
+  };
+
+  // Get the business's review for a creator
+  const getBusinessReviewForCreator = (businessId: string, creatorId: string): Review | undefined => {
+    return reviews.find(r => r.businessId === businessId && r.creatorId === creatorId);
+  };
+
+  // Add a new review
+  const addReview = (input: CreateReviewInput): Review => {
+    const newReview: Review = {
+      id: `rev-${Date.now()}`,
+      creatorId: input.creatorId,
+      businessId: currentUser.type === 'business' ? 'b1' : 'unknown', // Demo business ID
+      businessName: currentUser.companyName || currentUser.name,
+      rating: input.rating,
+      comment: input.comment,
+      status: 'pending', // All new reviews start as pending
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    
+    const newReviews = [...reviews, newReview];
+    saveReviews(newReviews);
+    
+    return newReview;
+  };
+
+  // Update a review (business can update their own)
+  const updateReview = (reviewId: string, updates: { rating?: Rating; comment?: string }) => {
+    const newReviews = reviews.map(r => {
+      if (r.id === reviewId) {
+        return {
+          ...r,
+          ...updates,
+          status: 'pending' as ReviewStatus, // Reset to pending if edited
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+      }
+      return r;
+    });
+    saveReviews(newReviews);
+  };
+
+  // Delete a review (admin only)
+  const deleteReview = (reviewId: string) => {
+    const newReviews = reviews.filter(r => r.id !== reviewId);
+    saveReviews(newReviews);
+  };
+
+  // Approve a review (admin only)
+  const approveReview = (reviewId: string) => {
+    const newReviews = reviews.map(r => {
+      if (r.id === reviewId) {
+        return {
+          ...r,
+          status: 'approved' as ReviewStatus,
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+      }
+      return r;
+    });
+    saveReviews(newReviews);
+  };
+
+  // Reject a review (admin only)
+  const rejectReview = (reviewId: string, reason?: string) => {
+    const newReviews = reviews.map(r => {
+      if (r.id === reviewId) {
+        return {
+          ...r,
+          status: 'rejected' as ReviewStatus,
+          rejectionReason: reason,
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+      }
+      return r;
+    });
+    saveReviews(newReviews);
+  };
+
+  // Add reply to a review (creator only)
+  const addReplyToReview = (reviewId: string, reply: string) => {
+    const newReviews = reviews.map(r => {
+      if (r.id === reviewId) {
+        return {
+          ...r,
+          creatorReply: reply,
+          creatorReplyAt: new Date().toISOString().split('T')[0],
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+      }
+      return r;
+    });
+    saveReviews(newReviews);
+  };
+
   return (
     <DemoContext.Provider value={{ 
       currentUser, 
@@ -174,11 +361,29 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       isLoggedIn, 
       logout, 
       isHydrated,
+      // Profile ownership
+      isOwnProfile,
+      getOwnCreatorId,
+      // Creator management
       getCreators,
       getCreatorById,
       updateCreator,
       deleteCreator,
       creatorModifications,
+      // Review management
+      reviews,
+      getReviewsForCreator,
+      getReviewsByBusiness,
+      getPendingReviews,
+      getAllReviews,
+      addReview,
+      updateReview,
+      deleteReview,
+      approveReview,
+      rejectReview,
+      addReplyToReview,
+      hasBusinessReviewedCreator,
+      getBusinessReviewForCreator,
     }}>
       {children}
     </DemoContext.Provider>
