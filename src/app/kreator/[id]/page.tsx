@@ -709,6 +709,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                     showStats={false}
                     canReply={isOwner}
                     canDeleteOwn={currentUser.type === 'business'}
+                    canDeleteAny={currentUser.type === 'admin'}
                     canEditReply={isOwner}
                     canDeleteReply={isOwner}
                     currentBusinessId={currentUser.businessId}

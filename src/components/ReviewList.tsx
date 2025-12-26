@@ -13,6 +13,7 @@ interface ReviewListProps {
   showActions?: boolean;             // Prikaži admin akcije
   canReply?: boolean;                // Da li kreator može odgovoriti
   canDeleteOwn?: boolean;            // Da li biznis može obrisati svoje recenzije
+  canDeleteAny?: boolean;            // Da li admin može obrisati bilo koju recenziju
   canEditReply?: boolean;            // Da li kreator može urediti svoj odgovor
   canDeleteReply?: boolean;          // Da li kreator može obrisati svoj odgovor
   currentBusinessId?: string;        // ID trenutnog biznis korisnika za proveru vlasništva
@@ -35,6 +36,7 @@ export default function ReviewList({
   showActions = false,
   canReply = false,
   canDeleteOwn = false,
+  canDeleteAny = false,
   canEditReply = false,
   canDeleteReply = false,
   currentBusinessId,
@@ -147,8 +149,9 @@ export default function ReviewList({
       {/* Reviews list */}
       <div className="space-y-4">
         {paginatedReviews.map((review) => {
-          // Check if current business owns this review
+          // Check if current business owns this review or if admin can delete any
           const isOwnReview = canDeleteOwn && currentBusinessId && review.businessId === currentBusinessId;
+          const canDeleteThisReview = canDeleteAny || isOwnReview;
           
           return (
             <ReviewCard
@@ -157,7 +160,7 @@ export default function ReviewList({
               showStatus={showStatus}
               showActions={showActions}
               canReply={canReply}
-              canDelete={isOwnReview}
+              canDelete={canDeleteThisReview}
               canEditReply={canEditReply && !!review.creatorReply}
               canDeleteReply={canDeleteReply && !!review.creatorReply}
               onApprove={onApprove}
