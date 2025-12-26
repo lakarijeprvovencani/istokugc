@@ -170,3 +170,4 @@ export function RatingDistribution({ distribution, totalReviews }: RatingDistrib
   );
 }
 
+

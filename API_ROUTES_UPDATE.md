@@ -167,3 +167,4 @@ model Business {
 
 **Sve izmene su spremne za Supabase integraciju!** 🚀
 
+

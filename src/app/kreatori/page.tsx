@@ -19,7 +19,7 @@ export default function KreatoriPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [minRating, setMinRating] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('');
-  const [showFilters, setShowFilters] = useState<boolean>(true);
+  const [showFilters, setShowFilters] = useState<boolean>(false); // Hidden by default on mobile
   
   // Helper to get creator rating
   const getCreatorRating = (creatorId: string): number => {
@@ -139,20 +139,40 @@ export default function KreatoriPage() {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="bg-secondary py-16">
-        <div className="max-w-7xl mx-auto px-6 lg:px-12">
-          <h1 className="text-4xl lg:text-5xl font-light mb-4">Pretraži kreatore</h1>
-          <p className="text-muted max-w-xl">
+      <section className="bg-secondary py-10 sm:py-12 lg:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-light mb-2 sm:mb-4">Pretraži kreatore</h1>
+          <p className="text-muted text-sm sm:text-base max-w-xl">
             Pronađi savršenog UGC kreatora za tvoj brend
           </p>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12">
-        <div className="flex gap-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 lg:py-12">
+        <div className="lg:flex lg:gap-12">
+          {/* Mobile filter toggle */}
+          <div className="lg:hidden mb-6">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white border border-border rounded-xl text-sm font-medium hover:bg-secondary transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              {showFilters ? 'Sakrij filtere' : 'Prikaži filtere'}
+            </button>
+          </div>
+          
           {/* Sidebar filters */}
-          <aside className={`flex-shrink-0 transition-all duration-300 ${showFilters ? 'w-64' : 'w-0 overflow-hidden'}`}>
-            <div className={`w-64 sticky top-28 ${showFilters ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
+          <aside className={`
+            ${showFilters ? 'block' : 'hidden'} 
+            lg:block
+            w-full lg:w-64 
+            flex-shrink-0 
+            mb-8 lg:mb-0
+            transition-all duration-300
+          `}>
+            <div className="w-full lg:w-64 lg:sticky lg:top-28 bg-white lg:bg-transparent p-4 lg:p-0 rounded-2xl lg:rounded-none border lg:border-0 border-border">
               {/* Search */}
               <div className="mb-8">
                 <label className="text-sm text-muted mb-2 block">Pretraga</label>
@@ -279,18 +299,26 @@ export default function KreatoriPage() {
               >
                 Očisti filtere
               </button>
+              
+              {/* Hide filters button - mobile only */}
+              <button
+                onClick={() => setShowFilters(false)}
+                className="lg:hidden w-full mt-4 py-3 text-sm font-medium bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors"
+              >
+                Primeni filtere
+              </button>
             </div>
           </aside>
 
           {/* Main content */}
           <main className="flex-1 min-w-0">
             {/* Results count & sorting */}
-            <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="mb-6 lg:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                {/* Filter toggle button */}
+                {/* Filter toggle button - desktop only */}
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`p-2.5 rounded-xl border transition-all ${
+                  className={`hidden lg:flex p-2.5 rounded-xl border transition-all ${
                     showFilters 
                       ? 'bg-primary text-white border-primary' 
                       : 'bg-white text-muted border-border hover:bg-secondary hover:text-foreground'
@@ -301,7 +329,7 @@ export default function KreatoriPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                   </svg>
                 </button>
-                <p className="text-muted">
+                <p className="text-muted text-sm sm:text-base">
                   Prikazano <span className="font-medium text-foreground">{filteredCreators.length}</span> kreatora
                 </p>
               </div>
@@ -309,7 +337,7 @@ export default function KreatoriPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-muted bg-white text-sm"
+                className="w-full sm:w-auto px-4 py-2.5 border border-border rounded-xl focus:outline-none focus:border-muted bg-white text-sm"
               >
                 <option value="">Sortiraj po</option>
                 <option value="rating-desc">Najviša ocena</option>
@@ -322,7 +350,7 @@ export default function KreatoriPage() {
 
             {/* Grid */}
             {filteredCreators.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {filteredCreators.map((creator) => (
                   <CreatorCard key={creator.id} creator={creator} />
                 ))}
