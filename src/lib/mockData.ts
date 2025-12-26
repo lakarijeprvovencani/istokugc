@@ -1,6 +1,6 @@
 // Mock data za demo
 
-export type CreatorStatus = 'pending' | 'approved' | 'deactivated';
+export type CreatorStatus = 'pending' | 'approved' | 'rejected' | 'deactivated';
 
 export interface Creator {
   id: string;
@@ -25,7 +25,8 @@ export interface Creator {
   tiktok?: string;
   youtube?: string;
   approved: boolean;
-  status?: CreatorStatus; // 'pending' | 'approved' | 'deactivated'
+  status?: CreatorStatus; // 'pending' | 'approved' | 'rejected' | 'deactivated'
+  rejectionReason?: string; // Razlog odbijanja od strane admina
   createdAt: string;
 }
 

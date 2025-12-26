@@ -12,7 +12,7 @@
 // CREATOR TYPES
 // ============================================
 
-export type CreatorStatus = 'pending' | 'approved' | 'deactivated';
+export type CreatorStatus = 'pending' | 'approved' | 'rejected' | 'deactivated';
 
 export interface Creator {
   id: string;
@@ -32,6 +32,7 @@ export interface Creator {
   youtube?: string;
   approved: boolean;
   status?: CreatorStatus;
+  rejectionReason?: string; // Razlog odbijanja od strane admina
   createdAt: string;
   updatedAt?: string;
 }

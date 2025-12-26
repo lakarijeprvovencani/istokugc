@@ -38,7 +38,20 @@ export default function DashboardPage() {
 
 function CreatorDashboard() {
   const creator = mockCreators[0]; // Demo: use first creator
-  const { getReviewsForCreator, addReplyToReview, updateReplyToReview, deleteReplyFromReview } = useDemo();
+  const { getReviewsForCreator, addReplyToReview, updateReplyToReview, deleteReplyFromReview, getOwnCreatorStatus } = useDemo();
+  
+  // Get creator status
+  const creatorStatus = getOwnCreatorStatus();
+  
+  // If creator is pending - show pending screen
+  if (creatorStatus?.status === 'pending' || (!creatorStatus?.status && !creator.approved)) {
+    return <CreatorPendingScreen />;
+  }
+  
+  // If creator is rejected - show rejection screen
+  if (creatorStatus?.status === 'rejected') {
+    return <CreatorRejectedScreen rejectionReason={creatorStatus.rejectionReason} />;
+  }
   const [activeTab, setActiveTab] = useState<'overview' | 'reviews'>('overview');
   
   // Inline editing states for each section
@@ -1834,6 +1847,164 @@ function BusinessDashboard() {
           >
             Obriši nalog
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// CREATOR PENDING SCREEN
+// ============================================
+function CreatorPendingScreen() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-white flex items-center justify-center p-4">
+      <div className="max-w-lg w-full text-center">
+        {/* Icon */}
+        <div className="relative mb-8">
+          <div className="w-32 h-32 mx-auto bg-amber-100 rounded-full flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-16 h-16 text-amber-600">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </div>
+          {/* Animated pulse ring */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-32 h-32 bg-amber-200/50 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
+          </div>
+        </div>
+
+        {/* Title */}
+        <h1 className="text-3xl font-light mb-4 text-foreground">
+          Vaš profil čeka odobrenje
+        </h1>
+
+        {/* Description */}
+        <p className="text-muted text-lg mb-8 leading-relaxed">
+          Hvala vam što ste se registrovali na UGC Select! <br />
+          Naš tim trenutno pregleda vaš profil i uskoro ćete dobiti obaveštenje.
+        </p>
+
+        {/* Info box */}
+        <div className="bg-white rounded-2xl border border-amber-200 p-6 mb-8">
+          <h3 className="font-medium text-foreground mb-3 flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-amber-600">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+            </svg>
+            Šta dalje?
+          </h3>
+          <ul className="text-sm text-muted space-y-2 text-left">
+            <li className="flex items-start gap-2">
+              <span className="text-amber-600 mt-0.5">✓</span>
+              <span>Admin će pregledati vaš profil u najkraćem roku</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-amber-600 mt-0.5">✓</span>
+              <span>Dobićete email obaveštenje o statusu profila</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-amber-600 mt-0.5">✓</span>
+              <span>Proces odobrenja obično traje do 24 sata</span>
+            </li>
+          </ul>
+        </div>
+
+        {/* Status badge */}
+        <div className="inline-flex items-center gap-2 px-5 py-3 bg-amber-100 text-amber-800 rounded-full text-sm font-medium">
+          <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+          Na čekanju
+        </div>
+
+        {/* Home link */}
+        <div className="mt-8">
+          <Link href="/" className="text-muted hover:text-foreground transition-colors text-sm">
+            ← Nazad na početnu
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// CREATOR REJECTED SCREEN
+// ============================================
+function CreatorRejectedScreen({ rejectionReason }: { rejectionReason?: string }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-red-50/50 to-white flex items-center justify-center p-4">
+      <div className="max-w-lg w-full text-center">
+        {/* Icon */}
+        <div className="w-32 h-32 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-8">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-16 h-16 text-red-600">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+          </svg>
+        </div>
+
+        {/* Title */}
+        <h1 className="text-3xl font-light mb-4 text-foreground">
+          Vaš profil nije odobren
+        </h1>
+
+        {/* Description */}
+        <p className="text-muted text-lg mb-6 leading-relaxed">
+          Nažalost, vaš profil nije prošao proces verifikacije.
+        </p>
+
+        {/* Rejection reason box */}
+        {rejectionReason && (
+          <div className="bg-white rounded-2xl border border-red-200 p-6 mb-8 text-left">
+            <h3 className="font-medium text-foreground mb-3 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-red-600">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              Razlog odbijanja
+            </h3>
+            <p className="text-muted text-sm leading-relaxed">
+              {rejectionReason}
+            </p>
+          </div>
+        )}
+
+        {/* What to do next */}
+        <div className="bg-white rounded-2xl border border-border p-6 mb-8">
+          <h3 className="font-medium text-foreground mb-3">Šta možete uraditi?</h3>
+          <ul className="text-sm text-muted space-y-2 text-left">
+            <li className="flex items-start gap-2">
+              <span className="text-primary mt-0.5">→</span>
+              <span>Pročitajte pažljivo razlog odbijanja</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-primary mt-0.5">→</span>
+              <span>Kreirajte novi profil sa ispravnim podacima</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-primary mt-0.5">→</span>
+              <span>Kontaktirajte podršku ako imate pitanja</span>
+            </li>
+          </ul>
+        </div>
+
+        {/* Status badge */}
+        <div className="inline-flex items-center gap-2 px-5 py-3 bg-red-100 text-red-800 rounded-full text-sm font-medium mb-8">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+          Odbijeno
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link 
+            href="/register/kreator" 
+            className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+          >
+            Registruj se ponovo
+          </Link>
+          <Link 
+            href="/" 
+            className="px-6 py-3 border border-border rounded-xl font-medium hover:bg-secondary transition-colors"
+          >
+            Nazad na početnu
+          </Link>
         </div>
       </div>
     </div>

@@ -23,6 +23,7 @@ interface CreatorModification {
   status?: CreatorStatus;
   approved?: boolean;
   deleted?: boolean;
+  rejectionReason?: string;
   // Add other editable fields as needed
   name?: string;
   bio?: string;
@@ -46,6 +47,7 @@ interface DemoContextType {
   // Profile ownership
   isOwnProfile: (creatorId: string) => boolean;
   getOwnCreatorId: () => string | undefined;
+  getOwnCreatorStatus: () => { status: CreatorStatus | undefined; rejectionReason?: string } | undefined;
   // Creator management
   getCreators: (includeHidden?: boolean) => Creator[];
   getCreatorById: (id: string) => Creator | undefined;
@@ -231,6 +233,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const getOwnCreatorId = (): string | undefined => {
     if (currentUser.type !== 'creator') return undefined;
     return currentUser.creatorId;
+  };
+
+  // Get the current user's creator status (if they are a creator)
+  const getOwnCreatorStatus = (): { status: CreatorStatus | undefined; rejectionReason?: string } | undefined => {
+    if (currentUser.type !== 'creator' || !currentUser.creatorId) return undefined;
+    const creator = getCreatorById(currentUser.creatorId);
+    if (!creator) return undefined;
+    return {
+      status: creator.status,
+      rejectionReason: creator.rejectionReason
+    };
   };
 
   // ============================================
@@ -567,6 +580,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       // Profile ownership
       isOwnProfile,
       getOwnCreatorId,
+      getOwnCreatorStatus,
       // Creator management
       getCreators,
       getCreatorById,

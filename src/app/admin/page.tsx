@@ -67,6 +67,10 @@ export default function AdminPage() {
   // Da li se modal otvara iz pending liste (prikaži Odobri/Odbij) ili iz kreatori liste (prikaži samo status)
   const [viewingFromPending, setViewingFromPending] = useState(false);
   
+  // State za odbijanje kreatora (sa razlogom)
+  const [rejectingCreator, setRejectingCreator] = useState<Creator | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  
   // Pretraga
   const [searchCreators, setSearchCreators] = useState('');
   const [searchBusinesses, setSearchBusinesses] = useState('');
@@ -133,9 +137,21 @@ export default function AdminPage() {
     });
   };
 
-  // Odbij kreatora - soft delete
-  const handleReject = (id: string) => {
-    deleteCreator(id);
+  // Odbij kreatora sa razlogom
+  const handleReject = (id: string, reason: string) => {
+    updateCreator(id, { 
+      approved: false, 
+      status: 'rejected' as CreatorStatus,
+      rejectionReason: reason
+    });
+    setRejectingCreator(null);
+    setRejectionReason('');
+  };
+  
+  // Otvori modal za odbijanje
+  const openRejectModal = (creator: Creator) => {
+    setRejectingCreator(creator);
+    setRejectionReason('');
   };
 
   // Obriši kreatora
@@ -349,7 +365,7 @@ export default function AdminPage() {
                               ✓ Odobri
                             </button>
                             <button
-                              onClick={() => handleReject(creator.id)}
+                              onClick={() => openRejectModal(creator)}
                               className="flex-1 py-2.5 bg-error text-white rounded-xl text-sm font-medium hover:bg-error/90 transition-colors"
                             >
                               ✕ Odbij
@@ -402,7 +418,7 @@ export default function AdminPage() {
                                 ✓ Odobri
                               </button>
                               <button
-                                onClick={() => handleReject(creator.id)}
+                                onClick={() => openRejectModal(creator)}
                                 className="px-6 py-2.5 bg-error text-white rounded-xl text-sm font-medium hover:bg-error/90 transition-colors"
                               >
                                 ✕ Odbij
@@ -1079,8 +1095,8 @@ export default function AdminPage() {
                       </button>
                       <button
                         onClick={() => {
-                          handleReject(viewingCreator.id);
                           setViewingCreator(null);
+                          openRejectModal(viewingCreator);
                         }}
                         className="flex-1 py-3 bg-error text-white rounded-xl text-sm font-medium hover:bg-error/90 transition-colors"
                       >
@@ -1227,6 +1243,64 @@ export default function AdminPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal za odbijanje kreatora */}
+        {rejectingCreator && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-error">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-medium mb-2">Odbij kreatora</h3>
+                <p className="text-muted text-sm">
+                  Odbijate profil: <strong>{rejectingCreator.name}</strong>
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="text-sm text-muted mb-2 block">Razlog odbijanja *</label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-error resize-none"
+                  placeholder="Unesite razlog odbijanja profila (biće prikazan kreatoru)..."
+                  required
+                />
+                <p className="text-xs text-muted mt-1">
+                  Kreator će videti ovaj razlog na svom dashboardu
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setRejectingCreator(null);
+                    setRejectionReason('');
+                  }}
+                  className="flex-1 py-3 border border-border rounded-xl hover:bg-secondary transition-colors"
+                >
+                  Otkaži
+                </button>
+                <button
+                  onClick={() => {
+                    if (rejectionReason.trim()) {
+                      handleReject(rejectingCreator.id, rejectionReason.trim());
+                    } else {
+                      alert('Molimo unesite razlog odbijanja');
+                    }
+                  }}
+                  className="flex-1 py-3 bg-error text-white rounded-xl hover:bg-error/90 transition-colors"
+                >
+                  Potvrdi odbijanje
+                </button>
+              </div>
             </div>
           </div>
         )}
