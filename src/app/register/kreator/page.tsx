@@ -7,6 +7,15 @@ import { useDemo } from '@/context/DemoContext';
 import { categories, platforms, languages } from '@/lib/mockData';
 import Image from 'next/image';
 
+interface PortfolioItem {
+  id: string;
+  type: 'youtube' | 'tiktok' | 'instagram' | 'upload';
+  url: string;
+  thumbnail: string;
+  description?: string;
+  platform?: 'instagram' | 'tiktok' | 'youtube' | 'other';
+}
+
 export default function RegisterCreatorPage() {
   const router = useRouter();
   const { setUserType } = useDemo();
@@ -30,6 +39,13 @@ export default function RegisterCreatorPage() {
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const portfolioInputRef = useRef<HTMLInputElement>(null);
+  
+  // Portfolio state
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
+  const [portfolioUrl, setPortfolioUrl] = useState('');
+  const [portfolioDescription, setPortfolioDescription] = useState('');
+  const [portfolioError, setPortfolioError] = useState('');
 
   const handleCategoryToggle = (category: string) => {
     setFormData(prev => ({
@@ -84,6 +100,87 @@ export default function RegisterCreatorPage() {
     reader.readAsDataURL(file);
   };
 
+  // Handle portfolio file upload
+  const handlePortfolioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file type (image or video)
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      setPortfolioError('Molimo izaberite sliku ili video');
+      return;
+    }
+
+    // Check file size (max 50MB for videos, 10MB for images)
+    const maxSize = file.type.startsWith('video/') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setPortfolioError(`Fajl je prevelik. Maksimalna veličina: ${file.type.startsWith('video/') ? '50MB' : '10MB'}`);
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      const newItem: PortfolioItem = {
+        id: `upload-${Date.now()}`,
+        type: 'upload',
+        url: dataUrl,
+        thumbnail: file.type.startsWith('video/') ? '/video-thumbnail.jpg' : dataUrl,
+        description: portfolioDescription,
+        platform: 'other',
+      };
+      setPortfolioItems([...portfolioItems, newItem]);
+      setPortfolioDescription('');
+      setPortfolioError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle portfolio URL add
+  const handleAddPortfolioUrl = () => {
+    if (!portfolioUrl.trim()) {
+      setPortfolioError('Molimo unesite URL');
+      return;
+    }
+
+    let type: 'youtube' | 'tiktok' | 'instagram' = 'youtube';
+    let platform: 'instagram' | 'tiktok' | 'youtube' = 'youtube';
+    
+    if (portfolioUrl.includes('youtube.com') || portfolioUrl.includes('youtu.be')) {
+      type = 'youtube';
+      platform = 'youtube';
+    } else if (portfolioUrl.includes('tiktok.com')) {
+      type = 'tiktok';
+      platform = 'tiktok';
+    } else if (portfolioUrl.includes('instagram.com')) {
+      type = 'instagram';
+      platform = 'instagram';
+    } else {
+      setPortfolioError('URL mora biti sa YouTube, TikTok ili Instagram');
+      return;
+    }
+
+    const newItem: PortfolioItem = {
+      id: `url-${Date.now()}`,
+      type,
+      url: portfolioUrl,
+      thumbnail: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=300&h=400&fit=crop',
+      description: portfolioDescription,
+      platform,
+    };
+    
+    setPortfolioItems([...portfolioItems, newItem]);
+    setPortfolioUrl('');
+    setPortfolioDescription('');
+    setPortfolioError('');
+  };
+
+  // Remove portfolio item
+  const handleRemovePortfolioItem = (id: string) => {
+    setPortfolioItems(portfolioItems.filter(item => item.id !== id));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -93,7 +190,13 @@ export default function RegisterCreatorPage() {
       return;
     }
     
-    if (step < 3) {
+    // Validate portfolio on step 4
+    if (step === 4 && portfolioItems.length === 0) {
+      setPortfolioError('Molimo dodajte bar jednu stavku u portfolio');
+      return;
+    }
+    
+    if (step < 4) {
       setStep(step + 1);
     } else {
       // Demo: just log in as creator
@@ -111,18 +214,18 @@ export default function RegisterCreatorPage() {
         </div>
 
         {/* Progress */}
-        <div className="flex items-center justify-center gap-3 mb-12">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center gap-3">
+        <div className="flex items-center justify-center gap-2 mb-12">
+          {[1, 2, 3, 4].map((s) => (
+            <div key={s} className="flex items-center gap-2">
               <div 
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-medium ${
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-medium text-sm sm:text-base ${
                   s <= step ? 'bg-primary text-white' : 'bg-secondary text-muted'
                 }`}
               >
                 {s < step ? '✓' : s}
               </div>
-              {s < 3 && (
-                <div className={`w-16 h-0.5 ${s < step ? 'bg-primary' : 'bg-border'}`} />
+              {s < 4 && (
+                <div className={`w-8 sm:w-12 h-0.5 ${s < step ? 'bg-primary' : 'bg-border'}`} />
               )}
             </div>
           ))}
@@ -366,8 +469,120 @@ export default function RegisterCreatorPage() {
                   className="w-full px-5 py-4 border border-border rounded-xl focus:outline-none focus:border-muted"
                 />
               </div>
+            </div>
+          )}
 
-              <div className="bg-secondary rounded-xl p-5 mt-8">
+          {step === 4 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-medium mb-2">Tvoj portfolio</h2>
+              <p className="text-sm text-muted mb-6">
+                Dodaj bar jednu stavku u portfolio kako bi brendovi mogli da vide tvoj rad.
+              </p>
+
+              {/* Portfolio items display */}
+              {portfolioItems.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+                  {portfolioItems.map((item) => (
+                    <div key={item.id} className="relative group">
+                      <div className="aspect-[3/4] rounded-xl overflow-hidden bg-secondary">
+                        {item.type === 'upload' && item.url.startsWith('data:video') ? (
+                          <video src={item.url} className="w-full h-full object-cover" muted />
+                        ) : (
+                          <Image
+                            src={item.thumbnail}
+                            alt="Portfolio"
+                            fill
+                            className="object-cover"
+                            unoptimized={item.thumbnail.startsWith('data:')}
+                          />
+                        )}
+                      </div>
+                      <div className="absolute top-2 right-2 bg-white/90 px-2 py-0.5 rounded-full text-[10px] font-medium">
+                        {item.platform === 'instagram' ? 'Instagram' : 
+                         item.platform === 'tiktok' ? 'TikTok' : 
+                         item.platform === 'youtube' ? 'YouTube' : 'Upload'}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePortfolioItem(item.id)}
+                        className="absolute bottom-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add from URL */}
+              <div className="bg-secondary/50 rounded-xl p-5">
+                <h3 className="font-medium mb-3">Dodaj link</h3>
+                <div className="space-y-3">
+                  <input
+                    type="url"
+                    value={portfolioUrl}
+                    onChange={(e) => setPortfolioUrl(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=... ili tiktok.com/..."
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                  />
+                  <input
+                    type="text"
+                    value={portfolioDescription}
+                    onChange={(e) => setPortfolioDescription(e.target.value)}
+                    placeholder="Kratak opis projekta (opciono)"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddPortfolioUrl}
+                    className="w-full py-3 border border-primary text-primary rounded-xl font-medium hover:bg-primary hover:text-white transition-colors"
+                  >
+                    Dodaj link
+                  </button>
+                </div>
+              </div>
+
+              {/* Or upload file */}
+              <div className="text-center">
+                <div className="text-sm text-muted mb-3">ili</div>
+                <button
+                  type="button"
+                  onClick={() => portfolioInputRef.current?.click()}
+                  className="px-6 py-3 border border-border rounded-xl text-sm hover:bg-secondary transition-colors"
+                >
+                  Uploaduj fajl (sliku ili video)
+                </button>
+                <input
+                  ref={portfolioInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handlePortfolioUpload}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Error message */}
+              {portfolioError && (
+                <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-sm text-error">
+                  {portfolioError}
+                </div>
+              )}
+
+              {/* Success indicator */}
+              {portfolioItems.length > 0 && (
+                <div className="bg-success/10 border border-success/20 rounded-xl p-4 flex items-center gap-3">
+                  <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-success">
+                    {portfolioItems.length} {portfolioItems.length === 1 ? 'stavka dodana' : 'stavke dodane'} u portfolio
+                  </span>
+                </div>
+              )}
+
+              <div className="bg-secondary rounded-xl p-5 mt-4">
                 <div className="flex items-start gap-3">
                   <span className="text-xl">ℹ️</span>
                   <div>
@@ -409,7 +624,7 @@ export default function RegisterCreatorPage() {
               type="submit"
               className="px-8 py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
             >
-              {step < 3 ? 'Nastavi' : 'Završi registraciju'}
+              {step < 4 ? 'Nastavi' : 'Završi registraciju'}
             </button>
           </div>
         </form>

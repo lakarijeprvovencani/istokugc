@@ -28,6 +28,8 @@ export interface Creator {
   email: string;
   phone?: string;
   instagram?: string;
+  tiktok?: string;
+  youtube?: string;
   approved: boolean;
   status?: CreatorStatus;
   createdAt: string;

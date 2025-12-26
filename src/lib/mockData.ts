@@ -100,6 +100,8 @@ export const mockCreators: Creator[] = [
     email: 'marija@example.com',
     phone: '+381 61 123 4567',
     instagram: '@marija.petrovic',
+    tiktok: '@marija.p',
+    youtube: '@MarijaPetrovicUGC',
     approved: true,
     createdAt: '2024-01-15',
   },
