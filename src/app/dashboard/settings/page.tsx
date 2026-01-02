@@ -36,6 +36,8 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch real user data from Supabase
   useEffect(() => {
@@ -125,37 +127,45 @@ export default function SettingsPage() {
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      const supabase = createClient();
-      
       if (currentUser.type === 'business' && currentUser.businessId) {
-        // Update business profile
-        const { error } = await supabase
-          .from('businesses')
-          .update({
-            contact_name: profileForm.name,
-            company_name: profileForm.companyName,
+        // Update business profile via API
+        const response = await fetch('/api/business/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businessId: currentUser.businessId,
+            companyName: profileForm.companyName,
             phone: profileForm.phone,
-          })
-          .eq('id', currentUser.businessId);
+          }),
+        });
         
-        if (error) throw error;
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Greška pri čuvanju');
+        }
       } else if (currentUser.type === 'creator' && currentUser.creatorId) {
-        // Update creator profile
-        const { error } = await supabase
-          .from('creators')
-          .update({
-            display_name: profileForm.name,
+        // Update creator profile via API
+        const response = await fetch('/api/creator/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            creatorId: currentUser.creatorId,
+            displayName: profileForm.name,
             phone: profileForm.phone,
-          })
-          .eq('id', currentUser.creatorId);
+          }),
+        });
         
-        if (error) throw error;
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Greška pri čuvanju');
+        }
       }
       
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
       console.error('Error saving profile:', error);
+      alert('Greška pri čuvanju profila. Pokušajte ponovo.');
     } finally {
       setIsSaving(false);
     }
@@ -577,24 +587,10 @@ export default function SettingsPage() {
                 <div className="pt-6 border-t border-border">
                   <h3 className="font-medium text-error mb-2">Opasna zona</h3>
                   <p className="text-sm text-muted mb-4">
-                    Brisanje naloga je trajno i ne može se poništiti. Svi tvoji podaci će biti obrisani.
+                    Brisanje naloga je trajno i ne može se poništiti. Svi tvoji podaci i recenzije će biti obrisani.
                   </p>
                   <button 
-                    onClick={() => {
-                      if (confirm('Da li si siguran da želiš da obrišeš svoj nalog? Ova akcija je trajna i ne može se poništiti.')) {
-                        // In production, this would call API endpoint
-                        // if (currentUser.type === 'creator') {
-                        //   await fetch('/api/creators/me', { method: 'DELETE' });
-                        // } else if (currentUser.type === 'business') {
-                        //   await fetch('/api/businesses/me', { method: 'DELETE' });
-                        // }
-                        // logout();
-                        // router.push('/');
-                        
-                        // Demo mode: show alert
-                        alert('Demo režim: U produkciji bi se nalog obrisao i korisnik bi bio odjavljen.');
-                      }
-                    }}
+                    onClick={() => setShowDeleteModal(true)}
                     className="px-6 py-3 border border-error text-error rounded-xl font-medium hover:bg-error/10 transition-colors"
                   >
                     Obriši nalog
@@ -605,6 +601,103 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden">
+            {/* Header */}
+            <div className="bg-error/10 p-6 text-center">
+              <div className="w-16 h-16 bg-error/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-error">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-medium text-error">Obriši nalog</h2>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <p className="text-center text-muted mb-4">
+                Da li si siguran da želiš da obrišeš svoj nalog? Ova akcija je <strong className="text-foreground">trajna</strong> i ne može se poništiti.
+              </p>
+              
+              <div className="bg-secondary/50 rounded-xl p-4 mb-4">
+                <p className="text-sm text-muted">Brisanjem naloga:</p>
+                <ul className="text-sm text-muted mt-2 space-y-1">
+                  <li className="flex items-center gap-2">
+                    <span className="text-error">✕</span> Svi tvoji podaci će biti obrisani
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-error">✕</span> Sve recenzije će biti obrisane
+                  </li>
+                  {currentUser.type === 'business' && currentUser.subscriptionStatus === 'active' && (
+                    <li className="flex items-center gap-2">
+                      <span className="text-error">✕</span> Tvoja pretplata će biti otkazana (bez refunda)
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-3 border border-border rounded-xl font-medium hover:bg-secondary transition-colors disabled:opacity-50"
+                >
+                  Odustani
+                </button>
+                <button
+                  onClick={async () => {
+                    setIsDeleting(true);
+                    try {
+                      const response = await fetch('/api/account/delete', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          userType: currentUser.type,
+                          id: currentUser.type === 'business' ? currentUser.businessId : currentUser.creatorId,
+                          userId: currentUser.id,
+                        }),
+                      });
+                      
+                      if (response.ok) {
+                        // Logout and redirect
+                        const supabase = createClient();
+                        await supabase.auth.signOut();
+                        window.location.href = '/';
+                      } else {
+                        const data = await response.json();
+                        alert(data.error || 'Greška pri brisanju naloga.');
+                        setIsDeleting(false);
+                      }
+                    } catch (error) {
+                      console.error('Delete account error:', error);
+                      alert('Greška pri brisanju naloga. Pokušaj ponovo.');
+                      setIsDeleting(false);
+                    }
+                  }}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-3 bg-error text-white rounded-xl font-medium hover:bg-error/90 transition-colors disabled:opacity-50"
+                >
+                  {isDeleting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Brisanje...
+                    </span>
+                  ) : (
+                    'Da, obriši nalog'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

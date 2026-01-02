@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { businessId, companyName, website, industry, description } = body;
+    const { businessId, companyName, website, industry, description, phone } = body;
 
     if (!businessId) {
       return NextResponse.json(
@@ -63,14 +63,17 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Build update object with only provided fields
+    const updateData: Record<string, any> = {};
+    if (companyName !== undefined) updateData.company_name = companyName;
+    if (website !== undefined) updateData.website = website;
+    if (industry !== undefined) updateData.industry = industry;
+    if (description !== undefined) updateData.description = description;
+    if (phone !== undefined) updateData.phone = phone;
+
     const { data, error } = await supabase
       .from('businesses')
-      .update({
-        company_name: companyName,
-        website,
-        industry,
-        description,
-      })
+      .update(updateData)
       .eq('id', businessId)
       .select()
       .single();
