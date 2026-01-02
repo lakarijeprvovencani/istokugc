@@ -11,19 +11,76 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const plan = searchParams.get('plan') as 'monthly' | 'yearly' | null;
   const sessionId = searchParams.get('session_id');
-  const { loginAsNewBusiness } = useDemo();
+  const { loginAsNewBusiness, updateCurrentUser } = useDemo();
   
   const [isCreating, setIsCreating] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRenewal, setIsRenewal] = useState(false);
   const hasProcessed = useRef(false);
 
   useEffect(() => {
     if (hasProcessed.current) return;
     hasProcessed.current = true;
     
-    const createBusiness = async () => {
+    const processPayment = async () => {
       try {
-        // Get registration data from sessionStorage
+        // Proveri da li je obnova pretplate (postojeći korisnik)
+        const renewBusinessId = sessionStorage.getItem('renewBusinessId');
+        
+        if (renewBusinessId) {
+          // OBNOVA PRETPLATE za postojećeg korisnika
+          setIsRenewal(true);
+          
+          // Dohvati Stripe session podatke
+          let stripeCustomerId = null;
+          let stripeSubscriptionId = null;
+
+          if (sessionId) {
+            try {
+              const stripeResponse = await fetch(`/api/stripe/session/${sessionId}`);
+              if (stripeResponse.ok) {
+                const stripeData = await stripeResponse.json();
+                stripeCustomerId = stripeData.customer;
+                stripeSubscriptionId = stripeData.subscription;
+              }
+            } catch (stripeError) {
+              console.error('Error fetching Stripe session:', stripeError);
+            }
+          }
+          
+          // Ažuriraj pretplatu u bazi
+          const response = await fetch('/api/subscription/renew', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              businessId: renewBusinessId,
+              plan: plan || 'monthly',
+              stripeCustomerId,
+              stripeSubscriptionId,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Greška pri obnovi pretplate');
+          }
+
+          // Ažuriraj lokalni state
+          updateCurrentUser({ 
+            subscriptionStatus: 'active',
+            subscriptionPlan: plan || 'monthly'
+          });
+          
+          // Očisti sessionStorage
+          sessionStorage.removeItem('renewBusinessId');
+          
+          setIsCreating(false);
+          showConfetti();
+          return;
+        }
+        
+        // NOVA REGISTRACIJA
         const savedData = sessionStorage.getItem('businessRegistration');
         if (!savedData) {
           setError('Podaci za registraciju nisu pronađeni');
@@ -42,12 +99,11 @@ function SuccessContent() {
             const stripeResponse = await fetch(`/api/stripe/session/${sessionId}`);
             if (stripeResponse.ok) {
               const stripeData = await stripeResponse.json();
-              stripeCustomerId = stripeData.customerId;
-              stripeSubscriptionId = stripeData.subscriptionId;
+              stripeCustomerId = stripeData.customer;
+              stripeSubscriptionId = stripeData.subscription;
             }
           } catch (stripeError) {
             console.error('Error fetching Stripe session:', stripeError);
-            // Nastavi bez Stripe podataka - nije kritično
           }
         }
         
@@ -75,51 +131,53 @@ function SuccessContent() {
         }
 
         // Success! Update local state
-        loginAsNewBusiness(data.businessId, data.companyName);
+        loginAsNewBusiness(data.businessId, data.companyName, 'active', plan || 'monthly');
         
         // Clear registration data
         sessionStorage.removeItem('businessRegistration');
         
         setIsCreating(false);
-
-        // Confetti effect
-        const duration = 3 * 1000;
-        const animationEnd = Date.now() + duration;
-        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-
-        function randomInRange(min: number, max: number) {
-          return Math.random() * (max - min) + min;
-        }
-
-        const interval: ReturnType<typeof setInterval> = setInterval(function() {
-          const timeLeft = animationEnd - Date.now();
-
-          if (timeLeft <= 0) {
-            return clearInterval(interval);
-          }
-
-          const particleCount = 50 * (timeLeft / duration);
-          confetti({
-            ...defaults,
-            particleCount,
-            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
-          });
-          confetti({
-            ...defaults,
-            particleCount,
-            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
-          });
-        }, 250);
+        showConfetti();
 
       } catch (err) {
-        console.error('Business creation error:', err);
-        setError(err instanceof Error ? err.message : 'Greška pri kreiranju naloga');
+        console.error('Payment processing error:', err);
+        setError(err instanceof Error ? err.message : 'Greška pri obradi plaćanja');
         setIsCreating(false);
       }
     };
+    
+    const showConfetti = () => {
+      const duration = 3 * 1000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
 
-    createBusiness();
-  }, [loginAsNewBusiness, plan, sessionId]);
+      function randomInRange(min: number, max: number) {
+        return Math.random() * (max - min) + min;
+      }
+
+      const interval: ReturnType<typeof setInterval> = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+        });
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+        });
+      }, 250);
+    };
+
+    processPayment();
+  }, [loginAsNewBusiness, updateCurrentUser, plan, sessionId]);
 
   const planDetails = {
     monthly: {
@@ -142,7 +200,7 @@ function SuccessContent() {
       <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted">Kreiram vaš nalog...</p>
+          <p className="text-muted">{isRenewal ? 'Aktiviram pretplatu...' : 'Kreiram vaš nalog...'}</p>
         </div>
       </div>
     );
@@ -161,7 +219,7 @@ function SuccessContent() {
           <h1 className="text-2xl font-light mb-4">Greška</h1>
           <p className="text-muted mb-8">{error}</p>
           <Link
-            href="/register/biznis"
+            href={isRenewal ? "/pricing" : "/register/biznis"}
             className="inline-block px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors"
           >
             Pokušaj ponovo
@@ -181,9 +239,14 @@ function SuccessContent() {
               <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
             </svg>
           </div>
-          <h1 className="text-4xl font-light mb-4">Plaćanje uspešno!</h1>
+          <h1 className="text-4xl font-light mb-4">
+            {isRenewal ? 'Pretplata obnovljena!' : 'Plaćanje uspešno!'}
+          </h1>
           <p className="text-muted text-lg">
-            Dobrodošli u UGC Select. Vaš nalog je aktiviran.
+            {isRenewal 
+              ? 'Vaša pretplata je ponovo aktivna. Možete nastaviti sa korišćenjem platforme.'
+              : 'Dobrodošli u UGC Select. Vaš nalog je aktiviran.'
+            }
           </p>
         </div>
 

@@ -2,11 +2,19 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useDemo } from '@/context/DemoContext';
 
 export default function Header() {
+  const router = useRouter();
   const { currentUser, isLoggedIn, logout, isHydrated, getOwnCreatorId, getCreatorById } = useDemo();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Logout i redirect na početnu
+  const handleLogout = async () => {
+    await logout();
+    router.push('/');
+  };
 
   // Dohvati pravo ime korisnika
   const getUserDisplayName = () => {
@@ -104,7 +112,7 @@ export default function Header() {
                 
                 {/* Logout button */}
                 <button 
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="flex items-center gap-2 text-sm px-4 py-2 text-muted hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -225,7 +233,7 @@ export default function Header() {
                 <div className="mt-2 pt-2 border-t border-border mx-3">
                   <button 
                     onClick={() => {
-                      logout();
+                      handleLogout();
                       setMobileMenuOpen(false);
                     }}
                     className="w-full flex items-center gap-3 px-3 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"

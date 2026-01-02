@@ -14,6 +14,7 @@ import {
   mockReviews,
 } from '@/lib/mockData';
 import type { Rating, CreateReviewInput } from '@/types/review';
+import { createClient } from '@/lib/supabase/client';
 
 // Combine all creators into one source of truth
 const allBaseCreators: Creator[] = [...mockCreators, ...pendingCreators];
@@ -66,8 +67,9 @@ export interface CreateCreatorInput {
 interface DemoContextType {
   currentUser: DemoUser;
   setUserType: (type: UserType) => void;
+  updateCurrentUser: (updates: Partial<DemoUser>) => void; // Update current user properties
   loginAsNewCreator: (creatorId: string) => void; // Login as newly registered creator
-  loginAsNewBusiness: (businessId: string, companyName: string) => void; // Login as newly registered business
+  loginAsNewBusiness: (businessId: string, companyName: string, subscriptionStatus?: string, subscriptionPlan?: string) => void; // Login as newly registered business
   isLoggedIn: boolean;
   logout: () => void;
   isHydrated: boolean;
@@ -257,8 +259,80 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       }
       
       setIsHydrated(true);
+      
+      // Check Supabase session and restore real user data
+      checkSupabaseSession();
     }
   }, []);
+
+  // Check Supabase session and restore user data
+  const checkSupabaseSession = async () => {
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        // Fetch user role from public.users
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (userData?.role === 'creator') {
+          // Fetch creator profile
+          const { data: creatorData } = await supabase
+            .from('creators')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          if (creatorData) {
+            const creatorUser: DemoUser = {
+              type: 'creator',
+              name: creatorData.name,
+              creatorId: creatorData.id,
+            };
+            setCurrentUser(creatorUser);
+            setLoggedInCreatorId(creatorData.id);
+            localStorage.setItem(STORAGE_KEY, 'creator');
+            localStorage.setItem(CURRENT_CREATOR_ID_KEY, creatorData.id);
+          }
+        } else if (userData?.role === 'business') {
+          // Fetch business profile
+          const { data: businessData } = await supabase
+            .from('businesses')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          if (businessData) {
+            const businessUser: DemoUser = {
+              type: 'business',
+              name: businessData.company_name,
+              companyName: businessData.company_name,
+              businessId: businessData.id,
+              subscriptionStatus: businessData.subscription_status,
+              subscriptionPlan: businessData.subscription_type,
+              subscriptionExpiresAt: businessData.expires_at,
+              website: businessData.website,
+              industry: businessData.industry,
+              description: businessData.description,
+            };
+            setCurrentUser(businessUser);
+            setLoggedInBusiness({ id: businessData.id, companyName: businessData.company_name });
+            localStorage.setItem(STORAGE_KEY, 'business');
+            localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ id: businessData.id, companyName: businessData.company_name }));
+          }
+        } else if (userData?.role === 'admin') {
+          setCurrentUser(demoUsers.admin);
+          localStorage.setItem(STORAGE_KEY, 'admin');
+        }
+      }
+    } catch (error) {
+      console.error('Error checking Supabase session:', error);
+    }
+  };
 
   // Save reviews to localStorage whenever they change
   const saveReviews = (newReviews: Review[]) => {
@@ -274,6 +348,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, type);
     }
+  };
+  
+  // Update current user properties (e.g., subscription status)
+  const updateCurrentUser = (updates: Partial<DemoUser>) => {
+    setCurrentUser(prev => ({ ...prev, ...updates }));
   };
 
   // Login as a newly registered creator (links user to their creator profile)
@@ -293,24 +372,32 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   };
 
   // Login as a newly registered business (after successful payment)
-  const loginAsNewBusiness = (businessId: string, companyName: string) => {
+  const loginAsNewBusiness = (businessId: string, companyName: string, subscriptionStatus?: string, subscriptionPlan?: string) => {
     const businessUser: DemoUser = {
       ...demoUsers.business,
       businessId: businessId,
       companyName: companyName,
-      subscriptionStatus: 'active',
-      subscriptionPlan: 'monthly', // Will be updated based on checkout
+      subscriptionStatus: subscriptionStatus || 'active',
+      subscriptionPlan: subscriptionPlan || 'monthly',
     };
     setCurrentUser(businessUser);
     setLoggedInBusiness({ id: businessId, companyName });
     
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, 'business');
-      localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ id: businessId, companyName }));
+      localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ id: businessId, companyName, subscriptionStatus, subscriptionPlan }));
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Sign out from Supabase
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error signing out from Supabase:', error);
+    }
+    
     setCurrentUser(demoUsers.guest);
     setLoggedInCreatorId(undefined);
     setLoggedInBusiness(undefined);
@@ -772,7 +859,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   return (
     <DemoContext.Provider value={{ 
       currentUser, 
-      setUserType, 
+      setUserType,
+      updateCurrentUser,
       loginAsNewCreator,
       loginAsNewBusiness,
       isLoggedIn, 

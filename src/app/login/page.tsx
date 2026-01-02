@@ -127,14 +127,9 @@ export default function LoginPage() {
           return;
         }
 
-        // Proveri da li je pretplata aktivna
-        if (businessData.subscription_status !== 'active') {
-          setError('Vaša pretplata nije aktivna. Molimo obnovite pretplatu.');
-          setIsLoading(false);
-          return;
-        }
-        
-        loginAsNewBusiness(businessData.id, businessData.company_name);
+        // Dozvoli login bez obzira na status pretplate
+        // Dashboard će prikazati opciju za obnovu ako je pretplata istekla
+        loginAsNewBusiness(businessData.id, businessData.company_name, businessData.subscription_status, businessData.subscription_type);
         router.push('/dashboard');
       }
 

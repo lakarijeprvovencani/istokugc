@@ -6,15 +6,12 @@ import { categories, platforms, languages } from '@/lib/mockData';
 import CreatorCard from '@/components/CreatorCard';
 import { useDemo } from '@/context/DemoContext';
 import { generateReviewStats } from '@/types/review';
+import { createClient } from '@/lib/supabase/client';
 
 export default function KreatoriPage() {
-  const { currentUser, isLoggedIn, getCreators, getReviewsForCreator, getOwnCreatorStatus } = useDemo();
+  const { currentUser, isLoggedIn, getCreators, getReviewsForCreator, getOwnCreatorStatus, updateCurrentUser } = useDemo();
   
-  // Get creator status for pending check
-  const creatorStatus = getOwnCreatorStatus();
-  
-  // Get creators from context (filtered by status for non-admins)
-  const allCreators = getCreators(currentUser.type === 'admin');
+  // ALL HOOKS MUST BE AT THE TOP - before any conditional returns
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedPlatform, setSelectedPlatform] = useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
@@ -22,7 +19,71 @@ export default function KreatoriPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [minRating, setMinRating] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('');
-  const [showFilters, setShowFilters] = useState<boolean>(true); // Visible by default on desktop
+  const [showFilters, setShowFilters] = useState<boolean>(true);
+  const [liveSubscriptionStatus, setLiveSubscriptionStatus] = useState<string | null>(null);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
+  
+  // Get creator status for pending check
+  const creatorStatus = getOwnCreatorStatus();
+  
+  // Get creators from context (filtered by status for non-admins)
+  const allCreators = getCreators(currentUser.type === 'admin');
+  
+  // Fetch live subscription status from Supabase for business users
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (currentUser.type === 'business' && currentUser.businessId) {
+        try {
+          const supabase = createClient();
+          
+          // Try to find business by id first, then by user_id if not found
+          let { data, error } = await supabase
+            .from('businesses')
+            .select('subscription_status')
+            .eq('id', currentUser.businessId)
+            .single();
+          
+          // If not found by id, try by user_id (in case businessId is actually user_id)
+          if (error || !data) {
+            const result = await supabase
+              .from('businesses')
+              .select('subscription_status')
+              .eq('user_id', currentUser.businessId)
+              .single();
+            data = result.data;
+            error = result.error;
+          }
+          
+          if (!error && data) {
+            console.log('Live subscription status:', data.subscription_status);
+            setLiveSubscriptionStatus(data.subscription_status);
+            // Also update the context if status changed
+            if (data.subscription_status !== currentUser.subscriptionStatus && updateCurrentUser) {
+              updateCurrentUser({ subscriptionStatus: data.subscription_status });
+            }
+          } else {
+            console.error('Error fetching subscription status:', error);
+          }
+        } catch (err) {
+          console.error('Error checking subscription:', err);
+        }
+      }
+      setIsCheckingSubscription(false);
+    };
+    
+    checkSubscription();
+  }, [currentUser.type, currentUser.businessId, currentUser.subscriptionStatus, updateCurrentUser]);
+  
+  // Check if business user has active subscription - use live status if available
+  const hasActiveSubscription = useMemo(() => {
+    if (currentUser.type === 'admin' || currentUser.type === 'creator') return true;
+    if (currentUser.type === 'business') {
+      // Use live status if we have it, otherwise fall back to context value
+      const statusToCheck = liveSubscriptionStatus || currentUser.subscriptionStatus;
+      return statusToCheck === 'active';
+    }
+    return false; // guest
+  }, [currentUser, liveSubscriptionStatus]);
   
   // Hide filters on mobile by default
   useEffect(() => {
@@ -46,7 +107,8 @@ export default function KreatoriPage() {
     const reviews = getReviewsForCreator(creatorId, true);
     return reviews.length;
   };
-
+  
+  // Filtered creators - must be declared as a hook before conditional returns
   const filteredCreators = useMemo(() => {
     let results = allCreators.filter((creator) => {
       // For admins, show all (already filtered in getCreators)
@@ -112,18 +174,73 @@ export default function KreatoriPage() {
     setMinRating('');
     setSortBy('');
   };
-
-  // If not logged in, show login prompt
+  
+  // Show loading while checking subscription for business users
+  if (currentUser.type === 'business' && isCheckingSubscription) {
+    return (
+      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-secondary/30">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted">Provera pretplate...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show subscription required screen for business users with expired subscription
+  if (currentUser.type === 'business' && !hasActiveSubscription) {
+    return (
+      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-secondary/30">
+        <div className="max-w-md mx-auto px-6 text-center">
+          <div className="bg-white rounded-3xl border border-border p-8 shadow-sm">
+            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            
+            <h1 className="text-2xl font-light mb-3">Pretplata je istekla</h1>
+            <p className="text-muted mb-8">
+              Vaša pretplata nije aktivna. Obnovite pretplatu da biste pristupili svim kreatorima i njihovim kontakt informacijama.
+            </p>
+            
+            <div className="space-y-3">
+              <Link
+                href="/pricing"
+                className="block w-full py-3.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+              >
+                Obnovi pretplatu
+              </Link>
+              <Link
+                href="/dashboard"
+                className="block w-full py-3.5 border border-border rounded-xl font-medium hover:bg-secondary transition-colors"
+              >
+                Nazad na Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show login required for guests
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-secondary/30">
+      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-secondary/30">
         <div className="max-w-md mx-auto px-6 text-center">
-          <div className="bg-white rounded-3xl p-10 border border-border shadow-sm">
-            <div className="text-5xl mb-6">🔒</div>
-            <h1 className="text-2xl font-light mb-3">Pristup ograničen</h1>
+          <div className="bg-white rounded-3xl border border-border p-8 shadow-sm">
+            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            
+            <h1 className="text-2xl font-light mb-3">Prijava potrebna</h1>
             <p className="text-muted mb-8">
-              Da bi pregledao kreatore, potrebno je da imaš nalog na platformi.
+              Prijavite se ili kreirajte nalog da biste videli sve kreatore.
             </p>
+            
             <div className="space-y-3">
               <Link 
                 href="/login"

@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Creator, CreatorStatus, categories, platforms, languages } from '@/lib/mockData';
@@ -11,6 +11,7 @@ import { AverageRating } from '@/components/StarRating';
 import { generateReviewStats } from '@/types/review';
 import type { CreateReviewInput } from '@/types/review';
 import VideoPlayerModal from '@/components/VideoPlayerModal';
+import { createClient } from '@/lib/supabase/client';
 
 export default function CreatorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -36,6 +37,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
     addToRecentlyViewed,
     incrementProfileViews,
     getOwnCreatorStatus,
+    updateCurrentUser,
   } = useDemo();
   
   // Check if current user is a pending/rejected creator
@@ -44,7 +46,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   // Get creator from context (with any saved modifications)
   const savedCreator = getCreatorById(resolvedParams.id);
   
-  // State for editing
+  // ALL HOOKS MUST BE AT THE TOP - before any conditional returns
   const [isEditing, setIsEditing] = useState(false);
   const [editedCreator, setEditedCreator] = useState<Creator | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -58,6 +60,61 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   const [activeVideo, setActiveVideo] = useState<{url: string; type: string; originalUrl?: string; description?: string} | null>(null);
   const [activeImage, setActiveImage] = useState<{url: string; type: string; originalUrl?: string; description?: string} | null>(null);
   const [portfolioDetail, setPortfolioDetail] = useState<{url: string; type: string; description?: string; platform?: string} | null>(null);
+  
+  // Live subscription status check
+  const [liveSubscriptionStatus, setLiveSubscriptionStatus] = useState<string | null>(null);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
+  
+  // Fetch live subscription status from Supabase for business users
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (currentUser.type === 'business' && currentUser.businessId) {
+        try {
+          const supabase = createClient();
+          
+          // Try to find business by id first, then by user_id if not found
+          let { data, error } = await supabase
+            .from('businesses')
+            .select('subscription_status')
+            .eq('id', currentUser.businessId)
+            .single();
+          
+          // If not found by id, try by user_id (in case businessId is actually user_id)
+          if (error || !data) {
+            const result = await supabase
+              .from('businesses')
+              .select('subscription_status')
+              .eq('user_id', currentUser.businessId)
+              .single();
+            data = result.data;
+            error = result.error;
+          }
+          
+          if (!error && data) {
+            setLiveSubscriptionStatus(data.subscription_status);
+            if (data.subscription_status !== currentUser.subscriptionStatus && updateCurrentUser) {
+              updateCurrentUser({ subscriptionStatus: data.subscription_status });
+            }
+          }
+        } catch (err) {
+          console.error('Error checking subscription:', err);
+        }
+      }
+      setIsCheckingSubscription(false);
+    };
+    
+    checkSubscription();
+  }, [currentUser.type, currentUser.businessId, currentUser.subscriptionStatus, updateCurrentUser]);
+  
+  // Check if business user has active subscription - use live status if available
+  const hasActiveSubscription = useMemo(() => {
+    if (currentUser.type === 'admin' || currentUser.type === 'creator') return true;
+    if (currentUser.type === 'business') {
+      const statusToCheck = liveSubscriptionStatus || currentUser.subscriptionStatus;
+      return statusToCheck === 'active';
+    }
+    return false; // guest
+  }, [currentUser, liveSubscriptionStatus]);
   
   // Update state after hydration - only run once when hydrated
   useEffect(() => {
@@ -85,36 +142,47 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   // Use edited version if available, otherwise saved
   const creator = editedCreator || savedCreator;
   
-  const isAdmin = currentUser.type === 'admin';
-  const isOwner = creator ? isOwnProfile(creator.id) : false;
-
-  // Admin and business users can see contact info (all business users have active subscription)
-  // Creators can also see their own contact info
-  const canSeeContact = currentUser.type === 'admin' || currentUser.type === 'business' || isOwner;
-
-  // If not logged in, show login prompt
-  if (!isLoggedIn) {
+  // Show loading while checking subscription for business users
+  if (isHydrated && currentUser.type === 'business' && isCheckingSubscription) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-secondary/30">
+      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-secondary/30">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted">Provera pretplate...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show subscription required screen for business users with expired subscription
+  if (isHydrated && currentUser.type === 'business' && !hasActiveSubscription) {
+    return (
+      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-secondary/30">
         <div className="max-w-md mx-auto px-6 text-center">
-          <div className="bg-white rounded-3xl p-10 border border-border shadow-sm">
-            <div className="text-5xl mb-6">🔒</div>
-            <h1 className="text-2xl font-light mb-3">Pristup ograničen</h1>
+          <div className="bg-white rounded-3xl border border-border p-8 shadow-sm">
+            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            
+            <h1 className="text-2xl font-light mb-3">Pretplata je istekla</h1>
             <p className="text-muted mb-8">
-              Da bi video profile kreatora, potrebno je da imaš nalog na platformi.
+              Vaša pretplata nije aktivna. Obnovite pretplatu da biste pristupili profilima kreatora i njihovim kontakt informacijama.
             </p>
+            
             <div className="space-y-3">
-              <Link 
-                href="/login"
-                className="block w-full py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+              <Link
+                href="/pricing"
+                className="block w-full py-3.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
               >
-                Prijavi se
+                Obnovi pretplatu
               </Link>
-              <Link 
-                href="/register/biznis"
-                className="block w-full py-4 border border-border rounded-xl font-medium hover:bg-secondary transition-colors"
+              <Link
+                href="/dashboard"
+                className="block w-full py-3.5 border border-border rounded-xl font-medium hover:bg-secondary transition-colors"
               >
-                Registruj se kao brend
+                Nazad na Dashboard
               </Link>
             </div>
           </div>
@@ -122,6 +190,50 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
       </div>
     );
   }
+  
+  // Show login required for guests
+  if (isHydrated && !isLoggedIn) {
+    return (
+      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-secondary/30">
+        <div className="max-w-md mx-auto px-6 text-center">
+          <div className="bg-white rounded-3xl border border-border p-8 shadow-sm">
+            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            
+            <h1 className="text-2xl font-light mb-3">Prijava potrebna</h1>
+            <p className="text-muted mb-8">
+              Prijavite se ili kreirajte nalog da biste videli profil ovog kreatora.
+            </p>
+            
+            <div className="space-y-3">
+              <Link
+                href="/login"
+                className="block w-full py-3.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+              >
+                Prijavi se
+              </Link>
+              <Link
+                href="/register"
+                className="block w-full py-3.5 border border-border rounded-xl font-medium hover:bg-secondary transition-colors"
+              >
+                Registruj se
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  const isAdmin = currentUser.type === 'admin';
+  const isOwner = creator ? isOwnProfile(creator.id) : false;
+
+  // Admin and business users can see contact info (all business users have active subscription)
+  // Creators can also see their own contact info
+  const canSeeContact = currentUser.type === 'admin' || (currentUser.type === 'business' && hasActiveSubscription) || isOwner;
 
   // Check if this is demo creator (ID "1" - Marija Petrović)
   // Demo creators bypass pending/rejected checks for client presentations

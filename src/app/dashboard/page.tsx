@@ -1333,8 +1333,8 @@ function BusinessDashboard() {
       }
       
       try {
-        // Fetch business profile
-        const profileRes = await fetch(`/api/business/profile?businessId=${currentUser.businessId}`);
+        // Fetch business profile with cache-busting
+        const profileRes = await fetch(`/api/business/profile?businessId=${currentUser.businessId}&t=${Date.now()}`);
         if (profileRes.ok) {
           const profile = await profileRes.json();
           setBusinessData(profile);
@@ -1345,7 +1345,7 @@ function BusinessDashboard() {
         }
         
         // Fetch subscription status from Stripe
-        const subRes = await fetch(`/api/stripe/subscription-status?businessId=${currentUser.businessId}`);
+        const subRes = await fetch(`/api/stripe/subscription-status?businessId=${currentUser.businessId}&t=${Date.now()}`);
         if (subRes.ok) {
           const subData = await subRes.json();
           setSubscriptionData(subData);
@@ -1358,7 +1358,7 @@ function BusinessDashboard() {
     };
     
     fetchBusinessData();
-  }, [currentUser.businessId]);
+  }, [currentUser.businessId, currentUser.subscriptionStatus]);
   
   // Get recently viewed creators
   const recentCreators = getRecentlyViewedCreators(3);
@@ -1382,10 +1382,11 @@ function BusinessDashboard() {
   const hasMoreReviews = visibleReviews < myReviews.length;
   
   // Real subscription data from Supabase/Stripe
+  // Prioritet: Supabase (businessData) jer se odmah ažurira pri obnovi
   const subscription = {
     plan: businessData?.subscription_type || subscriptionData?.plan || 'monthly',
-    status: subscriptionData?.status || businessData?.subscription_status || 'active',
-    expiresAt: subscriptionData?.currentPeriodEnd || businessData?.expires_at || new Date().toISOString(),
+    status: businessData?.subscription_status || subscriptionData?.status || 'active',
+    expiresAt: businessData?.expires_at || subscriptionData?.currentPeriodEnd || new Date().toISOString(),
     price: (businessData?.subscription_type || subscriptionData?.plan) === 'monthly' ? '€49/mesec' : '€490/godina',
     cancelAtPeriodEnd: subscriptionData?.cancelAtPeriodEnd || false,
   };
@@ -1497,7 +1498,11 @@ function BusinessDashboard() {
           {/* Main content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Subscription status */}
-            <div className="bg-white rounded-2xl p-6 border border-border">
+            <div className={`rounded-2xl p-6 border ${
+              subscription.status === 'active' 
+                ? 'bg-white border-border' 
+                : 'bg-error/5 border-error/20'
+            }`}>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-medium mb-1">Tvoja pretplata</h2>
@@ -1517,26 +1522,60 @@ function BusinessDashboard() {
                 </span>
               </div>
               
-              <div className="mt-6 pt-6 border-t border-border grid sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted">Sledeće plaćanje</p>
-                  <p className="font-medium">
-                    {new Date(subscription.expiresAt).toLocaleDateString('sr-RS', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
-                  </p>
-                </div>
-                <div className="sm:text-right">
-                  <button 
-                    onClick={handleManageSubscription}
-                    className="text-sm text-primary hover:underline"
+              {/* Show warning and renew button if subscription is not active */}
+              {subscription.status !== 'active' && (
+                <div className="mt-4 p-4 bg-error/10 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-error flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-error">Pretplata nije aktivna</p>
+                      <p className="text-sm text-error/80 mt-1">
+                        Nemate pristup kreatorima i njihovim kontakt informacijama. Obnovite pretplatu da nastavite sa korišćenjem platforme.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/pricing"
+                    className="mt-4 w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
                   >
-                    Upravljaj pretplatom →
-                  </button>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Obnovi pretplatu
+                  </Link>
                 </div>
-              </div>
+              )}
+              
+              {/* Show normal info if subscription is active */}
+              {subscription.status === 'active' && (
+                <div className="mt-6 pt-6 border-t border-border grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted">
+                      {subscription.cancelAtPeriodEnd ? 'Pretplata ističe' : 'Sledeće plaćanje'}
+                    </p>
+                    <p className="font-medium">
+                      {new Date(subscription.expiresAt).toLocaleDateString('sr-RS', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                    </p>
+                    {subscription.cancelAtPeriodEnd && (
+                      <p className="text-xs text-warning mt-1">Otkazano - neće se obnoviti</p>
+                    )}
+                  </div>
+                  <div className="sm:text-right">
+                    <button 
+                      onClick={handleManageSubscription}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Upravljaj pretplatom →
+                    </button>
+                  </div>
+                </div>
+              )}
 
             </div>
 
