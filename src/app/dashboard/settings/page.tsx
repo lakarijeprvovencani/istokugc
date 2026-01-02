@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useDemo, UserSettings } from '@/context/DemoContext';
+import { useDemo } from '@/context/DemoContext';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
 type SettingsTab = 'profile' | 'notifications' | 'subscription' | 'security';
 
 export default function SettingsPage() {
-  const { currentUser, isHydrated, userSettings, updateSettings } = useDemo();
+  const { currentUser, isHydrated } = useDemo();
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Local form state
   const [profileForm, setProfileForm] = useState({
@@ -33,21 +35,64 @@ export default function SettingsPage() {
   });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
 
-  // Initialize form with current user data
+  // Fetch real user data from Supabase
   useEffect(() => {
-    if (isHydrated) {
-      setProfileForm({
-        name: userSettings.profile.name || currentUser.name || '',
-        email: userSettings.profile.email || currentUser.email || '',
-        phone: userSettings.profile.phone || '',
-        companyName: userSettings.profile.companyName || currentUser.companyName || '',
-      });
-      setNotificationForm(userSettings.notifications);
-    }
-  }, [isHydrated, currentUser, userSettings]);
+    const fetchUserData = async () => {
+      if (!isHydrated) return;
+      
+      try {
+        const supabase = createClient();
+        
+        // Get authenticated user's email
+        const { data: { user } } = await supabase.auth.getUser();
+        const userEmail = user?.email || '';
+        
+        if (currentUser.type === 'business' && currentUser.businessId) {
+          // Fetch business data
+          const { data: business } = await supabase
+            .from('businesses')
+            .select('*')
+            .eq('id', currentUser.businessId)
+            .single();
+          
+          if (business) {
+            setProfileForm({
+              name: business.contact_name || '',
+              email: userEmail || business.email || '',
+              phone: business.phone || '',
+              companyName: business.company_name || '',
+            });
+          }
+        } else if (currentUser.type === 'creator' && currentUser.creatorId) {
+          // Fetch creator data
+          const { data: creator } = await supabase
+            .from('creators')
+            .select('*')
+            .eq('id', currentUser.creatorId)
+            .single();
+          
+          if (creator) {
+            setProfileForm({
+              name: creator.display_name || '',
+              email: userEmail || creator.email || '',
+              phone: creator.phone || '',
+              companyName: '',
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchUserData();
+  }, [isHydrated, currentUser.type, currentUser.businessId, currentUser.creatorId]);
 
-  if (!isHydrated) {
+  if (!isHydrated || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse text-muted">Učitavanje...</div>
@@ -77,38 +122,63 @@ export default function SettingsPage() {
     );
   }
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     setIsSaving(true);
-    // Simulate API call
-    setTimeout(() => {
-      updateSettings({
-        profile: profileForm,
-      });
-      setIsSaving(false);
+    try {
+      const supabase = createClient();
+      
+      if (currentUser.type === 'business' && currentUser.businessId) {
+        // Update business profile
+        const { error } = await supabase
+          .from('businesses')
+          .update({
+            contact_name: profileForm.name,
+            company_name: profileForm.companyName,
+            phone: profileForm.phone,
+          })
+          .eq('id', currentUser.businessId);
+        
+        if (error) throw error;
+      } else if (currentUser.type === 'creator' && currentUser.creatorId) {
+        // Update creator profile
+        const { error } = await supabase
+          .from('creators')
+          .update({
+            display_name: profileForm.name,
+            phone: profileForm.phone,
+          })
+          .eq('id', currentUser.creatorId);
+        
+        if (error) throw error;
+      }
+      
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-    }, 500);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveNotifications = () => {
     setIsSaving(true);
+    // Notifications settings would be stored in user preferences table
+    // For now, just show success
     setTimeout(() => {
-      updateSettings({
-        notifications: notificationForm,
-      });
       setIsSaving(false);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     }, 500);
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     setPasswordError('');
     setPasswordSuccess(false);
 
     // Validation
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      setPasswordError('Sva polja su obavezna');
+    if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError('Nova lozinka i potvrda su obavezne');
       return;
     }
 
@@ -122,38 +192,27 @@ export default function SettingsPage() {
       return;
     }
 
-    if (passwordForm.currentPassword === passwordForm.newPassword) {
-      setPasswordError('Nova lozinka mora biti različita od trenutne');
-      return;
-    }
-
-    // In production, this would call API endpoint
-    // const response = await fetch('/api/settings/password', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     currentPassword: passwordForm.currentPassword,
-    //     newPassword: passwordForm.newPassword,
-    //   }),
-    // });
-    // if (!response.ok) {
-    //   const error = await response.json();
-    //   setPasswordError(error.message || 'Greška pri promeni lozinke');
-    //   return;
-    // }
-
-    // Demo mode: simulate success
     setIsSaving(true);
-    setTimeout(() => {
-      setPasswordForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
+    try {
+      const supabase = createClient();
+      
+      const { error } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword
       });
-      setIsSaving(false);
+      
+      if (error) {
+        setPasswordError(error.message || 'Greška pri promeni lozinke');
+        return;
+      }
+      
       setPasswordSuccess(true);
       setTimeout(() => setPasswordSuccess(false), 3000);
-    }, 500);
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setPasswordError('Greška pri promeni lozinke');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const tabs = [
@@ -226,49 +285,72 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm text-muted mb-2">
-                      {currentUser.type === 'business' ? 'Ime kontakta' : 'Ime i prezime'}
-                    </label>
-                    <input
-                      type="text"
-                      value={profileForm.name}
-                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
-                      placeholder="Unesite ime"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-muted mb-2">Email adresa</label>
-                    <input
-                      type="email"
-                      value={profileForm.email}
-                      onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
-                      placeholder="email@example.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-muted mb-2">Telefon</label>
-                    <input
-                      type="tel"
-                      value={profileForm.phone}
-                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
-                      placeholder="+381 61 123 4567"
-                    />
-                  </div>
-                  {currentUser.type === 'business' && (
-                    <div>
-                      <label className="block text-sm text-muted mb-2">Naziv kompanije</label>
-                      <input
-                        type="text"
-                        value={profileForm.companyName}
-                        onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })}
-                        className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
-                        placeholder="Naziv vaše kompanije"
-                      />
-                    </div>
+                  {currentUser.type === 'business' ? (
+                    <>
+                      <div>
+                        <label className="block text-sm text-muted mb-2">Naziv kompanije</label>
+                        <input
+                          type="text"
+                          value={profileForm.companyName}
+                          onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })}
+                          className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                          placeholder="Naziv vaše kompanije"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-muted mb-2">Email adresa</label>
+                        <input
+                          type="email"
+                          value={profileForm.email}
+                          disabled
+                          className="w-full px-4 py-3 border border-border rounded-xl bg-secondary/50 text-muted cursor-not-allowed"
+                        />
+                        <p className="text-xs text-muted mt-1">Email se ne može menjati</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-muted mb-2">Telefon</label>
+                        <input
+                          type="tel"
+                          value={profileForm.phone}
+                          onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                          className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                          placeholder="+381 61 123 4567"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-sm text-muted mb-2">Ime i prezime</label>
+                        <input
+                          type="text"
+                          value={profileForm.name}
+                          onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                          className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                          placeholder="Unesite ime"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-muted mb-2">Email adresa</label>
+                        <input
+                          type="email"
+                          value={profileForm.email}
+                          disabled
+                          className="w-full px-4 py-3 border border-border rounded-xl bg-secondary/50 text-muted cursor-not-allowed"
+                        />
+                        <p className="text-xs text-muted mt-1">Email se ne može menjati</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-muted mb-2">Telefon</label>
+                        <input
+                          type="tel"
+                          value={profileForm.phone}
+                          onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                          className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                          placeholder="+381 61 123 4567"
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
 
@@ -400,21 +482,34 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-4">
-                  <button className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors">
-                    Upravljaj pretplatom
+                  <button 
+                    onClick={async () => {
+                      if (!currentUser.businessId) return;
+                      setIsOpeningPortal(true);
+                      try {
+                        const response = await fetch('/api/stripe/create-portal', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ businessId: currentUser.businessId }),
+                        });
+                        if (response.ok) {
+                          const { url } = await response.json();
+                          window.location.href = url;
+                        } else {
+                          alert('Greška pri otvaranju portala. Pokušajte ponovo.');
+                        }
+                      } catch (error) {
+                        console.error('Error opening portal:', error);
+                        alert('Greška pri otvaranju portala.');
+                      } finally {
+                        setIsOpeningPortal(false);
+                      }
+                    }}
+                    disabled={isOpeningPortal}
+                    className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {isOpeningPortal ? 'Učitavanje...' : 'Upravljaj pretplatom'}
                   </button>
-                  <button className="px-6 py-3 border border-border rounded-xl font-medium hover:bg-secondary transition-colors">
-                    Istorija plaćanja
-                  </button>
-                  <button className="px-6 py-3 text-error hover:bg-error/10 rounded-xl font-medium transition-colors">
-                    Otkaži pretplatu
-                  </button>
-                </div>
-
-                <div className="bg-primary/5 rounded-xl p-4">
-                  <p className="text-sm">
-                    <strong>Demo režim:</strong> U produkciji, ovi dugmići bi otvorili Stripe Customer Portal za upravljanje pretplatom.
-                  </p>
                 </div>
               </div>
             )}

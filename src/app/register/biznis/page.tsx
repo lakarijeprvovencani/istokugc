@@ -14,6 +14,7 @@ export default function RegisterBusinessPage() {
     companyName: '',
     email: '',
     password: '',
+    phone: '',
     website: '',
     industry: '',
     description: '',
@@ -37,6 +38,10 @@ export default function RegisterBusinessPage() {
     }
     if (!formData.password || formData.password.length < 6) {
       alert('Lozinka mora imati najmanje 6 karaktera');
+      return;
+    }
+    if (!formData.phone.trim()) {
+      alert('Molimo unesite broj telefona');
       return;
     }
     
@@ -265,6 +270,18 @@ export default function RegisterBusinessPage() {
                 )}
               </button>
             </div>
+          </div>
+
+          <div>
+            <label className="text-sm text-muted mb-2 block">Broj telefona *</label>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="+381 61 123 4567"
+              className="w-full px-5 py-4 border border-border rounded-xl focus:outline-none focus:border-primary transition-colors"
+              required
+            />
           </div>
 
           <div>

@@ -136,8 +136,20 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
     if (isHydrated && currentUser.type === 'business' && resolvedParams.id) {
       addToRecentlyViewed(resolvedParams.id);
       incrementProfileViews(resolvedParams.id);
+      
+      // Record view in Supabase for real data
+      if (currentUser.businessId) {
+        fetch('/api/creator-views', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businessId: currentUser.businessId,
+            creatorId: resolvedParams.id,
+          }),
+        }).catch(err => console.error('Error recording view:', err));
+      }
     }
-  }, [isHydrated, currentUser.type, resolvedParams.id, addToRecentlyViewed, incrementProfileViews]);
+  }, [isHydrated, currentUser.type, currentUser.businessId, resolvedParams.id, addToRecentlyViewed, incrementProfileViews]);
   
   // Use edited version if available, otherwise saved
   const creator = editedCreator || savedCreator;

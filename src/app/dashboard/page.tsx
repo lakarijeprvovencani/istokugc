@@ -1299,23 +1299,21 @@ function CreatorDashboard() {
 // Note: All business users must have active subscription to access the app
 // Pricing/payment page will be shown during registration (via Stripe integration)
 function BusinessDashboard() {
-  const { 
-    currentUser, 
-    getRecentlyViewedCreators, 
-    getReviewsByBusiness,
-    getCreatorById,
-    deleteReview,
-  } = useDemo();
+  const { currentUser } = useDemo();
   const [showPortalMessage, setShowPortalMessage] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const [visibleReviews, setVisibleReviews] = useState(3);
-  const [viewingReview, setViewingReview] = useState<Review | null>(null);
+  const [viewingReview, setViewingReview] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
   // Real business data from Supabase
   const [businessData, setBusinessData] = useState<any>(null);
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
+  
+  // Real data from Supabase
+  const [recentCreators, setRecentCreators] = useState<any[]>([]);
+  const [myReviews, setMyReviews] = useState<any[]>([]);
   
   // Company info editing state
   const [editingCompany, setEditingCompany] = useState(false);
@@ -1350,6 +1348,20 @@ function BusinessDashboard() {
           const subData = await subRes.json();
           setSubscriptionData(subData);
         }
+        
+        // Fetch recently viewed creators
+        const viewsRes = await fetch(`/api/creator-views?businessId=${currentUser.businessId}&limit=3`);
+        if (viewsRes.ok) {
+          const viewsData = await viewsRes.json();
+          setRecentCreators(viewsData.creators || []);
+        }
+        
+        // Fetch business reviews
+        const reviewsRes = await fetch(`/api/reviews?businessId=${currentUser.businessId}`);
+        if (reviewsRes.ok) {
+          const reviewsData = await reviewsRes.json();
+          setMyReviews(reviewsData.reviews || []);
+        }
       } catch (error) {
         console.error('Error fetching business data:', error);
       } finally {
@@ -1360,18 +1372,18 @@ function BusinessDashboard() {
     fetchBusinessData();
   }, [currentUser.businessId, currentUser.subscriptionStatus]);
   
-  // Get recently viewed creators
-  const recentCreators = getRecentlyViewedCreators(3);
-  
-  // Get business reviews
-  const businessId = currentUser.businessId || 'b1';
-  const myReviews = getReviewsByBusiness(businessId);
-  
   // Handle review delete
-  const handleDeleteReview = (reviewId: string) => {
-    deleteReview(reviewId);
-    setShowDeleteSuccess(true);
-    setTimeout(() => setShowDeleteSuccess(false), 3000);
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      const res = await fetch(`/api/reviews?reviewId=${reviewId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMyReviews(prev => prev.filter(r => r.id !== reviewId));
+        setShowDeleteSuccess(true);
+        setTimeout(() => setShowDeleteSuccess(false), 3000);
+      }
+    } catch (error) {
+      console.error('Error deleting review:', error);
+    }
   };
   
   // Handle show more reviews
@@ -1730,16 +1742,23 @@ function BusinessDashboard() {
                       href={`/kreator/${creator.id}`}
                       className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary transition-colors"
                     >
-                      <div className="w-14 h-14 rounded-full overflow-hidden relative flex-shrink-0">
-                        <Image src={creator.photo} alt={creator.name} fill className="object-cover" />
+                      <div className="w-14 h-14 rounded-full overflow-hidden relative flex-shrink-0 bg-secondary">
+                        {creator.profileImage ? (
+                          <Image src={creator.profileImage} alt={creator.name || ''} fill className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xl">
+                            {creator.name?.charAt(0) || '?'}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium">{creator.name}</h3>
-                        <p className="text-sm text-muted">{creator.categories.join(', ')}</p>
+                        <p className="text-sm text-muted">
+                          {creator.categories?.length > 0 ? creator.categories.join(', ') : creator.niches?.join(', ') || 'Kreator'}
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">€{creator.priceFrom}</p>
-                        <p className="text-sm text-muted">{creator.location}</p>
+                        <p className="text-sm text-muted">{creator.city || 'Srbija'}</p>
                       </div>
                     </Link>
                   ))}
@@ -1788,16 +1807,15 @@ function BusinessDashboard() {
                   {/* Scrollable container with max height for many reviews */}
                   <div className={`space-y-3 ${visibleReviews > 6 ? 'max-h-[600px] overflow-y-auto pr-2 scrollbar-thin' : ''}`}>
                     {myReviews.slice(0, visibleReviews).map((review) => {
-                      const creator = getCreatorById(review.creatorId);
                       return (
                         <div key={review.id} className="p-3 sm:p-4 border border-border rounded-xl">
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <div className="min-w-0 flex-1">
                               <Link 
-                                href={`/kreator/${review.creatorId}`}
+                                href={`/kreator/${review.creator?.id}`}
                                 className="font-medium text-primary hover:underline text-sm sm:text-base truncate block"
                               >
-                                {creator?.name || 'Nepoznat kreator'}
+                                {review.creator?.name || 'Nepoznat kreator'}
                               </Link>
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <div className="flex">
@@ -1948,11 +1966,11 @@ function BusinessDashboard() {
                 <div>
                   <h3 className="text-lg font-medium mb-1">Tvoja recenzija</h3>
                   <Link 
-                    href={`/kreator/${viewingReview.creatorId}`}
+                    href={`/kreator/${viewingReview.creator?.id}`}
                     className="text-sm text-primary hover:underline"
                     onClick={() => setViewingReview(null)}
                   >
-                    {getCreatorById(viewingReview.creatorId)?.name || 'Kreator'}
+                    {viewingReview.creator?.name || 'Kreator'}
                   </Link>
                 </div>
                 <button
