@@ -20,16 +20,6 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
     isLoggedIn, 
     isHydrated, 
     isOwnProfile,
-    updateCreator, 
-    deleteCreator,
-    getReviewsForCreator,
-    hasBusinessReviewedCreator,
-    getBusinessReviewForCreator,
-    addReview,
-    addReplyToReview,
-    updateReplyToReview,
-    deleteReplyFromReview,
-    deleteReview,
     isFavorite,
     addToFavorites,
     removeFromFavorites,
@@ -98,6 +88,134 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  
+  // Reviews from Supabase
+  const [creatorReviews, setCreatorReviews] = useState<any[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
+  
+  // Fetch reviews for this creator from Supabase
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!resolvedParams.id) return;
+      try {
+        const response = await fetch(`/api/reviews?creatorId=${resolvedParams.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setCreatorReviews(data.reviews || []);
+        }
+      } catch (error) {
+        console.error('Error fetching reviews:', error);
+      } finally {
+        setIsLoadingReviews(false);
+      }
+    };
+    
+    fetchReviews();
+  }, [resolvedParams.id]);
+  
+  // Refresh reviews
+  const refreshReviews = async () => {
+    try {
+      const response = await fetch(`/api/reviews?creatorId=${resolvedParams.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setCreatorReviews(data.reviews || []);
+      }
+    } catch (error) {
+      console.error('Error refreshing reviews:', error);
+    }
+  };
+  
+  // Check if business has already reviewed this creator
+  const businessHasReviewed = useMemo(() => {
+    if (currentUser.type !== 'business' || !currentUser.businessId) return false;
+    return creatorReviews.some(r => r.businessId === currentUser.businessId);
+  }, [creatorReviews, currentUser]);
+  
+  // Get business's review for this creator
+  const businessReview = useMemo(() => {
+    if (currentUser.type !== 'business' || !currentUser.businessId) return null;
+    return creatorReviews.find(r => r.businessId === currentUser.businessId) || null;
+  }, [creatorReviews, currentUser]);
+  
+  // Add review via API
+  const handleAddReview = async (data: CreateReviewInput) => {
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId: currentUser.businessId,
+          creatorId: resolvedParams.id,
+          rating: data.rating,
+          comment: data.comment,
+        }),
+      });
+      if (response.ok) {
+        await refreshReviews();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error adding review:', error);
+      return false;
+    }
+  };
+  
+  // Delete review via API
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      const response = await fetch(`/api/reviews?reviewId=${reviewId}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        await refreshReviews();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      return false;
+    }
+  };
+  
+  // Add reply to review via API
+  const handleAddReply = async (reviewId: string, reply: string) => {
+    try {
+      const response = await fetch('/api/reviews/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId, reply }),
+      });
+      if (response.ok) {
+        await refreshReviews();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error adding reply:', error);
+      return false;
+    }
+  };
+  
+  // Delete reply from review via API
+  const handleDeleteReply = async (reviewId: string) => {
+    try {
+      const response = await fetch('/api/reviews/reply', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId }),
+      });
+      if (response.ok) {
+        await refreshReviews();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error deleting reply:', error);
+      return false;
+    }
+  };
   const [activeVideo, setActiveVideo] = useState<{url: string; type: string; originalUrl?: string; description?: string} | null>(null);
   const [activeImage, setActiveImage] = useState<{url: string; type: string; originalUrl?: string; description?: string} | null>(null);
   const [portfolioDetail, setPortfolioDetail] = useState<{url: string; type: string; description?: string; platform?: string} | null>(null);
@@ -809,7 +927,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                 <div>
                   <h2 className="text-sm text-muted uppercase tracking-wider mb-3">Recenzije</h2>
                   {(() => {
-                    const reviews = getReviewsForCreator(creator.id, true);
+                    const reviews = creatorReviews.filter(r => r.status === 'approved');
                     const stats = generateReviewStats(reviews);
                     if (stats.totalReviews > 0) {
                       return (
@@ -825,7 +943,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                 </div>
                 
                 {/* Review button for business users */}
-                {currentUser.type === 'business' && !hasBusinessReviewedCreator(currentUser.businessId || 'b1', creator.id) && !showReviewForm && (
+                {currentUser.type === 'business' && !businessHasReviewed && !showReviewForm && (
                   <button
                     onClick={() => setShowReviewForm(true)}
                     className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
@@ -857,16 +975,17 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                   <ReviewForm
                     creatorId={creator.id}
                     creatorName={creator.name}
-                    onSubmit={(data: CreateReviewInput) => {
+                    onSubmit={async (data: CreateReviewInput) => {
                       setIsSubmittingReview(true);
-                      // Add review
-                      addReview(data);
-                      // Show success message
+                      // Add review via API
+                      const success = await handleAddReview(data);
                       setIsSubmittingReview(false);
-                      setShowReviewForm(false);
-                      setReviewSubmitted(true);
-                      // Hide success message after 5 seconds
-                      setTimeout(() => setReviewSubmitted(false), 5000);
+                      if (success) {
+                        setShowReviewForm(false);
+                        setReviewSubmitted(true);
+                        // Hide success message after 5 seconds
+                        setTimeout(() => setReviewSubmitted(false), 5000);
+                      }
                     }}
                     onCancel={() => setShowReviewForm(false)}
                     isSubmitting={isSubmittingReview}
@@ -875,7 +994,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
               )}
 
               {/* Business's existing review notice */}
-              {currentUser.type === 'business' && hasBusinessReviewedCreator(currentUser.businessId || 'b1', creator.id) && (
+              {currentUser.type === 'business' && businessHasReviewed && (
                 <div className="mb-6 bg-secondary rounded-xl p-4 flex items-center gap-3">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-muted">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
@@ -883,7 +1002,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                   <p className="text-sm text-muted">
                     Već ste ostavili recenziju za ovog kreatora. 
                     {(() => {
-                      const review = getBusinessReviewForCreator(currentUser.businessId || 'b1', creator.id);
+                      const review = businessReview;
                       if (review?.status === 'pending') {
                         return ' Vaša recenzija čeka odobrenje.';
                       }
@@ -895,13 +1014,13 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
 
               {/* Reviews list */}
               {(() => {
-                const reviews = getReviewsForCreator(creator.id, true);
+                const reviews = creatorReviews.filter(r => r.status === 'approved');
                 if (reviews.length === 0 && !showReviewForm) {
                   return (
                     <div className="text-center py-12 bg-secondary/30 rounded-2xl">
                       <div className="text-4xl mb-4">📝</div>
                       <p className="text-muted">Još uvek nema recenzija za ovog kreatora.</p>
-                      {currentUser.type === 'business' && !hasBusinessReviewedCreator(currentUser.businessId || 'b1', creator.id) && (
+                      {currentUser.type === 'business' && !businessHasReviewed && (
                         <button
                           onClick={() => setShowReviewForm(true)}
                           className="mt-4 text-sm text-primary hover:underline"
@@ -922,17 +1041,17 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                     canEditReply={isOwner}
                     canDeleteReply={isOwner}
                     currentBusinessId={currentUser.businessId}
-                    onReply={(reviewId, reply) => {
-                      addReplyToReview(reviewId, reply);
+                    onReply={async (reviewId, reply) => {
+                      await handleAddReply(reviewId, reply);
                     }}
-                    onEditReply={(reviewId, reply) => {
-                      updateReplyToReview(reviewId, reply);
+                    onEditReply={async (reviewId, reply) => {
+                      await handleAddReply(reviewId, reply);
                     }}
-                    onDeleteReply={(reviewId) => {
-                      deleteReplyFromReview(reviewId);
+                    onDeleteReply={async (reviewId) => {
+                      await handleDeleteReply(reviewId);
                     }}
-                    onDelete={(reviewId) => {
-                      deleteReview(reviewId);
+                    onDelete={async (reviewId) => {
+                      await handleDeleteReview(reviewId);
                     }}
                     emptyMessage="Još uvek nema recenzija za ovog kreatora."
                   />
@@ -1134,16 +1253,22 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                 </div>
               </div>
 
-              {/* Photo URL */}
-              <div>
-                <label className="block text-sm text-muted mb-2">URL fotografije</label>
-                <input
-                  type="text"
-                  value={editedCreator.photo}
-                  onChange={(e) => setEditedCreator({ ...editedCreator, photo: e.target.value })}
-                  className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
-                />
-              </div>
+              {/* Photo - pokazuje samo preview, ne URL */}
+              {editedCreator.photo && (
+                <div>
+                  <label className="block text-sm text-muted mb-2">Fotografija profila</label>
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-full overflow-hidden bg-secondary">
+                      <img 
+                        src={editedCreator.photo} 
+                        alt="Profilna slika" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <span className="text-sm text-muted">Kreator može promeniti sliku u svom dashboard-u</span>
+                  </div>
+                </div>
+              )}
 
               {/* Status */}
               <div className="pt-6 border-t border-border">
@@ -1270,12 +1395,45 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                 Otkaži
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (editedCreator) {
-                    // Save to context (persisted in localStorage)
-                    updateCreator(editedCreator.id, editedCreator);
-                    setIsEditing(false);
-                    setShowStatusDropdown(false);
+                    try {
+                      // Save to Supabase via API
+                      const response = await fetch(`/api/creators/${editedCreator.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          name: editedCreator.name,
+                          bio: editedCreator.bio,
+                          location: editedCreator.location,
+                          price_from: editedCreator.priceFrom,
+                          categories: editedCreator.categories,
+                          platforms: editedCreator.platforms,
+                          languages: editedCreator.languages,
+                          phone: editedCreator.phone,
+                          instagram: editedCreator.instagram,
+                          tiktok: editedCreator.tiktok,
+                          youtube: editedCreator.youtube,
+                          status: editedCreator.status,
+                        }),
+                      });
+                      
+                      if (response.ok) {
+                        // Refresh creator data
+                        const refreshResponse = await fetch(`/api/creators/${editedCreator.id}`);
+                        if (refreshResponse.ok) {
+                          const data = await refreshResponse.json();
+                          setFetchedCreator(data.creator);
+                        }
+                        setIsEditing(false);
+                        setShowStatusDropdown(false);
+                      } else {
+                        alert('Greška pri čuvanju izmena');
+                      }
+                    } catch (error) {
+                      console.error('Error saving creator:', error);
+                      alert('Greška pri čuvanju izmena');
+                    }
                   }
                 }}
                 className="px-6 py-3 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
@@ -1313,13 +1471,25 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                   Otkaži
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (editedCreator) {
-                      // Delete from context (persisted in localStorage)
-                      deleteCreator(editedCreator.id);
-                      setShowDeleteConfirm(false);
-                      setIsEditing(false);
-                      setIsDeleted(true);
+                      try {
+                        // Delete from Supabase via API
+                        const response = await fetch(`/api/admin/creators?creatorId=${editedCreator.id}`, {
+                          method: 'DELETE',
+                        });
+                        
+                        if (response.ok) {
+                          setShowDeleteConfirm(false);
+                          setIsEditing(false);
+                          setIsDeleted(true);
+                        } else {
+                          alert('Greška pri brisanju kreatora');
+                        }
+                      } catch (error) {
+                        console.error('Error deleting creator:', error);
+                        alert('Greška pri brisanju kreatora');
+                      }
                     }
                   }}
                   className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors"

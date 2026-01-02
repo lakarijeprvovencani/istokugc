@@ -88,6 +88,7 @@ export async function PUT(
     if (body.portfolio !== undefined) updateData.portfolio = body.portfolio;
     if (body.name !== undefined) updateData.name = body.name;
     if (body.location !== undefined) updateData.location = body.location;
+    if (body.status !== undefined) updateData.status = body.status;
 
     const { data: creator, error } = await supabase
       .from('creators')

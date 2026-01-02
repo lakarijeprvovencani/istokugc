@@ -81,6 +81,8 @@ export async function PUT(request: NextRequest) {
       updateData = { status: 'deactivated' };
     } else if (action === 'reactivate') {
       updateData = { status: 'approved' };
+    } else if (action === 'set_pending') {
+      updateData = { status: 'pending', rejection_reason: null };
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }

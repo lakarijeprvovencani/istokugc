@@ -16,12 +16,7 @@ export default function AdminPage() {
     updateCreator, 
     deleteCreator, 
     isHydrated,
-    getAllReviews,
-    getPendingReviews,
     getCreatorById,
-    approveReview,
-    rejectReview,
-    deleteReview,
   } = useDemo();
   const [activeTab, setActiveTab] = useState<AdminTab>('pending');
   
@@ -160,11 +155,91 @@ export default function AdminPage() {
   const [searchCreators, setSearchCreators] = useState('');
   const [searchBusinesses, setSearchBusinesses] = useState('');
   
-  // State za recenzije
+  // State za recenzije - sada iz Supabase
+  const [fetchedReviews, setFetchedReviews] = useState<any[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   const [reviewStatusFilter, setReviewStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [selectedReviewCreator, setSelectedReviewCreator] = useState<string>('all');
-  const [rejectingReview, setRejectingReview] = useState<Review | null>(null);
+  const [rejectingReview, setRejectingReview] = useState<any | null>(null);
   const [reviewRejectionReason, setReviewRejectionReason] = useState('');
+  
+  // Fetch reviews from Supabase
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await fetch('/api/reviews');
+        if (response.ok) {
+          const data = await response.json();
+          setFetchedReviews(data.reviews || []);
+        }
+      } catch (error) {
+        console.error('Error fetching reviews:', error);
+      } finally {
+        setIsLoadingReviews(false);
+      }
+    };
+    
+    fetchReviews();
+  }, []);
+  
+  // Refresh reviews after changes
+  const refreshReviews = async () => {
+    try {
+      const response = await fetch('/api/reviews');
+      if (response.ok) {
+        const data = await response.json();
+        setFetchedReviews(data.reviews || []);
+      }
+    } catch (error) {
+      console.error('Error refreshing reviews:', error);
+    }
+  };
+  
+  // Approve review
+  const handleApproveReview = async (reviewId: string) => {
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId, status: 'approved' }),
+      });
+      if (response.ok) {
+        await refreshReviews();
+      }
+    } catch (error) {
+      console.error('Error approving review:', error);
+    }
+  };
+  
+  // Reject review
+  const handleRejectReview = async (reviewId: string, reason?: string) => {
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId, status: 'rejected' }),
+      });
+      if (response.ok) {
+        await refreshReviews();
+      }
+    } catch (error) {
+      console.error('Error rejecting review:', error);
+    }
+  };
+  
+  // Delete review
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      const response = await fetch(`/api/reviews?reviewId=${reviewId}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        await refreshReviews();
+      }
+    } catch (error) {
+      console.error('Error deleting review:', error);
+    }
+  };
   
   // State za brisanje kategorije
   const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
@@ -187,22 +262,24 @@ export default function AdminPage() {
   const [deactivatingBusiness, setDeactivatingBusiness] = useState<any | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
   
+  // State za promenu statusa kreatora
+  const [statusChangeCreator, setStatusChangeCreator] = useState<any | null>(null);
+  const [statusChangeNewStatus, setStatusChangeNewStatus] = useState<CreatorStatus | null>(null);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
+  
   // State za brisanje portfolio stavke iz admin edit modala
   const [deletingPortfolioIndex, setDeletingPortfolioIndex] = useState<number | null>(null);
   
-  // Get reviews
-  const allReviews = useMemo(() => {
-    if (!isHydrated) return [];
-    return getAllReviews();
-  }, [getAllReviews, isHydrated]);
+  // Get reviews - sada koristi fetchedReviews
+  const allReviews = fetchedReviews;
   
   const pendingReviewsCount = useMemo(() => {
-    return allReviews.filter(r => r.status === 'pending').length;
-  }, [allReviews]);
+    return fetchedReviews.filter(r => r.status === 'pending').length;
+  }, [fetchedReviews]);
   
   // Filtrirane recenzije
   const filteredReviews = useMemo(() => {
-    let reviews = [...allReviews];
+    let reviews = [...fetchedReviews];
     
     if (reviewStatusFilter !== 'all') {
       reviews = reviews.filter(r => r.status === reviewStatusFilter);
@@ -218,7 +295,7 @@ export default function AdminPage() {
       if (a.status !== 'pending' && b.status === 'pending') return 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [allReviews, reviewStatusFilter, selectedReviewCreator]);
+  }, [fetchedReviews, reviewStatusFilter, selectedReviewCreator]);
   
   // Helper za dobijanje imena kreatora
   const getCreatorName = (creatorId: string): string => {
@@ -326,24 +403,50 @@ export default function AdminPage() {
     }
   };
 
-  // Promeni status kreatora
-  const handleChangeStatus = async (id: string, newStatus: CreatorStatus) => {
-    const action = newStatus === 'approved' ? 'approve' : 
-                   newStatus === 'deactivated' ? 'deactivate' : 
-                   newStatus === 'rejected' ? 'reject' : 'reactivate';
+  // Otvori modal za potvrdu promene statusa
+  const openStatusChangeModal = (creator: any, newStatus: CreatorStatus) => {
+    // Ako je isti status, ne radi ništa
+    const currentStatus = creator.status || (creator.approved ? 'approved' : 'pending');
+    if (currentStatus === newStatus) return;
+    
+    setStatusChangeCreator(creator);
+    setStatusChangeNewStatus(newStatus);
+  };
+  
+  // Potvrdi promenu statusa kreatora
+  const confirmChangeStatus = async () => {
+    if (!statusChangeCreator || !statusChangeNewStatus) return;
+    
+    const action = statusChangeNewStatus === 'approved' ? 'approve' : 
+                   statusChangeNewStatus === 'deactivated' ? 'deactivate' : 
+                   statusChangeNewStatus === 'rejected' ? 'reject' : 
+                   statusChangeNewStatus === 'pending' ? 'set_pending' : 'approve';
+    
+    setIsChangingStatus(true);
     
     try {
       const response = await fetch('/api/admin/creators', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creatorId: id, action }),
+        body: JSON.stringify({ creatorId: statusChangeCreator.id, action }),
       });
       
       if (response.ok) {
         await refreshCreators();
+        setStatusChangeCreator(null);
+        setStatusChangeNewStatus(null);
+        // Zatvori viewing modal ako je otvoren
+        if (viewingCreator) {
+          setViewingCreator(null);
+        }
+      } else {
+        alert('Greška pri promeni statusa');
       }
     } catch (error) {
       console.error('Error changing status:', error);
+      alert('Greška pri promeni statusa');
+    } finally {
+      setIsChangingStatus(false);
     }
   };
 
@@ -372,28 +475,6 @@ export default function AdminPage() {
     }
   };
 
-  // Promeni status biznisa
-  const handleChangeBusinessStatus = async (id: string, newStatus: 'active' | 'expired' | 'none') => {
-    try {
-      const response = await fetch('/api/admin/businesses', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessId: id,
-          subscriptionStatus: newStatus,
-        }),
-      });
-      
-      if (response.ok) {
-        await refreshBusinesses();
-      } else {
-        alert('Greška pri promeni statusa');
-      }
-    } catch (error) {
-      console.error('Error changing status:', error);
-      alert('Greška pri promeni statusa');
-    }
-  };
   
   // Otkaži pretplatu biznisa
   const confirmCancelSubscription = async () => {
@@ -832,7 +913,7 @@ export default function AdminPage() {
                         <div className="flex items-center justify-between gap-2">
                           <select
                             value={creator.status || (creator.approved ? 'approved' : 'pending')}
-                            onChange={(e) => handleChangeStatus(creator.id, e.target.value as CreatorStatus)}
+                            onChange={(e) => openStatusChangeModal(creator, e.target.value as CreatorStatus)}
                             className={`px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors border-0 focus:outline-none ${
                               (creator.status === 'approved' || (creator.approved && !creator.status))
                                 ? 'bg-black text-white' 
@@ -925,7 +1006,7 @@ export default function AdminPage() {
                             <td className="py-4">
                               <select
                                 value={creator.status || (creator.approved ? 'approved' : 'pending')}
-                                onChange={(e) => handleChangeStatus(creator.id, e.target.value as CreatorStatus)}
+                                onChange={(e) => openStatusChangeModal(creator, e.target.value as CreatorStatus)}
                                 className={`px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
                                   (creator.status === 'approved' || (creator.approved && !creator.status))
                                     ? 'bg-black text-white' 
@@ -1014,21 +1095,19 @@ export default function AdminPage() {
                             <h3 className="font-medium text-sm truncate">{business.companyName}</h3>
                             <p className="text-xs text-muted truncate">{business.email}</p>
                           </div>
-                          <select
-                            value={business.subscriptionStatus}
-                            onChange={(e) => handleChangeBusinessStatus(business.id, e.target.value as 'active' | 'expired' | 'none')}
-                            className={`px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors border-0 focus:outline-none ml-2 ${
-                              business.subscriptionStatus === 'active' 
-                                ? 'bg-black text-white' 
-                                : business.subscriptionStatus === 'expired'
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-red-100 text-red-700'
-                            }`}
-                          >
-                            <option value="active">Aktivan</option>
-                            <option value="expired">Istekao</option>
-                            <option value="none">Neaktivan</option>
-                          </select>
+                          <span className={`px-2 py-1.5 rounded-lg text-xs ml-2 ${
+                            business.subscriptionStatus === 'active' 
+                              ? 'bg-black text-white' 
+                              : business.subscriptionStatus === 'expired'
+                              ? 'bg-amber-100 text-amber-700'
+                              : business.subscriptionStatus === 'deactivated'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {business.subscriptionStatus === 'active' ? 'Aktivan' : 
+                             business.subscriptionStatus === 'expired' ? 'Istekao' : 
+                             business.subscriptionStatus === 'deactivated' ? 'Deaktiviran' : 'Neaktivan'}
+                          </span>
                         </div>
                         
                         <div className="flex items-center justify-between text-xs text-muted">
@@ -1096,21 +1175,19 @@ export default function AdminPage() {
                                business.subscriptionType === 'monthly' ? 'Mesečni' : '—'}
                             </td>
                             <td className="py-4">
-                              <select
-                                value={business.subscriptionStatus}
-                                onChange={(e) => handleChangeBusinessStatus(business.id, e.target.value as 'active' | 'expired' | 'none')}
-                                className={`px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                                  business.subscriptionStatus === 'active' 
-                                    ? 'bg-black text-white' 
-                                    : business.subscriptionStatus === 'expired'
-                                    ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-red-100 text-red-700'
-                                }`}
-                              >
-                                <option value="active">Aktivan</option>
-                                <option value="expired">Istekao</option>
-                                <option value="none">Neaktivan</option>
-                              </select>
+                              <span className={`px-3 py-1.5 rounded-lg text-xs ${
+                                business.subscriptionStatus === 'active' 
+                                  ? 'bg-black text-white' 
+                                  : business.subscriptionStatus === 'expired'
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : business.subscriptionStatus === 'deactivated'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {business.subscriptionStatus === 'active' ? 'Aktivan' : 
+                                 business.subscriptionStatus === 'expired' ? 'Istekao' : 
+                                 business.subscriptionStatus === 'deactivated' ? 'Deaktiviran' : 'Neaktivan'}
+                              </span>
                             </td>
                             <td className="py-4 text-muted">{business.expiresAt || '—'}</td>
                             <td className="py-4">
@@ -1223,7 +1300,7 @@ export default function AdminPage() {
                 <div>
                   <h2 className="text-base sm:text-lg font-medium">Moderacija recenzija</h2>
                   <p className="text-sm text-muted mt-1">
-                    {pendingReviewsCount > 0 
+                    {isLoadingReviews ? 'Učitavanje...' : pendingReviewsCount > 0 
                       ? `${pendingReviewsCount} recenzija čeka odobrenje`
                       : 'Sve recenzije su pregledane'
                     }
@@ -1259,7 +1336,11 @@ export default function AdminPage() {
                 </div>
               </div>
               
-              {filteredReviews.length === 0 ? (
+              {isLoadingReviews ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : filteredReviews.length === 0 ? (
                 <div className="text-center py-8 sm:py-12">
                   <div className="text-3xl sm:text-4xl mb-4">
                     {reviewStatusFilter === 'pending' ? '✅' : '📝'}
@@ -1336,7 +1417,7 @@ export default function AdminPage() {
                         {review.status === 'pending' && (
                           <>
                             <button
-                              onClick={() => approveReview(review.id)}
+                              onClick={() => handleApproveReview(review.id)}
                               className="px-4 py-2 bg-success text-white rounded-lg text-sm font-medium hover:bg-success/90 transition-colors"
                             >
                               ✓ Odobri
@@ -1354,7 +1435,7 @@ export default function AdminPage() {
                         )}
                         {review.status === 'approved' && (
                           <button
-                            onClick={() => rejectReview(review.id)}
+                            onClick={() => handleRejectReview(review.id)}
                             className="px-4 py-2 border border-error text-error rounded-lg text-sm font-medium hover:bg-error/10 transition-colors"
                           >
                             Povuci odobrenje
@@ -1371,7 +1452,7 @@ export default function AdminPage() {
                         <button
                           onClick={() => {
                             if (confirm('Da li ste sigurni da želite da obrišete ovu recenziju?')) {
-                              deleteReview(review.id);
+                              handleDeleteReview(review.id);
                             }
                           }}
                           className="px-4 py-2 text-muted hover:text-error text-sm transition-colors ml-auto"
@@ -1555,8 +1636,7 @@ export default function AdminPage() {
                       <select
                         value={viewingCreator.status || (viewingCreator.approved ? 'approved' : 'pending')}
                         onChange={(e) => {
-                          handleChangeStatus(viewingCreator.id, e.target.value as CreatorStatus);
-                          setViewingCreator({...viewingCreator, status: e.target.value as CreatorStatus});
+                          openStatusChangeModal(viewingCreator, e.target.value as CreatorStatus);
                         }}
                         className={`px-4 py-2 rounded-xl text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
                           (viewingCreator.status === 'approved' || (viewingCreator.approved && !viewingCreator.status))
@@ -1945,7 +2025,7 @@ export default function AdminPage() {
                 </button>
                 <button
                   onClick={() => {
-                    rejectReview(rejectingReview.id, reviewRejectionReason.trim() || undefined);
+                    handleRejectReview(rejectingReview.id, reviewRejectionReason.trim() || undefined);
                     setRejectingReview(null);
                     setReviewRejectionReason('');
                   }}
@@ -1995,6 +2075,103 @@ export default function AdminPage() {
                     Obriši
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal za potvrdu promene statusa kreatora */}
+        {statusChangeCreator && statusChangeNewStatus && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => {
+              if (!isChangingStatus) {
+                setStatusChangeCreator(null);
+                setStatusChangeNewStatus(null);
+              }
+            }}
+          >
+            <div 
+              className="bg-white rounded-2xl p-6 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center mb-6">
+                <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                  statusChangeNewStatus === 'approved' ? 'bg-green-100' :
+                  statusChangeNewStatus === 'pending' ? 'bg-amber-100' :
+                  'bg-red-100'
+                }`}>
+                  {statusChangeNewStatus === 'approved' ? (
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : statusChangeNewStatus === 'pending' ? (
+                    <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                  )}
+                </div>
+                <h3 className="text-xl font-medium mb-2">Promena statusa</h3>
+                <p className="text-muted">
+                  Da li ste sigurni da želite da promenite status kreatora{' '}
+                  <span className="font-medium text-foreground">{statusChangeCreator.name}</span> u{' '}
+                  <span className={`font-medium ${
+                    statusChangeNewStatus === 'approved' ? 'text-green-600' :
+                    statusChangeNewStatus === 'pending' ? 'text-amber-600' :
+                    'text-red-600'
+                  }`}>
+                    {statusChangeNewStatus === 'approved' ? 'Aktivan' :
+                     statusChangeNewStatus === 'pending' ? 'Na čekanju' :
+                     'Neaktivan'}
+                  </span>?
+                </p>
+                {statusChangeNewStatus === 'deactivated' && (
+                  <p className="text-sm text-muted mt-2">
+                    Deaktivirani kreatori neće moći da se prijave i neće biti vidljivi u pretrazi.
+                  </p>
+                )}
+                {statusChangeNewStatus === 'pending' && (
+                  <p className="text-sm text-muted mt-2">
+                    Kreator će ponovo morati da čeka odobrenje i neće biti vidljiv u pretrazi.
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setStatusChangeCreator(null);
+                    setStatusChangeNewStatus(null);
+                  }}
+                  disabled={isChangingStatus}
+                  className="flex-1 py-3 border border-border rounded-xl text-sm font-medium hover:bg-secondary transition-colors disabled:opacity-50"
+                >
+                  Otkaži
+                </button>
+                <button
+                  onClick={confirmChangeStatus}
+                  disabled={isChangingStatus}
+                  className={`flex-1 py-3 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                    statusChangeNewStatus === 'approved' ? 'bg-green-600 hover:bg-green-700' :
+                    statusChangeNewStatus === 'pending' ? 'bg-amber-500 hover:bg-amber-600' :
+                    'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {isChangingStatus ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Menjam...
+                    </>
+                  ) : (
+                    'Potvrdi'
+                  )}
+                </button>
               </div>
             </div>
           </div>

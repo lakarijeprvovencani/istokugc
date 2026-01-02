@@ -10,7 +10,9 @@ function ErrorContent() {
 
   const errorMessages: Record<string, string> = {
     email_verification_failed: 'Verifikacija emaila nije uspela. Molimo pokušajte ponovo.',
+    verification_failed: 'Verifikacija nije uspela. Link je možda istekao.',
     invalid_token: 'Link za verifikaciju je istekao ili je nevažeći.',
+    account_deactivated: 'Vaš nalog je deaktiviran. Kontaktirajte podršku za više informacija.',
     default: 'Došlo je do greške. Molimo pokušajte ponovo.',
   };
 
