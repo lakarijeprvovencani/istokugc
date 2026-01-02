@@ -46,6 +46,10 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   const [isDeleted, setIsDeleted] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
+  // State za potvrdu promene statusa
+  const [pendingStatusChange, setPendingStatusChange] = useState<'approved' | 'pending' | 'deactivated' | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  
   // Fetch categories from database
   useEffect(() => {
     const fetchCategories = async () => {
@@ -1309,7 +1313,10 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                       <button
                         type="button"
                         onClick={() => {
-                          setEditedCreator({ ...editedCreator, approved: true, status: 'approved' });
+                          const currentStatus = editedCreator.status || (editedCreator.approved ? 'approved' : 'pending');
+                          if (currentStatus !== 'approved') {
+                            setPendingStatusChange('approved');
+                          }
                           setShowStatusDropdown(false);
                         }}
                         className={`w-full px-5 py-3 text-sm text-left hover:bg-secondary transition-colors flex items-center gap-3 ${
@@ -1322,7 +1329,10 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                       <button
                         type="button"
                         onClick={() => {
-                          setEditedCreator({ ...editedCreator, approved: false, status: 'pending' });
+                          const currentStatus = editedCreator.status || (editedCreator.approved ? 'approved' : 'pending');
+                          if (currentStatus !== 'pending') {
+                            setPendingStatusChange('pending');
+                          }
                           setShowStatusDropdown(false);
                         }}
                         className={`w-full px-5 py-3 text-sm text-left hover:bg-secondary transition-colors flex items-center gap-3 ${
@@ -1335,7 +1345,10 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                       <button
                         type="button"
                         onClick={() => {
-                          setEditedCreator({ ...editedCreator, approved: false, status: 'deactivated' });
+                          const currentStatus = editedCreator.status || (editedCreator.approved ? 'approved' : 'pending');
+                          if (currentStatus !== 'deactivated') {
+                            setPendingStatusChange('deactivated');
+                          }
                           setShowStatusDropdown(false);
                         }}
                         className={`w-full px-5 py-3 text-sm text-left hover:bg-secondary transition-colors flex items-center gap-3 ${
@@ -1396,7 +1409,8 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
               </button>
               <button
                 onClick={async () => {
-                  if (editedCreator) {
+                  if (editedCreator && !isSaving) {
+                    setIsSaving(true);
                     try {
                       // Save to Supabase via API
                       const response = await fetch(`/api/creators/${editedCreator.id}`, {
@@ -1433,12 +1447,139 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                     } catch (error) {
                       console.error('Error saving creator:', error);
                       alert('Greška pri čuvanju izmena');
+                    } finally {
+                      setIsSaving(false);
                     }
                   }
                 }}
-                className="px-6 py-3 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+                disabled={isSaving}
+                className="px-6 py-3 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                Sačuvaj izmene
+                {isSaving ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Čuvam...
+                  </>
+                ) : (
+                  'Sačuvaj izmene'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status Change Confirmation Modal */}
+      {pendingStatusChange && editedCreator && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
+          onClick={() => !isSaving && setPendingStatusChange(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl p-6 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center mb-6">
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                pendingStatusChange === 'approved' ? 'bg-green-100' :
+                pendingStatusChange === 'pending' ? 'bg-amber-100' :
+                'bg-red-100'
+              }`}>
+                {pendingStatusChange === 'approved' ? (
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : pendingStatusChange === 'pending' ? (
+                  <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                )}
+              </div>
+              <h3 className="text-xl font-medium mb-2">Promena statusa</h3>
+              <p className="text-muted">
+                Da li ste sigurni da želite da promenite status kreatora{' '}
+                <span className="font-medium text-foreground">{editedCreator.name}</span> u{' '}
+                <span className={`font-medium ${
+                  pendingStatusChange === 'approved' ? 'text-green-600' :
+                  pendingStatusChange === 'pending' ? 'text-amber-600' :
+                  'text-red-600'
+                }`}>
+                  {pendingStatusChange === 'approved' ? 'Aktivan' :
+                   pendingStatusChange === 'pending' ? 'Na čekanju' :
+                   'Deaktiviran'}
+                </span>?
+              </p>
+              {pendingStatusChange === 'deactivated' && (
+                <p className="text-sm text-muted mt-2">
+                  Deaktivirani kreatori neće moći da se prijave i neće biti vidljivi u pretrazi.
+                </p>
+              )}
+              {pendingStatusChange === 'pending' && (
+                <p className="text-sm text-muted mt-2">
+                  Kreator će ponovo morati da čeka odobrenje i neće biti vidljiv u pretrazi.
+                </p>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPendingStatusChange(null)}
+                disabled={isSaving}
+                className="flex-1 py-3 border border-border rounded-xl text-sm font-medium hover:bg-secondary transition-colors disabled:opacity-50"
+              >
+                Otkaži
+              </button>
+              <button
+                onClick={async () => {
+                  setIsSaving(true);
+                  try {
+                    const response = await fetch(`/api/creators/${editedCreator.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ status: pendingStatusChange }),
+                    });
+                    
+                    if (response.ok) {
+                      setEditedCreator({ 
+                        ...editedCreator, 
+                        approved: pendingStatusChange === 'approved', 
+                        status: pendingStatusChange 
+                      });
+                      setPendingStatusChange(null);
+                    } else {
+                      alert('Greška pri promeni statusa');
+                    }
+                  } catch (error) {
+                    console.error('Error changing status:', error);
+                    alert('Greška pri promeni statusa');
+                  } finally {
+                    setIsSaving(false);
+                  }
+                }}
+                disabled={isSaving}
+                className={`flex-1 py-3 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                  pendingStatusChange === 'approved' ? 'bg-green-600 hover:bg-green-700' :
+                  pendingStatusChange === 'pending' ? 'bg-amber-500 hover:bg-amber-600' :
+                  'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {isSaving ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Menjam...
+                  </>
+                ) : (
+                  'Potvrdi'
+                )}
               </button>
             </div>
           </div>

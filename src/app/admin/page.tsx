@@ -147,6 +147,21 @@ export default function AdminPage() {
   // Da li se modal otvara iz pending liste (prikaži Odobri/Odbij) ili iz kreatori liste (prikaži samo status)
   const [viewingFromPending, setViewingFromPending] = useState(false);
   
+  // State za pregled portfolio stavke
+  const [viewingPortfolioItem, setViewingPortfolioItem] = useState<any | null>(null);
+  
+  // ESC key handler za portfolio preview
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && viewingPortfolioItem) {
+        setViewingPortfolioItem(null);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewingPortfolioItem]);
+  
   // State za odbijanje kreatora (sa razlogom)
   const [rejectingCreator, setRejectingCreator] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -1565,41 +1580,52 @@ export default function AdminPage() {
                 {/* Portfolio */}
                 {viewingCreator.portfolio && viewingCreator.portfolio.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-sm font-medium text-muted mb-3">Portfolio ({viewingCreator.portfolio.length} video{viewingCreator.portfolio.length > 1 ? 'a' : ''})</h3>
+                    <h3 className="text-sm font-medium text-muted mb-3">Portfolio ({viewingCreator.portfolio.length} stavk{viewingCreator.portfolio.length > 1 ? 'i' : 'a'})</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {viewingCreator.portfolio.map((item, index) => (
-                        <a 
+                      {viewingCreator.portfolio.map((item: any, index: number) => (
+                        <button 
                           key={index}
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="group relative aspect-[9/16] rounded-xl overflow-hidden bg-secondary"
+                          onClick={() => setViewingPortfolioItem(item)}
+                          className="group relative aspect-[9/16] rounded-xl overflow-hidden bg-secondary text-left"
                         >
-                          <Image 
-                            src={item.thumbnail} 
-                            alt={`Portfolio ${index + 1}`} 
-                            fill 
-                            className="object-cover group-hover:scale-105 transition-transform"
-                          />
+                          {item.thumbnail ? (
+                            <Image 
+                              src={item.thumbnail} 
+                              alt={`Portfolio ${index + 1}`} 
+                              fill 
+                              className="object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : item.url ? (
+                            <Image 
+                              src={item.url} 
+                              alt={`Portfolio ${index + 1}`} 
+                              fill 
+                              className="object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-secondary">
+                              <span className="text-muted text-xs">Nema slike</span>
+                            </div>
+                          )}
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <span className="text-white text-xs font-medium px-3 py-1.5 bg-black/50 rounded-full flex items-center gap-1">
-                              {item.type === 'tiktok' && '📱 TikTok'}
-                              {item.type === 'instagram' && '📸 Instagram'}
-                              {item.type === 'youtube' && '🎬 YouTube'}
+                            <span className="text-white text-xs font-medium px-3 py-1.5 bg-black/50 rounded-full">
+                              Pogledaj
                             </span>
                           </div>
-                          <div className="absolute top-2 right-2">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                              item.type === 'tiktok' ? 'bg-black text-white' :
-                              item.type === 'instagram' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' :
-                              'bg-red-600 text-white'
-                            }`}>
-                              {item.type === 'tiktok' && 'TikTok'}
-                              {item.type === 'instagram' && 'IG'}
-                              {item.type === 'youtube' && 'YT'}
-                            </span>
-                          </div>
-                        </a>
+                          {item.platform && (
+                            <div className="absolute top-2 right-2">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                                item.platform === 'tiktok' ? 'bg-black text-white' :
+                                item.platform === 'instagram' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' :
+                                'bg-red-600 text-white'
+                              }`}>
+                                {item.platform === 'tiktok' && 'TikTok'}
+                                {item.platform === 'instagram' && 'IG'}
+                                {item.platform === 'youtube' && 'YT'}
+                              </span>
+                            </div>
+                          )}
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -2744,6 +2770,67 @@ export default function AdminPage() {
                   Otkaži
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Portfolio Preview Modal */}
+        {viewingPortfolioItem && (
+          <div 
+            className="fixed inset-0 bg-black/90 flex items-center justify-center z-[70] p-4"
+            onClick={() => setViewingPortfolioItem(null)}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setViewingPortfolioItem(null)}
+              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-10"
+            >
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div 
+              className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Image or Video */}
+              {viewingPortfolioItem.url && (
+                viewingPortfolioItem.url.includes('.mp4') || viewingPortfolioItem.url.includes('.webm') || viewingPortfolioItem.url.includes('.mov') ? (
+                  <video 
+                    src={viewingPortfolioItem.url} 
+                    controls 
+                    autoPlay
+                    className="max-w-full max-h-full rounded-xl"
+                  />
+                ) : (
+                  <Image 
+                    src={viewingPortfolioItem.thumbnail || viewingPortfolioItem.url} 
+                    alt="Portfolio" 
+                    fill 
+                    className="object-contain"
+                  />
+                )
+              )}
+            </div>
+
+            {/* Description */}
+            {viewingPortfolioItem.description && (
+              <div className="absolute bottom-4 left-4 right-4 bg-black/70 rounded-xl p-4 max-w-2xl mx-auto">
+                <p className="text-white text-sm">
+                  {viewingPortfolioItem.platform && (
+                    <span className="font-medium uppercase text-xs text-white/70 block mb-1">
+                      {viewingPortfolioItem.platform}
+                    </span>
+                  )}
+                  {viewingPortfolioItem.description}
+                </p>
+              </div>
+            )}
+
+            {/* ESC hint */}
+            <div className="absolute bottom-4 right-4 text-white/50 text-xs hidden sm:block">
+              Pritisni ESC za zatvaranje
             </div>
           </div>
         )}
