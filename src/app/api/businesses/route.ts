@@ -1,90 +1,76 @@
 /**
  * API Route: /api/businesses
  * 
- * TRENUTNO: Vraća mock podatke
- * BUDUĆE: Povezuje se sa bazom podataka
- * 
  * Endpoints:
  * - GET /api/businesses - Lista svih biznisa (admin only)
  * - POST /api/businesses - Registracija novog biznisa
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { mockBusinesses, Business } from '@/lib/mockData';
-import type { ApiResponse, PaginatedResponse } from '@/types';
+import { createAdminClient } from '@/lib/supabase/server';
 
-// ============================================
 // GET - Lista biznisa (admin only)
-// ============================================
-
 export async function GET(request: NextRequest) {
   try {
-    // U produkciji bi se proverila admin sesija
-    // const session = await requireAdmin();
-    
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get('page')) || 1;
     const pageSize = Number(searchParams.get('pageSize')) || 20;
     const status = searchParams.get('status'); // 'active' | 'expired' | 'none'
     
-    // ============================================
-    // TRENUTNO: Mock implementacija
-    // ============================================
+    const supabase = createAdminClient();
     
-    let businesses = [...mockBusinesses];
+    // Build query
+    let query = supabase
+      .from('businesses')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false });
     
-    // Filtriranje po statusu pretplate
+    // Filter by subscription status
     if (status) {
-      businesses = businesses.filter(b => b.subscriptionStatus === status);
+      query = query.eq('subscription_status', status);
     }
     
-    const total = businesses.length;
-    const startIndex = (page - 1) * pageSize;
-    const paginatedBusinesses = businesses.slice(startIndex, startIndex + pageSize);
+    // Pagination
+    const offset = (page - 1) * pageSize;
+    query = query.range(offset, offset + pageSize - 1);
     
-    const response: ApiResponse<PaginatedResponse<Business>> = {
-      success: true,
-      data: {
-        data: paginatedBusinesses,
-        total,
-        page,
-        pageSize,
-        totalPages: Math.ceil(total / pageSize),
-      },
-    };
+    const { data: businesses, error, count } = await query;
     
-    return NextResponse.json(response);
+    if (error) {
+      console.error('Error fetching businesses:', error);
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch businesses' },
+        { status: 500 }
+      );
+    }
     
-    // ============================================
-    // BUDUĆE: Prisma implementacija
-    // ============================================
-    
-    /*
-    const where: Prisma.BusinessWhereInput = {
-      ...(status && { subscriptionStatus: status.toUpperCase() }),
-    };
-    
-    const [businesses, total] = await Promise.all([
-      prisma.business.findMany({
-        where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.business.count({ where }),
-    ]);
+    // Transform data to expected format
+    const formattedBusinesses = businesses?.map(b => ({
+      id: b.id,
+      companyName: b.company_name,
+      email: b.email,
+      phone: b.phone,
+      description: b.description,
+      website: b.website,
+      industry: b.industry,
+      subscriptionType: b.subscription_type,
+      subscriptionStatus: b.subscription_status,
+      stripeCustomerId: b.stripe_customer_id,
+      subscribedAt: b.subscribed_at,
+      expiresAt: b.expires_at,
+      createdAt: b.created_at,
+    })) || [];
     
     return NextResponse.json({
       success: true,
       data: {
-        data: businesses,
-        total,
+        data: formattedBusinesses,
+        total: count || 0,
         page,
         pageSize,
-        totalPages: Math.ceil(total / pageSize),
+        totalPages: Math.ceil((count || 0) / pageSize),
       },
     });
-    */
     
   } catch (error) {
     console.error('Error fetching businesses:', error);
@@ -95,10 +81,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ============================================
-// POST - Registracija biznisa
-// ============================================
-
+// POST - Registracija biznisa (koristi se /api/auth/register/business umesto ovoga)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -111,38 +94,14 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // ============================================
-    // TRENUTNO: Mock implementacija
-    // ============================================
+    const supabase = createAdminClient();
     
-    const newBusiness: Business = {
-      id: `business_${Date.now()}`,
-      companyName: body.companyName,
-      email: body.email,
-      description: body.description,
-      website: body.website,
-      industry: body.industry,
-      subscriptionType: null,
-      subscriptionStatus: 'none',
-    };
-    
-    const response: ApiResponse<Business> = {
-      success: true,
-      data: newBusiness,
-      message: 'Business registered successfully',
-    };
-    
-    return NextResponse.json(response, { status: 201 });
-    
-    // ============================================
-    // BUDUĆE: Prisma implementacija
-    // ============================================
-    
-    /*
     // Provera da li već postoji biznis sa tim emailom
-    const existing = await prisma.business.findFirst({
-      where: { email: body.email },
-    });
+    const { data: existing } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('email', body.email)
+      .single();
     
     if (existing) {
       return NextResponse.json(
@@ -151,38 +110,39 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Kreiranje korisnika i biznisa u transakciji
-    const result = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          email: body.email,
-          password: await bcrypt.hash(body.password, 10),
-          name: body.companyName,
-          role: 'BUSINESS',
-        },
-      });
-      
-      const business = await tx.business.create({
-        data: {
-          userId: user.id,
-          companyName: body.companyName,
-          email: body.email,
-          description: body.description,
-          website: body.website,
-          industry: body.industry,
-          subscriptionStatus: 'NONE',
-        },
-      });
-      
-      return business;
-    });
+    // Kreiranje biznisa
+    const { data: newBusiness, error } = await supabase
+      .from('businesses')
+      .insert({
+        company_name: body.companyName,
+        email: body.email,
+        phone: body.phone || null,
+        description: body.description || null,
+        website: body.website || null,
+        industry: body.industry || null,
+        subscription_status: 'none',
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating business:', error);
+      return NextResponse.json(
+        { success: false, error: 'Failed to create business' },
+        { status: 500 }
+      );
+    }
     
     return NextResponse.json({
       success: true,
-      data: result,
+      data: {
+        id: newBusiness.id,
+        companyName: newBusiness.company_name,
+        email: newBusiness.email,
+        subscriptionStatus: newBusiness.subscription_status,
+      },
       message: 'Business registered successfully',
     }, { status: 201 });
-    */
     
   } catch (error) {
     console.error('Error creating business:', error);
@@ -192,4 +152,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

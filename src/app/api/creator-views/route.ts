@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
         creator_id,
         creators (
           id,
-          display_name,
-          profile_image_url,
-          city,
+          name,
+          photo,
+          location,
           categories,
           niches
         )
@@ -42,9 +42,9 @@ export async function GET(request: NextRequest) {
     // Transformiši podatke
     const recentCreators = views?.map(view => ({
       id: view.creators?.id,
-      name: view.creators?.display_name,
-      profileImage: view.creators?.profile_image_url,
-      city: view.creators?.city,
+      name: view.creators?.name,
+      photo: view.creators?.photo,
+      location: view.creators?.location,
       categories: view.creators?.categories || [],
       niches: view.creators?.niches || [],
       viewedAt: view.viewed_at,

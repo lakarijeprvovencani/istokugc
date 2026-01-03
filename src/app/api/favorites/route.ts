@@ -1,131 +1,152 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/server';
 
-// ============================================
-// FAVORITES API ROUTES
-// These are placeholder implementations for demo mode.
-// In production, replace with actual database operations.
-// ============================================
+// GET /api/favorites - Get all favorites for business
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const businessId = searchParams.get('businessId');
 
-// GET /api/favorites - Get all favorites for current user
-export async function GET() {
-  // In production:
-  // 1. Get authenticated user from session
-  // 2. Query database for user's favorites
-  // const session = await getServerSession(authOptions);
-  // if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  // const favorites = await prisma.favorite.findMany({
-  //   where: { userId: session.user.id },
-  //   include: { creator: true },
-  // });
+    if (!businessId) {
+      return NextResponse.json({ error: 'Business ID is required' }, { status: 400 });
+    }
 
-  // Demo response
-  return NextResponse.json({
-    success: true,
-    data: {
-      favorites: [],
-      message: 'Demo mode - favorites are stored in localStorage',
-    },
-  });
+    const supabase = createAdminClient();
+
+    const { data: favorites, error } = await supabase
+      .from('saved_creators')
+      .select(`
+        id,
+        saved_at,
+        creator_id,
+        creators (
+          id,
+          name,
+          photo,
+          location,
+          categories,
+          price_from,
+          average_rating,
+          total_reviews
+        )
+      `)
+      .eq('business_id', businessId)
+      .order('saved_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching favorites:', error);
+      return NextResponse.json({ error: 'Failed to fetch favorites' }, { status: 500 });
+    }
+
+    // Transform data
+    const formattedFavorites = favorites?.map(fav => ({
+      id: fav.creators?.id,
+      name: fav.creators?.name,
+      photo: fav.creators?.photo,
+      location: fav.creators?.location,
+      categories: fav.creators?.categories || [],
+      priceFrom: fav.creators?.price_from,
+      rating: fav.creators?.average_rating,
+      totalReviews: fav.creators?.total_reviews,
+      savedAt: fav.saved_at,
+    })).filter(c => c.id) || [];
+
+    return NextResponse.json({
+      success: true,
+      favorites: formattedFavorites,
+    });
+
+  } catch (error) {
+    console.error('Favorites fetch error:', error);
+    return NextResponse.json({ error: 'Failed to fetch favorites' }, { status: 500 });
+  }
 }
 
 // POST /api/favorites - Add creator to favorites
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { creatorId } = body;
+    const { businessId, creatorId } = body;
 
-    if (!creatorId) {
+    if (!businessId || !creatorId) {
       return NextResponse.json(
-        { error: 'Creator ID is required' },
+        { error: 'Business ID and Creator ID are required' },
         { status: 400 }
       );
     }
 
-    // In production:
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // 
-    // // Check if already favorited
-    // const existing = await prisma.favorite.findUnique({
-    //   where: {
-    //     userId_creatorId: {
-    //       userId: session.user.id,
-    //       creatorId,
-    //     },
-    //   },
-    // });
-    // 
-    // if (existing) {
-    //   return NextResponse.json({ error: 'Already in favorites' }, { status: 400 });
-    // }
-    // 
-    // const favorite = await prisma.favorite.create({
-    //   data: {
-    //     userId: session.user.id,
-    //     creatorId,
-    //   },
-    //   include: { creator: true },
-    // });
+    const supabase = createAdminClient();
 
-    // Demo response
+    // Check if already saved
+    const { data: existing } = await supabase
+      .from('saved_creators')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('creator_id', creatorId)
+      .single();
+
+    if (existing) {
+      return NextResponse.json({ error: 'Already in favorites' }, { status: 400 });
+    }
+
+    // Add to favorites
+    const { error } = await supabase
+      .from('saved_creators')
+      .insert({
+        business_id: businessId,
+        creator_id: creatorId,
+      });
+
+    if (error) {
+      console.error('Error adding favorite:', error);
+      return NextResponse.json({ error: 'Failed to add favorite' }, { status: 500 });
+    }
+
     return NextResponse.json({
       success: true,
-      data: {
-        creatorId,
-        message: 'Demo mode - favorite added to localStorage',
-      },
+      message: 'Kreator sačuvan',
     });
-  } catch {
-    return NextResponse.json(
-      { error: 'Failed to add favorite' },
-      { status: 500 }
-    );
+
+  } catch (error) {
+    console.error('Add favorite error:', error);
+    return NextResponse.json({ error: 'Failed to add favorite' }, { status: 500 });
   }
 }
 
 // DELETE /api/favorites - Remove creator from favorites
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const businessId = searchParams.get('businessId');
     const creatorId = searchParams.get('creatorId');
 
-    if (!creatorId) {
+    if (!businessId || !creatorId) {
       return NextResponse.json(
-        { error: 'Creator ID is required' },
+        { error: 'Business ID and Creator ID are required' },
         { status: 400 }
       );
     }
 
-    // In production:
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // 
-    // await prisma.favorite.delete({
-    //   where: {
-    //     userId_creatorId: {
-    //       userId: session.user.id,
-    //       creatorId,
-    //     },
-    //   },
-    // });
+    const supabase = createAdminClient();
 
-    // Demo response
+    const { error } = await supabase
+      .from('saved_creators')
+      .delete()
+      .eq('business_id', businessId)
+      .eq('creator_id', creatorId);
+
+    if (error) {
+      console.error('Error removing favorite:', error);
+      return NextResponse.json({ error: 'Failed to remove favorite' }, { status: 500 });
+    }
+
     return NextResponse.json({
       success: true,
-      data: {
-        creatorId,
-        message: 'Demo mode - favorite removed from localStorage',
-      },
+      message: 'Kreator uklonjen iz sačuvanih',
     });
-  } catch {
-    return NextResponse.json(
-      { error: 'Failed to remove favorite' },
-      { status: 500 }
-    );
+
+  } catch (error) {
+    console.error('Remove favorite error:', error);
+    return NextResponse.json({ error: 'Failed to remove favorite' }, { status: 500 });
   }
 }
-
-
-
-
-

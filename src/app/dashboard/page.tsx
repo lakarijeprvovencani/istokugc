@@ -9,6 +9,7 @@ import { AverageRating } from '@/components/StarRating';
 import { generateReviewStats, Review } from '@/types/review';
 import PortfolioModal, { PortfolioItem } from '@/components/PortfolioModal';
 import VideoPlayerModal from '@/components/VideoPlayerModal';
+import ImageCropper from '@/components/ImageCropper';
 
 export default function DashboardPage() {
   const { currentUser, updateCreator } = useDemo();
@@ -36,7 +37,7 @@ export default function DashboardPage() {
 }
 
 function CreatorDashboard() {
-  const { addReplyToReview, updateReplyToReview, deleteReplyFromReview, updateCreator, isHydrated, currentUser } = useDemo();
+  const { updateCreator, isHydrated, currentUser } = useDemo();
   
   // ALL HOOKS MUST BE AT TOP - before any conditional returns
   const [creator, setCreator] = useState<any>(null);
@@ -75,6 +76,9 @@ function CreatorDashboard() {
   const [editingPhoto, setEditingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const [rawPhotoForCrop, setRawPhotoForCrop] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   
@@ -393,27 +397,60 @@ function CreatorDashboard() {
 
     setSelectedPhoto(file);
 
-    // Create preview
+    // Create preview and open cropper
     const reader = new FileReader();
     reader.onload = (e) => {
-      setPhotoPreview(e.target?.result as string);
+      setRawPhotoForCrop(e.target?.result as string);
+      setShowCropper(true);
     };
     reader.readAsDataURL(file);
+    
+    // Reset input value to allow selecting same file again
+    e.target.value = '';
   };
 
-  const handleSavePhoto = () => {
-    if (!selectedPhoto) return;
+  const handleCropComplete = async (croppedImage: string) => {
+    setShowCropper(false);
+    setPhotoPreview(croppedImage);
+    setEditingPhoto(true);
+  };
 
-    // In production, this would upload to cloud storage and update creator profile
-    // const formData = new FormData();
-    // formData.append('photo', selectedPhoto);
-    // await fetch('/api/creators/me/photo', { method: 'POST', body: formData });
-
-    // Demo mode: just close edit mode
-    setEditingPhoto(false);
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    setRawPhotoForCrop(null);
     setSelectedPhoto(null);
-    setPhotoPreview(null);
-    alert('Demo režim: U produkciji bi se slika uploadovala i ažurirala.');
+  };
+
+  const handleSavePhoto = async () => {
+    if (!photoPreview || !creator) return;
+
+    setIsUploadingPhoto(true);
+
+    try {
+      const response = await fetch(`/api/creators/${creator.id}/photo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photo: photoPreview }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update local creator data with new photo
+        setCreator(prev => prev ? { ...prev, photo: data.data.photoUrl } : prev);
+        setEditingPhoto(false);
+        setSelectedPhoto(null);
+        setPhotoPreview(null);
+        setRawPhotoForCrop(null);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Greška pri uploadu slike');
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      alert('Greška pri uploadu slike');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
   };
 
   const tabs = [
@@ -543,16 +580,26 @@ function CreatorDashboard() {
                           setEditingPhoto(false);
                           setPhotoPreview(null);
                           setSelectedPhoto(null);
+                          setRawPhotoForCrop(null);
                         }}
-                        className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-secondary transition-colors"
+                        disabled={isUploadingPhoto}
+                        className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-secondary transition-colors disabled:opacity-50"
                       >
                         Otkaži
                       </button>
                       <button
                         onClick={handleSavePhoto}
-                        className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                        disabled={isUploadingPhoto}
+                        className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
                       >
-                        Sačuvaj
+                        {isUploadingPhoto ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Čuvam...
+                          </>
+                        ) : (
+                          'Sačuvaj'
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1379,14 +1426,58 @@ function CreatorDashboard() {
                     canReply={review.status === 'approved' && !review.creatorReply}
                     canEditReply={!!review.creatorReply}
                     canDeleteReply={!!review.creatorReply}
-                    onReply={(reviewId, reply) => {
-                      addReplyToReview(reviewId, reply);
+                    onReply={async (reviewId, reply) => {
+                      try {
+                        const res = await fetch(`/api/reviews/${reviewId}/reply`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ reply }),
+                        });
+                        if (res.ok) {
+                          // Update local state
+                          setReviews(prev => prev.map(r => 
+                            r.id === reviewId 
+                              ? { ...r, creatorReply: reply, replyDate: new Date().toISOString().split('T')[0] }
+                              : r
+                          ));
+                        }
+                      } catch (error) {
+                        console.error('Error adding reply:', error);
+                      }
                     }}
-                    onEditReply={(reviewId, reply) => {
-                      updateReplyToReview(reviewId, reply);
+                    onEditReply={async (reviewId, reply) => {
+                      try {
+                        const res = await fetch(`/api/reviews/${reviewId}/reply`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ reply }),
+                        });
+                        if (res.ok) {
+                          setReviews(prev => prev.map(r => 
+                            r.id === reviewId 
+                              ? { ...r, creatorReply: reply, replyDate: new Date().toISOString().split('T')[0] }
+                              : r
+                          ));
+                        }
+                      } catch (error) {
+                        console.error('Error updating reply:', error);
+                      }
                     }}
-                    onDeleteReply={(reviewId) => {
-                      deleteReplyFromReview(reviewId);
+                    onDeleteReply={async (reviewId) => {
+                      try {
+                        const res = await fetch(`/api/reviews/${reviewId}/reply`, {
+                          method: 'DELETE',
+                        });
+                        if (res.ok) {
+                          setReviews(prev => prev.map(r => 
+                            r.id === reviewId 
+                              ? { ...r, creatorReply: undefined, replyDate: undefined }
+                              : r
+                          ));
+                        }
+                      } catch (error) {
+                        console.error('Error deleting reply:', error);
+                      }
                     }}
                   />
                 ))}
@@ -1404,6 +1495,16 @@ function CreatorDashboard() {
         )}
 
       </div>
+
+      {/* Image Cropper Modal */}
+      {showCropper && rawPhotoForCrop && (
+        <ImageCropper
+          image={rawPhotoForCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+          aspectRatio={1} // Square for profile photo
+        />
+      )}
 
     </div>
   );
@@ -1617,12 +1718,12 @@ function BusinessDashboard() {
         <h1 className="text-3xl font-light mb-2">Dashboard</h1>
         <p className="text-muted mb-10">Dobrodošao nazad, {businessData?.company_name || companyName || currentUser.companyName}</p>
 
-        {/* Demo portal message */}
+        {/* Portal message - prikazuje se ako Stripe portal nije dostupan */}
         {showPortalMessage && (
-          <div className="mb-6 bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-center gap-3">
-            <span className="text-primary">ℹ️</span>
-            <p className="text-sm">
-              <strong>Demo režim:</strong> U produkciji, ovde bi se otvorio Stripe Customer Portal za upravljanje pretplatom.
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+            <span className="text-amber-600">⚠️</span>
+            <p className="text-sm text-amber-800">
+              Upravljanje pretplatom trenutno nije dostupno. Pokušajte ponovo kasnije.
             </p>
           </div>
         )}

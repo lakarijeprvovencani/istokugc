@@ -1,17 +1,11 @@
 /**
  * Approve Review API Route
  * 
- * POST /api/reviews/[id]/approve - Admin odobrava recenziju
+ * POST /api/reviews/[id]/approve - Odobri recenziju (admin only)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import type { Review } from '@/types/review';
-
-// Mock data - u produkciji ovo dolazi iz baze
-import { mockReviews } from '@/lib/mockData';
-
-// In-memory storage za demo
-let reviewsStore: Review[] = [...mockReviews];
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(
   request: NextRequest,
@@ -19,45 +13,39 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    const supabase = createAdminClient();
 
-    // DEMO: In production, verify admin role
-    // const session = await getServerSession(authOptions);
-    // if (session.user.role !== 'admin') {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    // }
+    // Update review status to approved
+    const { data: review, error } = await supabase
+      .from('reviews')
+      .update({ 
+        status: 'approved',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-    const reviewIndex = reviewsStore.findIndex(r => r.id === id);
-    
-    if (reviewIndex === -1) {
+    if (error) {
+      console.error('Error approving review:', error);
+      return NextResponse.json(
+        { error: 'Failed to approve review' },
+        { status: 500 }
+      );
+    }
+
+    if (!review) {
       return NextResponse.json(
         { error: 'Review not found' },
         { status: 404 }
       );
     }
 
-    const existingReview = reviewsStore[reviewIndex];
-
-    if (existingReview.status === 'approved') {
-      return NextResponse.json(
-        { error: 'Review is already approved' },
-        { status: 400 }
-      );
-    }
-
-    // Update review status
-    const updatedReview: Review = {
-      ...existingReview,
-      status: 'approved',
-      updatedAt: new Date().toISOString().split('T')[0],
-    };
-
-    reviewsStore[reviewIndex] = updatedReview;
-
-    // FUTURE: Send notification to business that their review was approved
-    // await sendNotification(existingReview.businessId, 'review_approved', { reviewId: id });
+    // Update creator's average rating
+    await updateCreatorRating(supabase, review.creator_id);
 
     return NextResponse.json({
-      review: updatedReview,
+      review,
       message: 'Review approved successfully',
     });
 
@@ -70,7 +58,28 @@ export async function POST(
   }
 }
 
+// Helper to update creator's average rating
+async function updateCreatorRating(supabase: any, creatorId: string) {
+  try {
+    // Get all approved reviews for this creator
+    const { data: reviews } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('creator_id', creatorId)
+      .eq('status', 'approved');
 
-
-
-
+    if (reviews && reviews.length > 0) {
+      const avgRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length;
+      
+      await supabase
+        .from('creators')
+        .update({ 
+          average_rating: Math.round(avgRating * 10) / 10,
+          total_reviews: reviews.length,
+        })
+        .eq('id', creatorId);
+    }
+  } catch (error) {
+    console.error('Error updating creator rating:', error);
+  }
+}

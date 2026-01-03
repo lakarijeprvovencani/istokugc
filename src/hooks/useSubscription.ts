@@ -234,23 +234,19 @@ export function useSubscription(): UseSubscriptionReturn {
   }, [subscription]);
 
   // Open customer portal
-  const openCustomerPortal = useCallback(async () => {
+  // Note: Dashboard koristi direktno /api/stripe/create-portal umesto ovog hook-a
+  const openCustomerPortal = useCallback(async (businessId: string) => {
     try {
-      // DEMO MODE
-      console.log('🚪 Open customer portal (demo)');
-      alert('Demo: Customer portal bi se otvorio ovde');
-
-      // PRODUKCIJA
-      /*
-      const response = await fetch('/api/stripe/portal', {
+      const response = await fetch('/api/stripe/create-portal', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ businessId }),
       });
       
       if (!response.ok) throw new Error('Failed to create portal session');
       
       const { url } = await response.json();
       window.location.href = url;
-      */
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to open portal');
       throw err;

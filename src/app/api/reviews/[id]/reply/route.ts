@@ -1,84 +1,52 @@
 /**
- * Reply to Review API Route
+ * Review Reply API Route
  * 
- * POST /api/reviews/[id]/reply - Kreator odgovara na recenziju
+ * POST /api/reviews/[id]/reply - Dodaj odgovor na recenziju (kreator)
+ * PUT /api/reviews/[id]/reply - Ažuriraj odgovor
+ * DELETE /api/reviews/[id]/reply - Obriši odgovor
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import type { Review, ReplyToReviewInput } from '@/types/review';
-import { MAX_REPLY_LENGTH, isValidReply } from '@/types/review';
+import { createAdminClient } from '@/lib/supabase/server';
 
-// Mock data - u produkciji ovo dolazi iz baze
-import { mockReviews } from '@/lib/mockData';
-
-// In-memory storage za demo
-let reviewsStore: Review[] = [...mockReviews];
-
+// POST - Dodaj odgovor
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const body: ReplyToReviewInput = await request.json();
+    const { reply } = await request.json();
+    const supabase = createAdminClient();
 
-    // DEMO: In production, verify creator owns the reviewed profile
-    // const session = await getServerSession(authOptions);
-    // const review = await prisma.review.findUnique({ where: { id } });
-    // if (review.creatorId !== session.user.creatorId) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    // }
-
-    // Validate reply
-    if (!body.reply || !isValidReply(body.reply)) {
+    if (!reply || !reply.trim()) {
       return NextResponse.json(
-        { error: `Reply must be between 1 and ${MAX_REPLY_LENGTH} characters` },
+        { error: 'Reply is required' },
         { status: 400 }
       );
     }
 
-    const reviewIndex = reviewsStore.findIndex(r => r.id === id);
-    
-    if (reviewIndex === -1) {
+    // Update review with reply
+    const { data: review, error } = await supabase
+      .from('reviews')
+      .update({ 
+        reply: reply.trim(),
+        reply_date: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding reply:', error);
       return NextResponse.json(
-        { error: 'Review not found' },
-        { status: 404 }
+        { error: 'Failed to add reply' },
+        { status: 500 }
       );
     }
-
-    const existingReview = reviewsStore[reviewIndex];
-
-    // Only allow replying to approved reviews
-    if (existingReview.status !== 'approved') {
-      return NextResponse.json(
-        { error: 'Can only reply to approved reviews' },
-        { status: 400 }
-      );
-    }
-
-    // Check if already replied
-    if (existingReview.creatorReply) {
-      return NextResponse.json(
-        { error: 'You have already replied to this review' },
-        { status: 400 }
-      );
-    }
-
-    // Add reply
-    const updatedReview: Review = {
-      ...existingReview,
-      creatorReply: body.reply.trim(),
-      creatorReplyAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0],
-    };
-
-    reviewsStore[reviewIndex] = updatedReview;
-
-    // FUTURE: Send notification to business that creator replied
-    // await sendNotification(existingReview.businessId, 'creator_replied', { reviewId: id });
 
     return NextResponse.json({
-      review: updatedReview,
+      review,
       message: 'Reply added successfully',
     });
 
@@ -91,7 +59,94 @@ export async function POST(
   }
 }
 
+// PUT - Ažuriraj odgovor
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const { reply } = await request.json();
+    const supabase = createAdminClient();
 
+    if (!reply || !reply.trim()) {
+      return NextResponse.json(
+        { error: 'Reply is required' },
+        { status: 400 }
+      );
+    }
 
+    // Update reply
+    const { data: review, error } = await supabase
+      .from('reviews')
+      .update({ 
+        reply: reply.trim(),
+        reply_date: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
+    if (error) {
+      console.error('Error updating reply:', error);
+      return NextResponse.json(
+        { error: 'Failed to update reply' },
+        { status: 500 }
+      );
+    }
 
+    return NextResponse.json({
+      review,
+      message: 'Reply updated successfully',
+    });
+
+  } catch (error) {
+    console.error('Error updating reply:', error);
+    return NextResponse.json(
+      { error: 'Failed to update reply' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Obriši odgovor
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const supabase = createAdminClient();
+
+    // Remove reply
+    const { data: review, error } = await supabase
+      .from('reviews')
+      .update({ 
+        reply: null,
+        reply_date: null,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error deleting reply:', error);
+      return NextResponse.json(
+        { error: 'Failed to delete reply' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      review,
+      message: 'Reply deleted successfully',
+    });
+
+  } catch (error) {
+    console.error('Error deleting reply:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete reply' },
+      { status: 500 }
+    );
+  }
+}

@@ -1,13 +1,13 @@
 /**
  * API Route: /api/creators/[id]/photo
  * 
- * TRENUTNO: Mock implementacija
- * BUDUĆE: Upload slike na cloud storage (Supabase Storage, AWS S3, itd.)
+ * Upload profilne slike kreatora na Supabase Storage
  * 
- * POST /api/creators/[id]/photo - Upload profilne slike kreatora
+ * POST /api/creators/[id]/photo - Upload profilne slike
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(
   request: NextRequest,
@@ -15,137 +15,109 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    const supabase = createAdminClient();
     
-    // ============================================
-    // TRENUTNO: Mock implementacija
-    // ============================================
+    // Dohvati body - može biti FormData ili JSON sa base64
+    const contentType = request.headers.get('content-type') || '';
     
-    // U produkciji bi se ovde:
-    // 1. Proverila autentifikacija (samo kreator ili admin)
-    // 2. Validirala slika (tip, veličina)
-    // 3. Upload-ovala na cloud storage (Supabase Storage)
-    // 4. Ažurirala URL u bazi
+    let photoData: string;
     
-    const formData = await request.formData();
-    const file = formData.get('photo') as File;
-    
-    if (!file) {
-      return NextResponse.json(
-        { success: false, error: 'No file provided' },
-        { status: 400 }
-      );
+    if (contentType.includes('application/json')) {
+      // Base64 slika (od croppera)
+      const body = await request.json();
+      photoData = body.photo;
+      
+      if (!photoData || !photoData.startsWith('data:image')) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid image data' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // FormData
+      const formData = await request.formData();
+      const file = formData.get('photo') as File;
+      
+      if (!file) {
+        return NextResponse.json(
+          { success: false, error: 'No file provided' },
+          { status: 400 }
+        );
+      }
+      
+      // Validacija tipa
+      if (!file.type.startsWith('image/')) {
+        return NextResponse.json(
+          { success: false, error: 'File must be an image' },
+          { status: 400 }
+        );
+      }
+      
+      // Validacija veličine (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        return NextResponse.json(
+          { success: false, error: 'File size must be less than 5MB' },
+          { status: 400 }
+        );
+      }
+      
+      // Convert to base64
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      photoData = `data:${file.type};base64,${buffer.toString('base64')}`;
     }
     
-    // Validacija tipa
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json(
-        { success: false, error: 'File must be an image' },
-        { status: 400 }
-      );
-    }
+    // Ekstraktuj base64 podatke
+    const base64Data = photoData.split(',')[1];
+    const mimeType = photoData.split(';')[0].split(':')[1];
+    const extension = mimeType.split('/')[1] || 'jpg';
     
-    // Validacija veličine (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { success: false, error: 'File size must be less than 5MB' },
-        { status: 400 }
-      );
-    }
+    // Kreiraj buffer od base64
+    const buffer = Buffer.from(base64Data, 'base64');
     
-    // Demo mode: return mock URL
-    const mockPhotoUrl = `https://images.unsplash.com/photo-${Date.now()}?w=400&h=400&fit=crop`;
+    // Generiši unikatno ime fajla (koristimo portfolio bucket sa profiles/ prefiksom)
+    const fileName = `profiles/${id}/${Date.now()}.${extension}`;
     
-    return NextResponse.json({
-      success: true,
-      data: { photoUrl: mockPhotoUrl },
-      message: 'Photo uploaded successfully (demo mode)',
-    });
-    
-    // ============================================
-    // BUDUĆE: Supabase Storage implementacija
-    // ============================================
-    
-    /*
-    // Provera autentifikacije
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    // Provera da li korisnik ima pravo
-    const creator = await prisma.creator.findUnique({
-      where: { id },
-      include: { user: true },
-    });
-    
-    if (!creator) {
-      return NextResponse.json(
-        { success: false, error: 'Creator not found' },
-        { status: 404 }
-      );
-    }
-    
-    const canEdit = 
-      session.user.role === 'ADMIN' || 
-      creator.userId === session.user.id;
-    
-    if (!canEdit) {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden' },
-        { status: 403 }
-      );
-    }
-    
-    // Upload na Supabase Storage
-    const { createClient } = require('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-    
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${id}-${Date.now()}.${fileExt}`;
-    const filePath = `creators/${id}/${fileName}`;
-    
-    // Convert File to Buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    
-    // Upload
+    // Upload na Supabase Storage (koristimo postojeći portfolio bucket)
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('creator-photos')
-      .upload(filePath, buffer, {
-        contentType: file.type,
+      .from('portfolio')
+      .upload(fileName, buffer, {
+        contentType: mimeType,
         upsert: true,
       });
     
     if (uploadError) {
+      console.error('Upload error:', uploadError);
       return NextResponse.json(
         { success: false, error: 'Failed to upload photo' },
         { status: 500 }
       );
     }
     
-    // Get public URL
+    // Dobij javni URL
     const { data: { publicUrl } } = supabase.storage
-      .from('creator-photos')
-      .getPublicUrl(filePath);
+      .from('portfolio')
+      .getPublicUrl(fileName);
     
-    // Update creator photo in database
-    await prisma.creator.update({
-      where: { id },
-      data: { photo: publicUrl },
-    });
+    // Ažuriraj kreator profil u bazi
+    const { error: updateError } = await supabase
+      .from('creators')
+      .update({ photo: publicUrl })
+      .eq('id', id);
+    
+    if (updateError) {
+      console.error('Database update error:', updateError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to update profile' },
+        { status: 500 }
+      );
+    }
     
     return NextResponse.json({
       success: true,
       data: { photoUrl: publicUrl },
-      message: 'Photo uploaded successfully',
+      message: 'Slika uspešno uploadovana',
     });
-    */
     
   } catch (error) {
     console.error('Error uploading photo:', error);
@@ -155,8 +127,3 @@ export async function POST(
     );
   }
 }
-
-
-
-
-

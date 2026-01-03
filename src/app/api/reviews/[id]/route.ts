@@ -2,19 +2,13 @@
  * Single Review API Route
  * 
  * GET /api/reviews/[id] - Dohvati pojedinačnu recenziju
- * PUT /api/reviews/[id] - Ažuriraj recenziju (biznis - svoju, admin - sve)
- * DELETE /api/reviews/[id] - Obriši recenziju (admin only)
+ * PUT /api/reviews/[id] - Ažuriraj recenziju
+ * DELETE /api/reviews/[id] - Obriši recenziju
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import type { Review, UpdateReviewInput } from '@/types/review';
+import { createAdminClient } from '@/lib/supabase/server';
 import { MIN_COMMENT_LENGTH, MAX_COMMENT_LENGTH } from '@/types/review';
-
-// Mock data - u produkciji ovo dolazi iz baze
-import { mockReviews } from '@/lib/mockData';
-
-// In-memory storage za demo
-let reviewsStore: Review[] = [...mockReviews];
 
 export async function GET(
   request: NextRequest,
@@ -22,17 +16,43 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const supabase = createAdminClient();
     
-    const review = reviewsStore.find(r => r.id === id);
+    const { data: review, error } = await supabase
+      .from('reviews')
+      .select(`
+        *,
+        creators (id, name, photo),
+        businesses (id, company_name)
+      `)
+      .eq('id', id)
+      .single();
     
-    if (!review) {
+    if (error || !review) {
       return NextResponse.json(
         { error: 'Review not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ review });
+    // Transform to expected format
+    const formattedReview = {
+      id: review.id,
+      creatorId: review.creator_id,
+      creatorName: review.creators?.name,
+      creatorPhoto: review.creators?.photo,
+      businessId: review.business_id,
+      businessName: review.businesses?.company_name,
+      rating: review.rating,
+      comment: review.comment,
+      status: review.status,
+      creatorReply: review.reply,
+      replyDate: review.reply_date,
+      createdAt: review.created_at,
+      updatedAt: review.updated_at,
+    };
+
+    return NextResponse.json({ review: formattedReview });
 
   } catch (error) {
     console.error('Error fetching review:', error);
@@ -49,22 +69,22 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const body: UpdateReviewInput = await request.json();
+    const body = await request.json();
+    const supabase = createAdminClient();
 
-    const reviewIndex = reviewsStore.findIndex(r => r.id === id);
+    // Check if review exists
+    const { data: existing, error: fetchError } = await supabase
+      .from('reviews')
+      .select('id')
+      .eq('id', id)
+      .single();
     
-    if (reviewIndex === -1) {
+    if (fetchError || !existing) {
       return NextResponse.json(
         { error: 'Review not found' },
         { status: 404 }
       );
     }
-
-    // DEMO: In production, check if user owns this review or is admin
-    // const session = await getServerSession(authOptions);
-    // if (review.businessId !== session.user.businessId && session.user.role !== 'admin') {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    // }
 
     // Validate updates
     if (body.rating && (body.rating < 1 || body.rating > 5)) {
@@ -90,21 +110,39 @@ export async function PUT(
       }
     }
 
-    // Update review
-    const existingReview = reviewsStore[reviewIndex];
-    const updatedReview: Review = {
-      ...existingReview,
-      ...(body.rating && { rating: body.rating }),
-      ...(body.comment && { comment: body.comment.trim() }),
-      status: 'pending', // Reset to pending if content changes
-      updatedAt: new Date().toISOString().split('T')[0],
+    // Build update object
+    const updateData: any = {
+      updated_at: new Date().toISOString(),
     };
+    
+    if (body.rating) updateData.rating = body.rating;
+    if (body.comment) updateData.comment = body.comment.trim();
+    if (body.status) updateData.status = body.status;
 
-    reviewsStore[reviewIndex] = updatedReview;
+    // If content changes, reset to pending for re-moderation
+    if (body.rating || body.comment) {
+      updateData.status = 'pending';
+    }
+
+    // Update review
+    const { data: updatedReview, error: updateError } = await supabase
+      .from('reviews')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating review:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to update review' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       review: updatedReview,
-      message: 'Review updated. It will need to be re-approved by admin.',
+      message: 'Review updated successfully',
     });
 
   } catch (error) {
@@ -122,24 +160,21 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const supabase = createAdminClient();
 
-    // DEMO: In production, check if user is admin
-    // const session = await getServerSession(authOptions);
-    // if (session.user.role !== 'admin') {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    // }
+    // Delete review
+    const { error } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', id);
 
-    const reviewIndex = reviewsStore.findIndex(r => r.id === id);
-    
-    if (reviewIndex === -1) {
+    if (error) {
+      console.error('Error deleting review:', error);
       return NextResponse.json(
-        { error: 'Review not found' },
-        { status: 404 }
+        { error: 'Failed to delete review' },
+        { status: 500 }
       );
     }
-
-    // Remove review
-    reviewsStore.splice(reviewIndex, 1);
 
     return NextResponse.json({
       message: 'Review deleted successfully',
@@ -153,8 +188,3 @@ export async function DELETE(
     );
   }
 }
-
-
-
-
-
