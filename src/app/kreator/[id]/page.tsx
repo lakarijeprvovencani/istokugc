@@ -205,10 +205,10 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   // Add reply to review via API
   const handleAddReply = async (reviewId: string, reply: string) => {
     try {
-      const response = await fetch('/api/reviews/reply', {
+      const response = await fetch(`/api/reviews/${reviewId}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewId, reply }),
+        body: JSON.stringify({ reply }),
       });
       if (response.ok) {
         await refreshReviews();
@@ -224,10 +224,9 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   // Delete reply from review via API
   const handleDeleteReply = async (reviewId: string) => {
     try {
-      const response = await fetch('/api/reviews/reply', {
+      const response = await fetch(`/api/reviews/${reviewId}/reply`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewId }),
       });
       if (response.ok) {
         await refreshReviews();
@@ -1072,6 +1071,16 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
               {(() => {
                 const reviews = creatorReviews.filter(r => r.status === 'approved');
                 const hasPendingReview = businessReview && businessReview.status === 'pending';
+                
+                // Show loading while fetching reviews
+                if (isLoadingReviews) {
+                  return (
+                    <div className="text-center py-12 bg-secondary/30 rounded-2xl">
+                      <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <p className="text-muted text-sm">Učitavanje recenzija...</p>
+                    </div>
+                  );
+                }
                 
                 if (reviews.length === 0 && !showReviewForm) {
                   return (

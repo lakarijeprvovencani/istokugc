@@ -16,9 +16,9 @@ interface ReviewCardProps {
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onDelete?: (id: string) => void;
-  onReply?: (id: string, reply: string) => void;
-  onEditReply?: (id: string, reply: string) => void;
-  onDeleteReply?: (id: string) => void;
+  onReply?: (id: string, reply: string) => Promise<boolean> | void;
+  onEditReply?: (id: string, reply: string) => Promise<boolean> | void;
+  onDeleteReply?: (id: string) => Promise<boolean> | void;
   creatorName?: string;          // Za admin prikaz - ime kreatora
   creatorLink?: string;          // Link ka kreatoru (za biznis prikaz)
 }
@@ -47,18 +47,36 @@ export default function ReviewCard({
   const [editReplyText, setEditReplyText] = useState(review.creatorReply || '');
   const [showDeleteReplyConfirm, setShowDeleteReplyConfirm] = useState(false);
 
-  const handleReplySubmit = () => {
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+  
+  const handleReplySubmit = async () => {
     if (replyText.trim() && onReply) {
-      onReply(review.id, replyText.trim());
-      setReplyText('');
-      setIsReplying(false);
+      setIsSubmittingReply(true);
+      try {
+        await onReply(review.id, replyText.trim());
+        setReplyText('');
+        setIsReplying(false);
+      } catch (error) {
+        console.error('Error submitting reply:', error);
+      } finally {
+        setIsSubmittingReply(false);
+      }
     }
   };
 
-  const handleEditReplySubmit = () => {
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  
+  const handleEditReplySubmit = async () => {
     if (editReplyText.trim() && onEditReply) {
-      onEditReply(review.id, editReplyText.trim());
-      setIsEditingReply(false);
+      setIsSubmittingEdit(true);
+      try {
+        await onEditReply(review.id, editReplyText.trim());
+        setIsEditingReply(false);
+      } catch (error) {
+        console.error('Error editing reply:', error);
+      } finally {
+        setIsSubmittingEdit(false);
+      }
     }
   };
 
@@ -223,10 +241,17 @@ export default function ReviewCard({
                   </button>
                   <button
                     onClick={handleEditReplySubmit}
-                    disabled={!editReplyText.trim()}
-                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!editReplyText.trim() || isSubmittingEdit}
+                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Sačuvaj izmene
+                    {isSubmittingEdit ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Čuvam...
+                      </>
+                    ) : (
+                      'Sačuvaj izmene'
+                    )}
                   </button>
                 </div>
               </div>
@@ -273,10 +298,17 @@ export default function ReviewCard({
                   </button>
                   <button
                     onClick={handleReplySubmit}
-                    disabled={!replyText.trim()}
-                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!replyText.trim() || isSubmittingReply}
+                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Pošalji odgovor
+                    {isSubmittingReply ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Šaljem...
+                      </>
+                    ) : (
+                      'Pošalji odgovor'
+                    )}
                   </button>
                 </div>
               </div>

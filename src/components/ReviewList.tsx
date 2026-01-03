@@ -21,9 +21,9 @@ interface ReviewListProps {
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onDelete?: (id: string) => void;
-  onReply?: (id: string, reply: string) => void;
-  onEditReply?: (id: string, reply: string) => void;
-  onDeleteReply?: (id: string) => void;
+  onReply?: (id: string, reply: string) => Promise<boolean> | void;
+  onEditReply?: (id: string, reply: string) => Promise<boolean> | void;
+  onDeleteReply?: (id: string) => Promise<boolean> | void;
   getCreatorName?: (creatorId: string) => string; // Za admin prikaz
   getCreatorLink?: (creatorId: string) => string; // Link ka profilu kreatora
   pageSize?: number;

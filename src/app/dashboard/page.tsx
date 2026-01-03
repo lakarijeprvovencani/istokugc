@@ -3045,6 +3045,13 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   // Reopen job confirmation
   const [reopenConfirmJob, setReopenConfirmJob] = useState<any | null>(null);
   
+  // Review modal state
+  const [reviewModal, setReviewModal] = useState<{jobId: string, creatorId: string, creatorName: string} | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [submittedReviews, setSubmittedReviews] = useState<{[jobId: string]: boolean}>({});
+  
   // Form state
   const [formData, setFormData] = useState({
     title: '',
@@ -3254,6 +3261,41 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     }
   };
   
+  // Submit review for engaged creator
+  const handleSubmitReview = async () => {
+    if (!reviewModal || !businessId) return;
+    
+    setIsSubmittingReview(true);
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId,
+          creatorId: reviewModal.creatorId,
+          rating: reviewRating,
+          comment: reviewComment,
+        }),
+      });
+      
+      if (response.ok) {
+        setSubmittedReviews(prev => ({ ...prev, [reviewModal.jobId]: true }));
+        setSuccessMessage(`Recenzija za ${reviewModal.creatorName} je poslata na odobrenje!`);
+        setReviewModal(null);
+        setReviewRating(5);
+        setReviewComment('');
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Greška pri slanju recenzije');
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      alert('Greška pri slanju recenzije');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+  
   // Reopen a closed job
   const handleReopenJob = async (jobId: string, rejectEngagedCreator: boolean = false) => {
     try {
@@ -3435,7 +3477,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         return <span className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-full">Završen</span>;
       case 'closed':
         if (hasEngaged) {
-          return <span className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-full">Angažovan</span>;
+          return <span className="px-3 py-1.5 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">Angažovan</span>;
         }
         return <span className="px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-500 rounded-full">Zatvoren</span>;
       default:
@@ -3585,6 +3627,29 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                     >
                       Zatvori
                     </button>
+                  )}
+                  {(job.status === 'closed' || job.status === 'completed') && engagedCreators[job.id] && !submittedReviews[job.id] && (
+                    <button
+                      onClick={() => setReviewModal({
+                        jobId: job.id,
+                        creatorId: engagedCreators[job.id]!.id,
+                        creatorName: engagedCreators[job.id]!.name
+                      })}
+                      className="text-xs px-3 py-1.5 text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                      Oceni
+                    </button>
+                  )}
+                  {(job.status === 'closed' || job.status === 'completed') && engagedCreators[job.id] && submittedReviews[job.id] && (
+                    <span className="text-xs px-3 py-1.5 text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Ocenjeno
+                    </span>
                   )}
                   {(job.status === 'closed' || job.status === 'completed') && (
                     <button
@@ -4050,6 +4115,86 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                   className="flex-1 px-4 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors font-medium"
                 >
                   Da, otvori
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Review Modal */}
+      {reviewModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="p-6">
+              {/* Star icon */}
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </div>
+              
+              <h3 className="text-lg font-medium text-center mb-2">Oceni kreatora</h3>
+              <p className="text-center text-muted mb-6">
+                Kako ocenjuješ saradnju sa <strong className="text-foreground">{reviewModal.creatorName}</strong>?
+              </p>
+              
+              {/* Star Rating */}
+              <div className="flex justify-center gap-2 mb-6">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    className="p-1 transition-transform hover:scale-110"
+                  >
+                    <svg 
+                      className={`w-10 h-10 ${star <= reviewRating ? 'text-amber-400' : 'text-slate-200'}`}
+                      fill="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+              
+              {/* Comment */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium mb-2">Komentar (opciono)</label>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Opiši svoje iskustvo sa kreatorom..."
+                  className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                  rows={4}
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setReviewModal(null);
+                    setReviewRating(5);
+                    setReviewComment('');
+                  }}
+                  className="flex-1 px-4 py-3 border border-border rounded-xl hover:bg-secondary transition-colors"
+                >
+                  Otkaži
+                </button>
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={isSubmittingReview}
+                  className="flex-1 px-4 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmittingReview ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Šaljem...
+                    </>
+                  ) : (
+                    'Pošalji ocenu'
+                  )}
                 </button>
               </div>
             </div>

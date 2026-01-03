@@ -86,8 +86,8 @@ export async function GET(request: NextRequest) {
         businessName,
         business: businessData,
         creator: creatorData,
-        reply: review.reply || null,
-        replyDate: review.reply_date || null,
+        creatorReply: review.reply || null,
+        creatorReplyAt: review.reply_date || null,
       };
     }));
 
