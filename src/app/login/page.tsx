@@ -155,8 +155,8 @@ export default function LoginPage() {
         // Dodaj kreatora u DemoContext
         addCreatorFromSupabase(creator);
         
-        // Login kao kreator
-        loginAsNewCreator(creatorData.id);
+        // Login kao kreator sa imenom
+        loginAsNewCreator(creatorData.id, creatorData.name, creatorData.email);
         
         // Ako je pending, idi na pending stranicu
         if (creatorData.status === 'pending') {

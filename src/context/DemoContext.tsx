@@ -65,7 +65,7 @@ interface DemoContextType {
   currentUser: DemoUser;
   setUserType: (type: UserType) => void;
   updateCurrentUser: (updates: Partial<DemoUser>) => void; // Update current user properties
-  loginAsNewCreator: (creatorId: string) => void; // Login as newly registered creator
+  loginAsNewCreator: (creatorId: string, creatorName?: string, creatorEmail?: string) => void; // Login as newly registered creator
   loginAsNewBusiness: (businessId: string, companyName: string, subscriptionStatus?: string, subscriptionPlan?: string) => void; // Login as newly registered business
   isLoggedIn: boolean;
   logout: () => void;
@@ -125,6 +125,7 @@ const SETTINGS_KEY = 'userSettings';
 const RECENTLY_VIEWED_KEY = 'recentlyViewedCreators';
 const NEW_CREATORS_KEY = 'newCreators';
 const CURRENT_CREATOR_ID_KEY = 'currentCreatorId'; // ID of logged in creator's profile
+const CURRENT_CREATOR_KEY = 'currentCreator'; // Full creator data (id, name)
 const CURRENT_BUSINESS_KEY = 'currentBusiness'; // Logged in business data
 
 // User settings interface
@@ -175,8 +176,79 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       // Load user type
       const savedUserType = localStorage.getItem(STORAGE_KEY);
-      if (savedUserType && (savedUserType in demoUsers)) {
-        setCurrentUser(demoUsers[savedUserType as UserType]);
+      
+      // For creator users, load saved creator data
+      if (savedUserType === 'creator') {
+        const savedCreator = localStorage.getItem(CURRENT_CREATOR_KEY);
+        const savedCreatorId = localStorage.getItem(CURRENT_CREATOR_ID_KEY);
+        
+        if (savedCreator) {
+          try {
+            const creatorData = JSON.parse(savedCreator);
+            setCurrentUser({
+              type: 'creator',
+              name: creatorData.name || 'Kreator',
+              email: creatorData.email || '',
+              creatorId: creatorData.id,
+            });
+            setLoggedInCreatorId(creatorData.id);
+          } catch (e) {
+            // Set minimal user without mock data - checkSupabaseSession will fill in details
+            if (savedCreatorId) {
+              setCurrentUser({
+                type: 'creator',
+                name: '', // Will be filled by checkSupabaseSession
+                email: '',
+                creatorId: savedCreatorId,
+              });
+              setLoggedInCreatorId(savedCreatorId);
+            }
+          }
+        } else if (savedCreatorId) {
+          // Set minimal user without mock data - checkSupabaseSession will fill in details
+          setCurrentUser({
+            type: 'creator',
+            name: '', // Will be filled by checkSupabaseSession
+            email: '',
+            creatorId: savedCreatorId,
+          });
+          setLoggedInCreatorId(savedCreatorId);
+        }
+      }
+      // For business users, load saved business data to get the real businessId
+      else if (savedUserType === 'business') {
+        const savedBusiness = localStorage.getItem(CURRENT_BUSINESS_KEY);
+        if (savedBusiness) {
+          try {
+            const businessData = JSON.parse(savedBusiness);
+            setCurrentUser({
+              type: 'business',
+              name: businessData.companyName || '',
+              email: '',
+              businessId: businessData.id,
+              companyName: businessData.companyName,
+            });
+            setLoggedInBusiness(businessData);
+          } catch (e) {
+            // Set minimal user - checkSupabaseSession will fill in details
+            setCurrentUser({
+              type: 'business',
+              name: '',
+              email: '',
+            });
+          }
+        } else {
+          // Set minimal user - checkSupabaseSession will fill in details
+          setCurrentUser({
+            type: 'business',
+            name: '',
+            email: '',
+          });
+        }
+      } else if (savedUserType === 'admin') {
+        setCurrentUser(demoUsers.admin);
+      } else if (savedUserType === 'guest') {
+        setCurrentUser(demoUsers.guest);
       }
       
       // Load creator modifications
@@ -294,6 +366,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             setLoggedInCreatorId(creatorData.id);
             localStorage.setItem(STORAGE_KEY, 'creator');
             localStorage.setItem(CURRENT_CREATOR_ID_KEY, creatorData.id);
+            localStorage.setItem(CURRENT_CREATOR_KEY, JSON.stringify({ id: creatorData.id, name: creatorData.name, email: creatorData.email }));
           }
         } else if (userData?.role === 'business') {
           // Fetch business profile
@@ -353,10 +426,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   };
 
   // Login as a newly registered creator (links user to their creator profile)
-  const loginAsNewCreator = (creatorId: string) => {
-    // Set user type to creator with the new creator's ID
+  const loginAsNewCreator = (creatorId: string, creatorName?: string, creatorEmail?: string) => {
+    // Set user type to creator with the new creator's ID and name
     const creatorUser: DemoUser = {
-      ...demoUsers.creator,
+      type: 'creator',
+      name: creatorName || '',
+      email: creatorEmail || '',
       creatorId: creatorId,
     };
     setCurrentUser(creatorUser);
@@ -365,13 +440,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, 'creator');
       localStorage.setItem(CURRENT_CREATOR_ID_KEY, creatorId);
+      localStorage.setItem(CURRENT_CREATOR_KEY, JSON.stringify({ id: creatorId, name: creatorName, email: creatorEmail }));
     }
   };
 
   // Login as a newly registered business (after successful payment)
   const loginAsNewBusiness = (businessId: string, companyName: string, subscriptionStatus?: string, subscriptionPlan?: string) => {
     const businessUser: DemoUser = {
-      ...demoUsers.business,
+      type: 'business',
+      name: companyName,
+      email: '',
       businessId: businessId,
       companyName: companyName,
       subscriptionStatus: subscriptionStatus || 'active',
@@ -402,6 +480,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(CURRENT_CREATOR_ID_KEY);
+      localStorage.removeItem(CURRENT_CREATOR_KEY);
       localStorage.removeItem(CURRENT_BUSINESS_KEY);
     }
   };

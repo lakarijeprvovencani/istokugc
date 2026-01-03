@@ -45,7 +45,11 @@ function CreatorDashboard() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'reviews'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'poslovi'>('overview');
+  
+  // Job applications state
+  const [myApplications, setMyApplications] = useState<any[]>([]);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(false);
   
   // Inline editing states
   const [editingBio, setEditingBio] = useState(false);
@@ -192,6 +196,28 @@ function CreatorDashboard() {
     };
     fetchCategories();
   }, []);
+  
+  // Fetch job applications when on poslovi tab
+  useEffect(() => {
+    const fetchApplications = async () => {
+      if (activeTab !== 'poslovi' || !currentUser.creatorId) return;
+      
+      setIsLoadingApplications(true);
+      try {
+        const response = await fetch(`/api/job-applications?creatorId=${currentUser.creatorId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setMyApplications(data.applications || []);
+        }
+      } catch (error) {
+        console.error('Error fetching applications:', error);
+      } finally {
+        setIsLoadingApplications(false);
+      }
+    };
+    
+    fetchApplications();
+  }, [activeTab, currentUser.creatorId]);
   
   // Show loading state
   if (!isHydrated || isLoadingCreator) {
@@ -457,6 +483,7 @@ function CreatorDashboard() {
   const tabs = [
     { id: 'overview' as const, label: 'Pregled', count: null },
     { id: 'reviews' as const, label: 'Statistika', count: allReviews.length > 0 ? allReviews.length : null },
+    { id: 'poslovi' as const, label: 'Moje prijave', count: myApplications.length > 0 ? myApplications.length : null },
   ];
 
   return (
@@ -1495,6 +1522,15 @@ function CreatorDashboard() {
           </div>
         )}
 
+        {/* Moje prijave tab */}
+        {activeTab === 'poslovi' && (
+          <CreatorApplicationsTab 
+            applications={myApplications}
+            setApplications={setMyApplications}
+            isLoading={isLoadingApplications}
+          />
+        )}
+
       </div>
 
       {/* Image Cropper Modal */}
@@ -1522,6 +1558,9 @@ function BusinessDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Tab state - default to 'pregled', check URL for 'poslovi'
+  const [activeTab, setActiveTab] = useState<'pregled' | 'poslovi'>('pregled');
+  
   // Real business data from Supabase
   const [businessData, setBusinessData] = useState<any>(null);
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
@@ -1530,12 +1569,32 @@ function BusinessDashboard() {
   const [recentCreators, setRecentCreators] = useState<any[]>([]);
   const [myReviews, setMyReviews] = useState<any[]>([]);
   
+  // Jobs data
+  const [myJobs, setMyJobs] = useState<any[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [showAddJobModal, setShowAddJobModal] = useState(false);
+  
   // Company info editing state
   const [editingCompany, setEditingCompany] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [website, setWebsite] = useState('');
   const [industry, setIndustry] = useState('');
   const [description, setDescription] = useState('');
+
+  // Check URL for tab parameter
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      const action = urlParams.get('action');
+      if (tab === 'poslovi') {
+        setActiveTab('poslovi');
+        if (action === 'new') {
+          setShowAddJobModal(true);
+        }
+      }
+    }
+  }, []);
 
   // Fetch real business data from Supabase
   useEffect(() => {
@@ -1586,6 +1645,34 @@ function BusinessDashboard() {
     
     fetchBusinessData();
   }, [currentUser.businessId, currentUser.subscriptionStatus]);
+
+  // Fetch jobs when tab is active
+  useEffect(() => {
+    const fetchJobs = async () => {
+      if (activeTab !== 'poslovi' || !currentUser.businessId) return;
+      
+      console.log('Business Dashboard: Fetching jobs for businessId:', currentUser.businessId);
+      setIsLoadingJobs(true);
+      try {
+        const response = await fetch(`/api/jobs?businessId=${currentUser.businessId}`);
+        console.log('Business Dashboard: Response status:', response.status);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Business Dashboard: Received jobs:', data.jobs?.length, data.jobs);
+          setMyJobs(data.jobs || []);
+        } else {
+          const errorText = await response.text();
+          console.error('Business Dashboard: Failed to fetch jobs:', errorText);
+        }
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+      } finally {
+        setIsLoadingJobs(false);
+      }
+    };
+    
+    fetchJobs();
+  }, [activeTab, currentUser.businessId]);
   
   // Handle review delete
   const handleDeleteReview = async (reviewId: string) => {
@@ -1717,7 +1804,42 @@ function BusinessDashboard() {
     <div className="min-h-screen bg-secondary/30">
       <div className="max-w-6xl 2xl:max-w-7xl mx-auto px-6 lg:px-12 py-8 lg:py-12">
         <h1 className="text-3xl font-light mb-2">Dashboard</h1>
-        <p className="text-muted mb-10">Dobrodošao nazad, {businessData?.company_name || companyName || currentUser.companyName}</p>
+        <p className="text-muted mb-6">Dobrodošao nazad, {businessData?.company_name || companyName || currentUser.companyName}</p>
+
+        {/* Tab Navigation */}
+        <div className="flex gap-1 mb-8 border-b border-border">
+          <button
+            onClick={() => setActiveTab('pregled')}
+            className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'pregled' 
+                ? 'text-primary' 
+                : 'text-muted hover:text-foreground'
+            }`}
+          >
+            Pregled
+            {activeTab === 'pregled' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('poslovi')}
+            className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'poslovi' 
+                ? 'text-primary' 
+                : 'text-muted hover:text-foreground'
+            }`}
+          >
+            Poslovi
+            {myJobs.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
+                {myJobs.length}
+              </span>
+            )}
+            {activeTab === 'poslovi' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+            )}
+          </button>
+        </div>
 
         {/* Portal message - prikazuje se ako Stripe portal nije dostupan */}
         {showPortalMessage && (
@@ -1729,6 +1851,8 @@ function BusinessDashboard() {
           </div>
         )}
 
+        {/* Pregled Tab Content */}
+        {activeTab === 'pregled' && (
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-8">
@@ -2256,6 +2380,20 @@ function BusinessDashboard() {
             </div>
           </div>
         </div>
+        )}
+
+        {/* Poslovi Tab Content */}
+        {activeTab === 'poslovi' && (
+          <BusinessJobsTab 
+            businessId={currentUser.businessId}
+            jobs={myJobs}
+            setJobs={setMyJobs}
+            isLoading={isLoadingJobs}
+            showAddModal={showAddJobModal}
+            setShowAddModal={setShowAddJobModal}
+          />
+        )}
+
       </div>
 
       {/* Review Detail Modal */}
@@ -2699,6 +2837,973 @@ function BusinessPaywallScreen({ companyName }: { companyName: string }) {
           Odjavi se
         </button>
       </div>
+    </div>
+  );
+}
+
+// ============================================
+// BUSINESS JOBS TAB
+// ============================================
+interface BusinessJobsTabProps {
+  businessId?: string;
+  jobs: any[];
+  setJobs: (jobs: any[]) => void;
+  isLoading: boolean;
+  showAddModal: boolean;
+  setShowAddModal: (show: boolean) => void;
+}
+
+function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, setShowAddModal }: BusinessJobsTabProps) {
+  const [categories, setCategories] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingJob, setEditingJob] = useState<any | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  
+  // Success message state
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // Applications state
+  const [viewingJobApplications, setViewingJobApplications] = useState<string | null>(null);
+  const [jobApplications, setJobApplications] = useState<any[]>([]);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: '',
+    platforms: [] as string[],
+    budgetType: 'fixed',
+    budgetMin: '',
+    budgetMax: '',
+    duration: '',
+    experienceLevel: '',
+  });
+  
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data.categories || []);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+  
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      category: '',
+      platforms: [],
+      budgetType: 'fixed',
+      budgetMin: '',
+      budgetMax: '',
+      duration: '',
+      experienceLevel: '',
+    });
+    setEditingJob(null);
+  };
+  
+  const handleOpenAddModal = () => {
+    resetForm();
+    setShowAddModal(true);
+  };
+  
+  const handleEditJob = (job: any) => {
+    setFormData({
+      title: job.title,
+      description: job.description,
+      category: job.category,
+      platforms: job.platforms || [],
+      budgetType: job.budgetType || 'fixed',
+      budgetMin: job.budgetMin?.toString() || '',
+      budgetMax: job.budgetMax?.toString() || '',
+      duration: job.duration || '',
+      experienceLevel: job.experienceLevel || '',
+    });
+    setEditingJob(job);
+    setShowAddModal(true);
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!businessId) return;
+    
+    setIsSaving(true);
+    try {
+      const payload = {
+        businessId,
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        platforms: formData.platforms,
+        budgetType: formData.budgetType,
+        budgetMin: formData.budgetMin ? parseInt(formData.budgetMin) : null,
+        budgetMax: formData.budgetMax ? parseInt(formData.budgetMax) : null,
+        duration: formData.duration || null,
+        experienceLevel: formData.experienceLevel || null,
+      };
+      
+      if (editingJob) {
+        // Update existing job
+        const response = await fetch('/api/jobs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId: editingJob.id, ...payload }),
+        });
+        
+        if (response.ok) {
+          const { job } = await response.json();
+          setJobs(jobs.map(j => j.id === editingJob.id ? { ...j, ...payload } : j));
+        }
+      } else {
+        // Create new job - business jobs need admin approval
+        console.log('Creating job with businessId:', businessId);
+        const response = await fetch('/api/jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, isAdmin: false }),
+        });
+        
+        if (response.ok) {
+          const responseData = await response.json();
+          console.log('Job created:', responseData);
+          const { needsApproval } = responseData;
+          
+          // Refetch jobs for this business
+          console.log('Fetching jobs for businessId:', businessId);
+          const refreshRes = await fetch(`/api/jobs?businessId=${businessId}`);
+          if (refreshRes.ok) {
+            const data = await refreshRes.json();
+            console.log('Fetched jobs:', data.jobs?.length, 'jobs');
+            setJobs(data.jobs || []);
+          } else {
+            console.error('Failed to fetch jobs:', await refreshRes.text());
+          }
+          
+          // Show styled message that job needs approval
+          if (needsApproval) {
+            setSuccessMessage('Posao je uspešno kreiran i čeka odobrenje admina.');
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }
+        } else {
+          const errorData = await response.json();
+          console.error('Failed to create job:', errorData);
+          setSuccessMessage(`Greška: ${errorData.error || 'Neuspešno kreiranje posla'}`);
+        }
+      }
+      
+      setShowAddModal(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving job:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  const handleDeleteJob = async (jobId: string) => {
+    try {
+      const response = await fetch(`/api/jobs?jobId=${jobId}`, { method: 'DELETE' });
+      if (response.ok) {
+        setJobs(jobs.filter(j => j.id !== jobId));
+      }
+    } catch (error) {
+      console.error('Error deleting job:', error);
+    }
+    setDeleteConfirmId(null);
+  };
+  
+  const handleCloseJob = async (jobId: string) => {
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, status: 'closed' }),
+      });
+      if (response.ok) {
+        setJobs(jobs.map(j => j.id === jobId ? { ...j, status: 'closed' } : j));
+      }
+    } catch (error) {
+      console.error('Error closing job:', error);
+    }
+  };
+  
+  // View applications for a job
+  const handleViewApplications = async (jobId: string) => {
+    setViewingJobApplications(jobId);
+    setIsLoadingApplications(true);
+    try {
+      const response = await fetch(`/api/job-applications?jobId=${jobId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setJobApplications(data.applications || []);
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    } finally {
+      setIsLoadingApplications(false);
+    }
+  };
+  
+  // Accept or reject application
+  const handleApplicationAction = async (applicationId: string, action: 'accepted' | 'rejected') => {
+    try {
+      const response = await fetch('/api/job-applications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId, status: action }),
+      });
+      
+      if (response.ok) {
+        setJobApplications(prev => prev.map(app => 
+          app.id === applicationId ? { ...app, status: action } : app
+        ));
+        
+        // If accepted, update the job status
+        if (action === 'accepted' && viewingJobApplications) {
+          setJobs(jobs.map(j => 
+            j.id === viewingJobApplications ? { ...j, status: 'in_progress' } : j
+          ));
+        }
+      }
+    } catch (error) {
+      console.error('Error updating application:', error);
+    }
+  };
+  
+  const handleTogglePlatform = (platform: string) => {
+    setFormData(prev => ({
+      ...prev,
+      platforms: prev.platforms.includes(platform)
+        ? prev.platforms.filter(p => p !== platform)
+        : [...prev.platforms, platform],
+    }));
+  };
+  
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('sr-RS', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  
+  const formatBudget = (job: any) => {
+    if (!job.budgetMin && !job.budgetMax) return 'Po dogovoru';
+    if (job.budgetMin && job.budgetMax) {
+      if (job.budgetMin === job.budgetMax) return `€${job.budgetMin}`;
+      return `€${job.budgetMin} - €${job.budgetMax}`;
+    }
+    if (job.budgetMin) return `Od €${job.budgetMin}`;
+    if (job.budgetMax) return `Do €${job.budgetMax}`;
+    return 'Po dogovoru';
+  };
+  
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <span className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">Čeka odobrenje</span>;
+      case 'open':
+        return <span className="px-3 py-1 text-xs bg-success/10 text-success rounded-full">Aktivan</span>;
+      case 'in_progress':
+        return <span className="px-3 py-1 text-xs bg-primary/10 text-primary rounded-full">U toku</span>;
+      case 'completed':
+        return <span className="px-3 py-1 text-xs bg-secondary text-muted rounded-full">Završen</span>;
+      case 'closed':
+        return <span className="px-3 py-1 text-xs bg-muted/20 text-muted rounded-full">Zatvoren</span>;
+      default:
+        return null;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-20">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-muted">Učitavanje poslova...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Success Toast */}
+      {successMessage && (
+        <div className="mb-6 bg-success/10 border border-success/30 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="w-8 h-8 bg-success/20 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-success">Uspešno!</p>
+            <p className="text-sm text-foreground">{successMessage}</p>
+          </div>
+          <button 
+            onClick={() => setSuccessMessage(null)}
+            className="text-muted hover:text-foreground p-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-medium">Moji poslovi</h2>
+          <p className="text-sm text-muted">{jobs.length} poslova ukupno</p>
+        </div>
+        <button
+          onClick={handleOpenAddModal}
+          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Dodaj posao
+        </button>
+      </div>
+
+      {/* Jobs List */}
+      {jobs.length > 0 ? (
+        <div className="space-y-4">
+          {jobs.map((job) => (
+            <div key={job.id} className="bg-white rounded-2xl border border-border p-6">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="font-medium text-lg truncate">{job.title}</h3>
+                    {getStatusBadge(job.status)}
+                  </div>
+                  <p className="text-sm text-muted">{job.businessName} • {job.category}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="font-medium">{formatBudget(job)}</div>
+                  <div className="text-xs text-muted">{job.budgetType === 'hourly' ? 'po satu' : 'fiksno'}</div>
+                </div>
+              </div>
+              
+              <p className="text-sm text-muted mb-4 line-clamp-2">{job.description}</p>
+              
+              <div className="flex flex-wrap gap-2 mb-4">
+                {job.platforms?.map((platform: string) => (
+                  <span key={platform} className="text-xs px-3 py-1 bg-secondary rounded-full">{platform}</span>
+                ))}
+              </div>
+              
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted">Kreirano: {formatDate(job.createdAt)}</span>
+                  <button
+                    onClick={() => handleViewApplications(job.id)}
+                    className="text-xs px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Prijave
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  {job.status === 'open' && (
+                    <button
+                      onClick={() => handleCloseJob(job.id)}
+                      className="text-xs px-3 py-1.5 text-muted hover:text-foreground border border-border rounded-lg hover:bg-secondary transition-colors"
+                    >
+                      Zatvori
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleEditJob(job)}
+                    className="text-xs px-3 py-1.5 text-primary hover:bg-primary/10 border border-primary/20 rounded-lg transition-colors"
+                  >
+                    Uredi
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmId(job.id)}
+                    className="text-xs px-3 py-1.5 text-error hover:bg-error/10 border border-error/20 rounded-lg transition-colors"
+                  >
+                    Obriši
+                  </button>
+                </div>
+              </div>
+              
+              {/* Delete confirmation */}
+              {deleteConfirmId === job.id && (
+                <div className="mt-4 p-4 bg-error/5 border border-error/20 rounded-xl">
+                  <p className="text-sm text-foreground mb-3">Da li si siguran da želiš da obrišeš ovaj posao?</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDeleteJob(job.id)}
+                      className="px-4 py-2 bg-error text-white rounded-lg text-sm hover:bg-error/90 transition-colors"
+                    >
+                      Da, obriši
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirmId(null)}
+                      className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-secondary transition-colors"
+                    >
+                      Otkaži
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-20 bg-white rounded-2xl border border-border">
+          <div className="text-6xl mb-6">💼</div>
+          <h3 className="text-xl font-medium mb-2">Nemate postavljenih poslova</h3>
+          <p className="text-muted mb-6">Kreirajte prvi posao i pronađite savršenog kreatora</p>
+          <button
+            onClick={handleOpenAddModal}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Dodaj prvi posao
+          </button>
+        </div>
+      )}
+
+      {/* Add/Edit Job Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <form onSubmit={handleSubmit}>
+              <div className="p-6 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-medium">
+                    {editingJob ? 'Uredi posao' : 'Dodaj novi posao'}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddModal(false); resetForm(); }}
+                    className="p-2 hover:bg-secondary rounded-xl transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Naziv posla *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.title}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="npr. UGC video za lansiranje novog proizvoda"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                  />
+                </div>
+                
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Opis posla *</label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Opišite detaljno šta tražite od kreatora..."
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary resize-none"
+                  />
+                </div>
+                
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Kategorija *</label>
+                  <select
+                    required
+                    value={formData.category}
+                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                  >
+                    <option value="">Izaberi kategoriju</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Platforms */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Platforme</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Instagram', 'TikTok', 'YouTube'].map(platform => (
+                      <button
+                        key={platform}
+                        type="button"
+                        onClick={() => handleTogglePlatform(platform)}
+                        className={`px-4 py-2 rounded-xl text-sm transition-colors ${
+                          formData.platforms.includes(platform)
+                            ? 'bg-primary text-white'
+                            : 'bg-secondary hover:bg-accent'
+                        }`}
+                      >
+                        {platform}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Budget */}
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Tip budžeta</label>
+                    <select
+                      value={formData.budgetType}
+                      onChange={(e) => setFormData(prev => ({ ...prev, budgetType: e.target.value }))}
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                    >
+                      <option value="fixed">Fiksno</option>
+                      <option value="hourly">Po satu</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Min (€)</label>
+                    <input
+                      type="number"
+                      value={formData.budgetMin}
+                      onChange={(e) => setFormData(prev => ({ ...prev, budgetMin: e.target.value }))}
+                      placeholder="100"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Max (€)</label>
+                    <input
+                      type="number"
+                      value={formData.budgetMax}
+                      onChange={(e) => setFormData(prev => ({ ...prev, budgetMax: e.target.value }))}
+                      placeholder="500"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+                
+                {/* Duration & Experience */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Trajanje</label>
+                    <select
+                      value={formData.duration}
+                      onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                    >
+                      <option value="">Izaberi trajanje</option>
+                      <option value="Manje od nedelju dana">Manje od nedelju dana</option>
+                      <option value="1-2 nedelje">1-2 nedelje</option>
+                      <option value="2-4 nedelje">2-4 nedelje</option>
+                      <option value="1-3 meseca">1-3 meseca</option>
+                      <option value="3+ meseca">3+ meseca</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Nivo iskustva</label>
+                    <select
+                      value={formData.experienceLevel}
+                      onChange={(e) => setFormData(prev => ({ ...prev, experienceLevel: e.target.value }))}
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                    >
+                      <option value="">Bilo koji nivo</option>
+                      <option value="beginner">Početnik</option>
+                      <option value="intermediate">Srednji nivo</option>
+                      <option value="expert">Ekspert</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Footer */}
+              <div className="p-6 border-t border-border flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setShowAddModal(false); resetForm(); }}
+                  className="px-6 py-3 border border-border rounded-xl hover:bg-secondary transition-colors"
+                >
+                  Otkaži
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Čuvam...
+                    </>
+                  ) : (
+                    editingJob ? 'Sačuvaj izmene' : 'Objavi posao'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Applications Modal */}
+      {viewingJobApplications && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-medium">Prijave za posao</h2>
+                  <p className="text-sm text-muted mt-1">
+                    {jobs.find(j => j.id === viewingJobApplications)?.title || 'Posao'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setViewingJobApplications(null); setJobApplications([]); }}
+                  className="p-2 hover:bg-secondary rounded-xl transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {isLoadingApplications ? (
+                <div className="text-center py-12">
+                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-muted">Učitavanje prijava...</p>
+                </div>
+              ) : jobApplications.length > 0 ? (
+                <div className="space-y-4">
+                  {jobApplications.map((app) => (
+                    <div key={app.id} className="border border-border rounded-xl p-4">
+                      {/* Creator info */}
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-secondary flex-shrink-0 overflow-hidden relative">
+                          {app.creator?.photo ? (
+                            <Image src={app.creator.photo} alt={app.creator.name} fill className="object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-lg font-medium">
+                              {app.creator?.name?.charAt(0) || '?'}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Link 
+                              href={`/kreator/${app.creatorId}`}
+                              className="font-medium hover:text-primary transition-colors"
+                            >
+                              {app.creator?.name || 'Kreator'}
+                            </Link>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              app.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                              app.status === 'accepted' ? 'bg-success/10 text-success' :
+                              'bg-error/10 text-error'
+                            }`}>
+                              {app.status === 'pending' ? 'Na čekanju' : 
+                               app.status === 'accepted' ? 'Prihvaćeno' : 'Odbijeno'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted">
+                            {app.creator?.categories?.slice(0, 2).join(', ') || 'Kreator'}
+                          </p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="font-medium text-primary">€{app.proposedPrice}</div>
+                          <div className="text-xs text-muted">Ponuda</div>
+                        </div>
+                      </div>
+                      
+                      {/* Cover letter */}
+                      <div className="bg-secondary/50 rounded-lg p-3 mb-4">
+                        <p className="text-sm text-foreground">{app.coverLetter}</p>
+                      </div>
+                      
+                      {/* Meta info */}
+                      <div className="flex items-center justify-between text-xs text-muted mb-4">
+                        <span>Prijavljeno: {formatDate(app.createdAt)}</span>
+                        {app.estimatedDuration && (
+                          <span>Procena: {app.estimatedDuration}</span>
+                        )}
+                      </div>
+                      
+                      {/* Actions */}
+                      {app.status === 'pending' && (
+                        <div className="flex gap-2 pt-3 border-t border-border">
+                          <button
+                            onClick={() => handleApplicationAction(app.id, 'accepted')}
+                            className="flex-1 py-2.5 bg-success text-white rounded-lg text-sm font-medium hover:bg-success/90 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Prihvati
+                          </button>
+                          <button
+                            onClick={() => handleApplicationAction(app.id, 'rejected')}
+                            className="flex-1 py-2.5 border border-error/30 text-error rounded-lg text-sm font-medium hover:bg-error/10 transition-colors"
+                          >
+                            Odbij
+                          </button>
+                        </div>
+                      )}
+                      
+                      {app.status === 'accepted' && (
+                        <div className="pt-3 border-t border-border">
+                          <div className="flex items-center gap-2 text-success text-sm">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Prijava prihvaćena - kontaktirajte kreatora
+                          </div>
+                          {app.creator?.email && (
+                            <a 
+                              href={`mailto:${app.creator.email}`}
+                              className="mt-2 inline-flex items-center gap-2 text-primary text-sm hover:underline"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              {app.creator.email}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-4">📭</div>
+                  <h3 className="font-medium mb-2">Nema prijava</h3>
+                  <p className="text-sm text-muted">Još uvek niko nije aplicirao za ovaj posao</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// CREATOR APPLICATIONS TAB
+// ============================================
+interface CreatorApplicationsTabProps {
+  applications: any[];
+  setApplications: (apps: any[]) => void;
+  isLoading: boolean;
+}
+
+function CreatorApplicationsTab({ applications, setApplications, isLoading }: CreatorApplicationsTabProps) {
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  
+  const handleWithdraw = async (applicationId: string) => {
+    try {
+      const response = await fetch(`/api/job-applications?applicationId=${applicationId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setApplications(applications.filter(a => a.id !== applicationId));
+      }
+    } catch (error) {
+      console.error('Error withdrawing application:', error);
+    }
+    setWithdrawingId(null);
+  };
+  
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('sr-RS', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <span className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">Na čekanju</span>;
+      case 'accepted':
+        return <span className="px-3 py-1 text-xs bg-success/10 text-success rounded-full">Prihvaćeno</span>;
+      case 'rejected':
+        return <span className="px-3 py-1 text-xs bg-error/10 text-error rounded-full">Odbijeno</span>;
+      case 'withdrawn':
+        return <span className="px-3 py-1 text-xs bg-muted/20 text-muted rounded-full">Povučeno</span>;
+      default:
+        return null;
+    }
+  };
+  
+  const filteredApplications = applications.filter(app => {
+    if (statusFilter === 'all') return true;
+    return app.status === statusFilter;
+  });
+  
+  // Stats
+  const stats = {
+    total: applications.length,
+    pending: applications.filter(a => a.status === 'pending').length,
+    accepted: applications.filter(a => a.status === 'accepted').length,
+    rejected: applications.filter(a => a.status === 'rejected').length,
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-muted">Učitavanje prijava...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white rounded-xl p-4 border border-border text-center">
+          <div className="text-2xl font-medium">{stats.total}</div>
+          <div className="text-sm text-muted">Ukupno prijava</div>
+        </div>
+        <div className="bg-white rounded-xl p-4 border border-border text-center">
+          <div className="text-2xl font-medium text-amber-600">{stats.pending}</div>
+          <div className="text-sm text-muted">Na čekanju</div>
+        </div>
+        <div className="bg-white rounded-xl p-4 border border-border text-center">
+          <div className="text-2xl font-medium text-success">{stats.accepted}</div>
+          <div className="text-sm text-muted">Prihvaćeno</div>
+        </div>
+        <div className="bg-white rounded-xl p-4 border border-border text-center">
+          <div className="text-2xl font-medium text-error">{stats.rejected}</div>
+          <div className="text-sm text-muted">Odbijeno</div>
+        </div>
+      </div>
+
+      {/* Filter */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-medium">Moje prijave</h2>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as any)}
+          className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-primary text-sm bg-white"
+        >
+          <option value="all">Sve prijave ({stats.total})</option>
+          <option value="pending">Na čekanju ({stats.pending})</option>
+          <option value="accepted">Prihvaćeno ({stats.accepted})</option>
+          <option value="rejected">Odbijeno ({stats.rejected})</option>
+        </select>
+      </div>
+
+      {/* Applications List */}
+      {filteredApplications.length > 0 ? (
+        <div className="space-y-4">
+          {filteredApplications.map((app) => (
+            <div key={app.id} className="bg-white rounded-2xl border border-border p-5">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-1 flex-wrap">
+                    <Link 
+                      href={`/poslovi/${app.jobId}`}
+                      className="font-medium hover:text-primary transition-colors truncate"
+                    >
+                      {app.job?.title || 'Posao'}
+                    </Link>
+                    {getStatusBadge(app.status)}
+                  </div>
+                  <p className="text-sm text-muted">{app.job?.businessName || 'Biznis'}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="font-medium">€{app.proposedPrice}</div>
+                  <div className="text-xs text-muted">Vaša ponuda</div>
+                </div>
+              </div>
+              
+              <div className="bg-secondary/50 rounded-xl p-3 mb-3">
+                <p className="text-sm text-muted line-clamp-2">{app.coverLetter}</p>
+              </div>
+              
+              <div className="flex items-center justify-between pt-3 border-t border-border">
+                <div className="flex items-center gap-4 text-xs text-muted">
+                  <span>Prijavljeno: {formatDate(app.createdAt)}</span>
+                  {app.estimatedDuration && (
+                    <span>• Procena: {app.estimatedDuration}</span>
+                  )}
+                </div>
+                
+                {app.status === 'pending' && (
+                  <button
+                    onClick={() => setWithdrawingId(app.id)}
+                    className="text-xs text-error hover:underline"
+                  >
+                    Povuci prijavu
+                  </button>
+                )}
+                
+                {app.status === 'accepted' && (
+                  <span className="text-xs text-success font-medium">✓ Čestitamo!</span>
+                )}
+              </div>
+              
+              {/* Withdraw confirmation */}
+              {withdrawingId === app.id && (
+                <div className="mt-4 p-4 bg-error/5 border border-error/20 rounded-xl">
+                  <p className="text-sm text-foreground mb-3">Da li ste sigurni da želite da povučete prijavu?</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleWithdraw(app.id)}
+                      className="px-4 py-2 bg-error text-white rounded-lg text-sm hover:bg-error/90 transition-colors"
+                    >
+                      Da, povuci
+                    </button>
+                    <button
+                      onClick={() => setWithdrawingId(null)}
+                      className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-secondary transition-colors"
+                    >
+                      Otkaži
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-16 bg-white rounded-2xl border border-border">
+          <div className="text-5xl mb-4">💼</div>
+          <h3 className="text-lg font-medium mb-2">
+            {statusFilter === 'all' ? 'Nemate prijava' : 'Nema prijava sa ovim filterom'}
+          </h3>
+          <p className="text-muted mb-6">
+            {statusFilter === 'all' 
+              ? 'Pregledajte otvorene poslove i prijavite se'
+              : 'Pokušajte sa drugim filterom'}
+          </p>
+          {statusFilter === 'all' && (
+            <Link
+              href="/poslovi"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+            >
+              Pregledaj poslove
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 }

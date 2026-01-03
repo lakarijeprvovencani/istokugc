@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching reviews:', error);
-      return NextResponse.json({ error: 'Failed to fetch reviews' }, { status: 500 });
+      // Return empty array instead of error
+      return NextResponse.json({ reviews: [] });
     }
 
     // Dohvati business i creator podatke odvojeno

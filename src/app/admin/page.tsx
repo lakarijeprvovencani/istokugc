@@ -8,7 +8,7 @@ import { Creator, CreatorStatus, Review } from '@/lib/mockData';
 import ReviewCard from '@/components/ReviewCard';
 import StarRating from '@/components/StarRating';
 
-type AdminTab = 'pending' | 'creators' | 'businesses' | 'categories' | 'reviews';
+type AdminTab = 'pending' | 'creators' | 'businesses' | 'categories' | 'reviews' | 'poslovi';
 
 export default function AdminPage() {
   const { 
@@ -27,6 +27,26 @@ export default function AdminPage() {
   const [fetchedBusinesses, setFetchedBusinesses] = useState<any[]>([]);
   const [isLoadingBusinesses, setIsLoadingBusinesses] = useState(true);
   
+  // State for jobs
+  const [allJobs, setAllJobs] = useState<any[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [showAddJobModal, setShowAddJobModal] = useState(false);
+  
+  // Check URL for tab parameter
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      const action = urlParams.get('action');
+      if (tab === 'poslovi') {
+        setActiveTab('poslovi');
+        if (action === 'new') {
+          setShowAddJobModal(true);
+        }
+      }
+    }
+  }, []);
+
   // Fetch creators from Supabase
   useEffect(() => {
     const fetchCreators = async () => {
@@ -45,6 +65,29 @@ export default function AdminPage() {
     
     fetchCreators();
   }, []);
+  
+  // Fetch all jobs on mount (for badge count) and when tab is active
+  useEffect(() => {
+    const fetchJobs = async () => {
+      // Only show loading spinner when actually on the jobs tab
+      if (activeTab === 'poslovi') {
+        setIsLoadingJobs(true);
+      }
+      try {
+        const response = await fetch('/api/jobs?includeAll=true');
+        if (response.ok) {
+          const data = await response.json();
+          setAllJobs(data.jobs || []);
+        }
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+      } finally {
+        setIsLoadingJobs(false);
+      }
+    };
+    
+    fetchJobs();
+  }, []); // Fetch on mount only
   
   // Fetch businesses from Supabase
   useEffect(() => {
@@ -290,6 +333,11 @@ export default function AdminPage() {
   const pendingReviewsCount = useMemo(() => {
     return fetchedReviews.filter(r => r.status === 'pending').length;
   }, [fetchedReviews]);
+  
+  // Pending jobs count for admin notification
+  const adminPendingJobsCount = useMemo(() => {
+    return allJobs.filter(j => j.status === 'pending').length;
+  }, [allJobs]);
   
   // Filtrirane recenzije
   const filteredReviews = useMemo(() => {
@@ -659,6 +707,7 @@ export default function AdminPage() {
     { id: 'businesses', label: 'Biznisi', count: fetchedBusinesses.length },
     { id: 'categories', label: 'Kategorije', count: fetchedCategories.length },
     { id: 'reviews', label: 'Recenzije', count: pendingReviewsCount, highlight: pendingReviewsCount > 0 },
+    { id: 'poslovi', label: 'Poslovi', count: adminPendingJobsCount > 0 ? adminPendingJobsCount : allJobs.length, highlight: adminPendingJobsCount > 0 },
   ];
 
   return (
@@ -687,6 +736,7 @@ export default function AdminPage() {
                 businesses: 'Biznisi',
                 categories: 'Kategorije',
                 reviews: 'Recenzije',
+                poslovi: 'Poslovi',
               };
               
               return (
@@ -1511,6 +1561,17 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Poslovi */}
+          {activeTab === 'poslovi' && (
+            <AdminJobsTab 
+              jobs={allJobs}
+              setJobs={setAllJobs}
+              isLoading={isLoadingJobs}
+              showAddModal={showAddJobModal}
+              setShowAddModal={setShowAddJobModal}
+            />
           )}
         </div>
 
@@ -2900,6 +2961,591 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ============================================
+// ADMIN JOBS TAB COMPONENT
+// ============================================
+interface AdminJobsTabProps {
+  jobs: any[];
+  setJobs: (jobs: any[]) => void;
+  isLoading: boolean;
+  showAddModal: boolean;
+  setShowAddModal: (show: boolean) => void;
+}
+
+function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal }: AdminJobsTabProps) {
+  const [categories, setCategories] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingJob, setEditingJob] = useState<any | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'open' | 'closed'>('all');
+  
+  // Pending jobs count for highlight
+  const pendingJobsCount = jobs.filter(j => j.status === 'pending').length;
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: '',
+    platforms: [] as string[],
+    budgetType: 'fixed',
+    budgetMin: '',
+    budgetMax: '',
+    duration: '',
+    experienceLevel: '',
+  });
+  
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data.categories || []);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+  
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      category: '',
+      platforms: [],
+      budgetType: 'fixed',
+      budgetMin: '',
+      budgetMax: '',
+      duration: '',
+      experienceLevel: '',
+    });
+    setEditingJob(null);
+  };
+  
+  const handleOpenAddModal = () => {
+    resetForm();
+    setShowAddModal(true);
+  };
+  
+  const handleEditJob = (job: any) => {
+    setFormData({
+      title: job.title,
+      description: job.description,
+      category: job.category,
+      platforms: job.platforms || [],
+      budgetType: job.budgetType || 'fixed',
+      budgetMin: job.budgetMin?.toString() || '',
+      budgetMax: job.budgetMax?.toString() || '',
+      duration: job.duration || '',
+      experienceLevel: job.experienceLevel || '',
+    });
+    setEditingJob(job);
+    setShowAddModal(true);
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    setIsSaving(true);
+    try {
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        platforms: formData.platforms,
+        budgetType: formData.budgetType,
+        budgetMin: formData.budgetMin ? parseInt(formData.budgetMin) : null,
+        budgetMax: formData.budgetMax ? parseInt(formData.budgetMax) : null,
+        duration: formData.duration || null,
+        experienceLevel: formData.experienceLevel || null,
+      };
+      
+      if (editingJob) {
+        // Update existing job
+        const response = await fetch('/api/jobs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId: editingJob.id, ...payload }),
+        });
+        
+        if (response.ok) {
+          setJobs(jobs.map(j => j.id === editingJob.id ? { ...j, ...payload } : j));
+        }
+      } else {
+        // Admin creates job - automatically approved
+        const response = await fetch('/api/jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ businessId: 'admin', ...payload, isAdmin: true }),
+        });
+        
+        if (response.ok) {
+          // Refetch all jobs (including pending for admin view)
+          const refreshRes = await fetch('/api/jobs?includeAll=true');
+          if (refreshRes.ok) {
+            const data = await refreshRes.json();
+            setJobs(data.jobs || []);
+          }
+        }
+      }
+      
+      setShowAddModal(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving job:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  const handleDeleteJob = async (jobId: string) => {
+    try {
+      const response = await fetch(`/api/jobs?jobId=${jobId}`, { method: 'DELETE' });
+      if (response.ok) {
+        setJobs(jobs.filter(j => j.id !== jobId));
+      }
+    } catch (error) {
+      console.error('Error deleting job:', error);
+    }
+    setDeleteConfirmId(null);
+  };
+  
+  const handleToggleStatus = async (job: any) => {
+    const newStatus = job.status === 'open' ? 'closed' : 'open';
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: job.id, status: newStatus }),
+      });
+      if (response.ok) {
+        setJobs(jobs.map(j => j.id === job.id ? { ...j, status: newStatus } : j));
+      }
+    } catch (error) {
+      console.error('Error updating job status:', error);
+    }
+  };
+  
+  // Approve or reject a pending job
+  const handleApproveRejectJob = async (jobId: string, approve: boolean) => {
+    const newStatus = approve ? 'open' : 'rejected';
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, status: newStatus }),
+      });
+      if (response.ok) {
+        setJobs(jobs.map(j => j.id === jobId ? { ...j, status: newStatus } : j));
+      }
+    } catch (error) {
+      console.error('Error approving/rejecting job:', error);
+    }
+  };
+  
+  const handleTogglePlatform = (platform: string) => {
+    setFormData(prev => ({
+      ...prev,
+      platforms: prev.platforms.includes(platform)
+        ? prev.platforms.filter(p => p !== platform)
+        : [...prev.platforms, platform],
+    }));
+  };
+  
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('sr-RS', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  
+  const formatBudget = (job: any) => {
+    if (!job.budgetMin && !job.budgetMax) return 'Po dogovoru';
+    if (job.budgetMin && job.budgetMax) {
+      if (job.budgetMin === job.budgetMax) return `€${job.budgetMin}`;
+      return `€${job.budgetMin} - €${job.budgetMax}`;
+    }
+    if (job.budgetMin) return `Od €${job.budgetMin}`;
+    if (job.budgetMax) return `Do €${job.budgetMax}`;
+    return 'Po dogovoru';
+  };
+  
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <span className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">Čeka odobrenje</span>;
+      case 'open':
+        return <span className="px-3 py-1 text-xs bg-success/10 text-success rounded-full">Aktivan</span>;
+      case 'in_progress':
+        return <span className="px-3 py-1 text-xs bg-primary/10 text-primary rounded-full">U toku</span>;
+      case 'completed':
+        return <span className="px-3 py-1 text-xs bg-secondary text-muted rounded-full">Završen</span>;
+      case 'closed':
+        return <span className="px-3 py-1 text-xs bg-muted/20 text-muted rounded-full">Zatvoren</span>;
+      case 'rejected':
+        return <span className="px-3 py-1 text-xs bg-error/10 text-error rounded-full">Odbijen</span>;
+      default:
+        return null;
+    }
+  };
+  
+  const filteredJobs = jobs.filter(job => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'pending') return job.status === 'pending';
+    if (statusFilter === 'open') return job.status === 'open' || job.status === 'in_progress';
+    if (statusFilter === 'closed') return job.status === 'closed' || job.status === 'completed' || job.status === 'rejected';
+    return true;
+  });
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-muted">Učitavanje poslova...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-lg font-medium">Upravljanje poslovima</h2>
+          <p className="text-sm text-muted">{jobs.length} poslova ukupno</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className={`px-4 py-2 border rounded-xl focus:outline-none focus:border-primary text-sm ${
+              pendingJobsCount > 0 && statusFilter !== 'pending' ? 'border-amber-400 bg-amber-50' : 'border-border'
+            }`}
+          >
+            <option value="all">Svi ({jobs.length})</option>
+            <option value="pending">⏳ Čekaju odobrenje ({pendingJobsCount})</option>
+            <option value="open">Aktivni ({jobs.filter(j => j.status === 'open' || j.status === 'in_progress').length})</option>
+            <option value="closed">Zatvoreni ({jobs.filter(j => j.status === 'closed' || j.status === 'completed' || j.status === 'rejected').length})</option>
+          </select>
+          <button
+            onClick={handleOpenAddModal}
+            className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors text-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Dodaj posao
+          </button>
+        </div>
+      </div>
+
+      {/* Jobs List */}
+      {filteredJobs.length > 0 ? (
+        <div className="space-y-4">
+          {filteredJobs.map((job) => (
+            <div key={job.id} className="border border-border rounded-xl p-4 sm:p-5 hover:border-muted/50 transition-colors">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-1 flex-wrap">
+                    <h3 className="font-medium truncate">{job.title}</h3>
+                    {getStatusBadge(job.status)}
+                  </div>
+                  <p className="text-sm text-muted">{job.businessName || 'Admin'} • {job.category}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="font-medium">{formatBudget(job)}</div>
+                  <div className="text-xs text-muted">{job.budgetType === 'hourly' ? 'po satu' : 'fiksno'}</div>
+                </div>
+              </div>
+              
+              <p className="text-sm text-muted mb-3 line-clamp-2">{job.description}</p>
+              
+              <div className="flex flex-wrap gap-2 mb-4">
+                {job.platforms?.map((platform: string) => (
+                  <span key={platform} className="text-xs px-2.5 py-1 bg-secondary rounded-full">{platform}</span>
+                ))}
+              </div>
+              
+              <div className="flex items-center justify-between pt-3 border-t border-border">
+                <span className="text-xs text-muted">Kreirano: {formatDate(job.createdAt)}</span>
+                <div className="flex items-center gap-2">
+                  {/* Pending job - show approve/reject */}
+                  {job.status === 'pending' ? (
+                    <>
+                      <button
+                        onClick={() => handleApproveRejectJob(job.id, true)}
+                        className="text-xs px-3 py-1.5 bg-success text-white rounded-lg hover:bg-success/90 transition-colors flex items-center gap-1"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Odobri
+                      </button>
+                      <button
+                        onClick={() => handleApproveRejectJob(job.id, false)}
+                        className="text-xs px-3 py-1.5 text-error hover:bg-error/10 border border-error/20 rounded-lg transition-colors"
+                      >
+                        Odbij
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleToggleStatus(job)}
+                        className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
+                          job.status === 'open' 
+                            ? 'text-amber-600 hover:bg-amber-50 border border-amber-200'
+                            : 'text-success hover:bg-success/10 border border-success/20'
+                        }`}
+                      >
+                        {job.status === 'open' ? 'Zatvori' : 'Otvori'}
+                      </button>
+                      <button
+                        onClick={() => handleEditJob(job)}
+                        className="text-xs px-3 py-1.5 text-primary hover:bg-primary/10 border border-primary/20 rounded-lg transition-colors"
+                      >
+                        Uredi
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setDeleteConfirmId(job.id)}
+                    className="text-xs px-3 py-1.5 text-error hover:bg-error/10 border border-error/20 rounded-lg transition-colors"
+                  >
+                    Obriši
+                  </button>
+                </div>
+              </div>
+              
+              {/* Delete confirmation */}
+              {deleteConfirmId === job.id && (
+                <div className="mt-4 p-4 bg-error/5 border border-error/20 rounded-xl">
+                  <p className="text-sm text-foreground mb-3">Da li si siguran da želiš da obrišeš ovaj posao?</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDeleteJob(job.id)}
+                      className="px-4 py-2 bg-error text-white rounded-lg text-sm hover:bg-error/90 transition-colors"
+                    >
+                      Da, obriši
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirmId(null)}
+                      className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-secondary transition-colors"
+                    >
+                      Otkaži
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <div className="text-4xl mb-4">💼</div>
+          <p className="text-muted mb-4">
+            {statusFilter === 'all' ? 'Nema postavljenih poslova' : 'Nema poslova sa ovim filterom'}
+          </p>
+          <button
+            onClick={handleOpenAddModal}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors text-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Dodaj prvi posao
+          </button>
+        </div>
+      )}
+
+      {/* Add/Edit Job Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <form onSubmit={handleSubmit}>
+              <div className="p-6 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-medium">
+                    {editingJob ? 'Uredi posao' : 'Dodaj novi posao'}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddModal(false); resetForm(); }}
+                    className="p-2 hover:bg-secondary rounded-xl transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-5">
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Naziv posla *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.title}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="npr. UGC video za lansiranje novog proizvoda"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                  />
+                </div>
+                
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Opis posla *</label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Opišite detaljno šta tražite od kreatora..."
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary resize-none"
+                  />
+                </div>
+                
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Kategorija *</label>
+                  <select
+                    required
+                    value={formData.category}
+                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                  >
+                    <option value="">Izaberi kategoriju</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Platforms */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Platforme</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Instagram', 'TikTok', 'YouTube'].map(platform => (
+                      <button
+                        key={platform}
+                        type="button"
+                        onClick={() => handleTogglePlatform(platform)}
+                        className={`px-4 py-2 rounded-xl text-sm transition-colors ${
+                          formData.platforms.includes(platform)
+                            ? 'bg-primary text-white'
+                            : 'bg-secondary hover:bg-accent'
+                        }`}
+                      >
+                        {platform}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Budget */}
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Tip budžeta</label>
+                    <select
+                      value={formData.budgetType}
+                      onChange={(e) => setFormData(prev => ({ ...prev, budgetType: e.target.value }))}
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                    >
+                      <option value="fixed">Fiksno</option>
+                      <option value="hourly">Po satu</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Min (€)</label>
+                    <input
+                      type="number"
+                      value={formData.budgetMin}
+                      onChange={(e) => setFormData(prev => ({ ...prev, budgetMin: e.target.value }))}
+                      placeholder="100"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Max (€)</label>
+                    <input
+                      type="number"
+                      value={formData.budgetMax}
+                      onChange={(e) => setFormData(prev => ({ ...prev, budgetMax: e.target.value }))}
+                      placeholder="500"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+                
+                {/* Duration & Experience */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Trajanje</label>
+                    <select
+                      value={formData.duration}
+                      onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                    >
+                      <option value="">Izaberi trajanje</option>
+                      <option value="Manje od nedelju dana">Manje od nedelju dana</option>
+                      <option value="1-2 nedelje">1-2 nedelje</option>
+                      <option value="2-4 nedelje">2-4 nedelje</option>
+                      <option value="1-3 meseca">1-3 meseca</option>
+                      <option value="3+ meseca">3+ meseca</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Nivo iskustva</label>
+                    <select
+                      value={formData.experienceLevel}
+                      onChange={(e) => setFormData(prev => ({ ...prev, experienceLevel: e.target.value }))}
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                    >
+                      <option value="">Bilo koji nivo</option>
+                      <option value="beginner">Početnik</option>
+                      <option value="intermediate">Srednji nivo</option>
+                      <option value="expert">Ekspert</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Footer */}
+              <div className="p-6 border-t border-border flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setShowAddModal(false); resetForm(); }}
+                  className="px-6 py-3 border border-border rounded-xl hover:bg-secondary transition-colors"
+                >
+                  Otkaži
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Čuvam...
+                    </>
+                  ) : (
+                    editingJob ? 'Sačuvaj izmene' : 'Objavi posao'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
