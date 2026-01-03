@@ -10,6 +10,7 @@ import { generateReviewStats, Review } from '@/types/review';
 import PortfolioModal, { PortfolioItem } from '@/components/PortfolioModal';
 import VideoPlayerModal from '@/components/VideoPlayerModal';
 import ImageCropper from '@/components/ImageCropper';
+import ChatModal from '@/components/ChatModal';
 
 export default function DashboardPage() {
   const { currentUser, updateCreator } = useDemo();
@@ -45,11 +46,14 @@ function CreatorDashboard() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'poslovi'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'poslovi' | 'poruke'>('overview');
   
   // Job applications state
   const [myApplications, setMyApplications] = useState<any[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(false);
+  
+  // Messages/Chat state
+  const [activeChat, setActiveChat] = useState<any | null>(null);
   
   // Inline editing states
   const [editingBio, setEditingBio] = useState(false);
@@ -480,11 +484,21 @@ function CreatorDashboard() {
     }
   };
 
+  // Count conversations (accepted + engaged applications)
+  const conversationsCount = myApplications.filter(a => a.status === 'accepted' || a.status === 'engaged').length;
+  
   const tabs = [
     { id: 'overview' as const, label: 'Pregled', count: null },
     { id: 'reviews' as const, label: 'Statistika', count: allReviews.length > 0 ? allReviews.length : null },
     { id: 'poslovi' as const, label: 'Moje prijave', count: myApplications.length > 0 ? myApplications.length : null },
+    { id: 'poruke' as const, label: 'Poruke', count: conversationsCount > 0 ? conversationsCount : null },
   ];
+  
+  // Handle opening chat from applications tab
+  const handleOpenChat = (app: any) => {
+    setActiveChat(app);
+    setActiveTab('poruke');
+  };
 
   return (
     <div className="min-h-screen bg-secondary/30">
@@ -1528,6 +1542,18 @@ function CreatorDashboard() {
             applications={myApplications}
             setApplications={setMyApplications}
             isLoading={isLoadingApplications}
+            creatorId={currentUser.creatorId || ''}
+            onOpenChat={handleOpenChat}
+          />
+        )}
+        
+        {/* Poruke tab */}
+        {activeTab === 'poruke' && (
+          <CreatorMessagesTab
+            applications={myApplications.filter(a => a.status === 'accepted' || a.status === 'engaged')}
+            activeChat={activeChat}
+            setActiveChat={setActiveChat}
+            creatorId={currentUser.creatorId || ''}
           />
         )}
 
@@ -1559,7 +1585,7 @@ function BusinessDashboard() {
   const [isSaving, setIsSaving] = useState(false);
   
   // Tab state - default to 'pregled', check URL for 'poslovi'
-  const [activeTab, setActiveTab] = useState<'pregled' | 'poslovi'>('pregled');
+  const [activeTab, setActiveTab] = useState<'pregled' | 'poslovi' | 'poruke'>('pregled');
   
   // Real business data from Supabase
   const [businessData, setBusinessData] = useState<any>(null);
@@ -1573,6 +1599,13 @@ function BusinessDashboard() {
   const [myJobs, setMyJobs] = useState<any[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [showAddJobModal, setShowAddJobModal] = useState(false);
+  
+  // Messages state
+  const [allApplications, setAllApplications] = useState<any[]>([]);
+  const [activeChat, setActiveChat] = useState<any | null>(null);
+  
+  // Global toast state
+  const [globalToast, setGlobalToast] = useState<string | null>(null);
   
   // Company info editing state
   const [editingCompany, setEditingCompany] = useState(false);
@@ -1592,9 +1625,34 @@ function BusinessDashboard() {
         if (action === 'new') {
           setShowAddJobModal(true);
         }
+      } else if (tab === 'poruke') {
+        setActiveTab('poruke');
       }
     }
   }, []);
+  
+  // Fetch all applications for messages tab
+  useEffect(() => {
+    const fetchApplications = async () => {
+      if (!currentUser.businessId) return;
+      
+      try {
+        const response = await fetch(`/api/job-applications?businessId=${currentUser.businessId}`);
+        if (response.ok) {
+          const data = await response.json();
+          // Only show accepted and engaged applications
+          const activeApps = (data.applications || []).filter(
+            (app: any) => app.status === 'accepted' || app.status === 'engaged'
+          );
+          setAllApplications(activeApps);
+        }
+      } catch (error) {
+        console.error('Error fetching applications:', error);
+      }
+    };
+    
+    fetchApplications();
+  }, [currentUser.businessId]);
 
   // Fetch real business data from Supabase
   useEffect(() => {
@@ -1839,8 +1897,49 @@ function BusinessDashboard() {
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('poruke')}
+            className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'poruke' 
+                ? 'text-primary' 
+                : 'text-muted hover:text-foreground'
+            }`}
+          >
+            Poruke
+            {allApplications.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
+                {allApplications.length}
+              </span>
+            )}
+            {activeTab === 'poruke' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+            )}
+          </button>
         </div>
 
+        {/* Global Toast */}
+        {globalToast && (
+          <div className="mb-6 bg-success/10 border border-success/30 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+            <div className="w-8 h-8 bg-success/20 rounded-full flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-success">Uspešno!</p>
+              <p className="text-sm text-foreground">{globalToast}</p>
+            </div>
+            <button 
+              onClick={() => setGlobalToast(null)}
+              className="text-muted hover:text-foreground p-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+        
         {/* Portal message - prikazuje se ako Stripe portal nije dostupan */}
         {showPortalMessage && (
           <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
@@ -2391,6 +2490,35 @@ function BusinessDashboard() {
             isLoading={isLoadingJobs}
             showAddModal={showAddJobModal}
             setShowAddModal={setShowAddJobModal}
+            onOpenChat={(app) => {
+              // Show toast first
+              setGlobalToast(`Prihvatili ste kreatora ${app.creator?.name || 'Kreator'}! Preusmereni ste u poruke.`);
+              setTimeout(() => setGlobalToast(null), 4000);
+              
+              // Then switch to messages tab
+              setActiveChat(app);
+              setActiveTab('poruke');
+              // Also refresh applications for messages tab
+              setAllApplications(prev => {
+                const exists = prev.find(a => a.id === app.id);
+                if (!exists && (app.status === 'accepted' || app.status === 'engaged')) {
+                  return [...prev, app];
+                }
+                return prev;
+              });
+            }}
+          />
+        )}
+        
+        {/* Poruke Tab Content */}
+        {activeTab === 'poruke' && (
+          <BusinessMessagesTab
+            applications={allApplications}
+            activeChat={activeChat}
+            setActiveChat={setActiveChat}
+            businessId={currentUser.businessId || ''}
+            jobs={myJobs}
+            setApplications={setAllApplications}
           />
         )}
 
@@ -2851,9 +2979,10 @@ interface BusinessJobsTabProps {
   isLoading: boolean;
   showAddModal: boolean;
   setShowAddModal: (show: boolean) => void;
+  onOpenChat?: (app: any) => void;
 }
 
-function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, setShowAddModal }: BusinessJobsTabProps) {
+function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, setShowAddModal, onOpenChat }: BusinessJobsTabProps) {
   const [categories, setCategories] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [editingJob, setEditingJob] = useState<any | null>(null);
@@ -2872,6 +3001,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   const [viewingJobApplications, setViewingJobApplications] = useState<string | null>(null);
   const [jobApplications, setJobApplications] = useState<any[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(false);
+  
   
   // Form state
   const [formData, setFormData] = useState({
@@ -3092,15 +3222,83 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       });
       
       if (response.ok) {
-        setJobApplications(prev => prev.map(app => 
+        // Update application status in state
+        const updatedApplications = jobApplications.map(app => 
           app.id === applicationId ? { ...app, status: action } : app
-        ));
+        );
+        setJobApplications(updatedApplications);
         
-        // NOTE: Job status changes only when business clicks "Angažuj kreatora" (Plan 2)
-        // Accepting an application doesn't change the job status
+        // If accepted, show notification and open chat
+        if (action === 'accepted') {
+          const acceptedApp = updatedApplications.find(app => app.id === applicationId);
+          if (acceptedApp) {
+            setSuccessMessage(`Prihvatili ste kreatora ${acceptedApp.creator?.name || 'Kreator'}! Bićete preusmereni u poruke.`);
+            
+            // Navigate to Poruke tab after short delay
+            if (onOpenChat) {
+              setTimeout(() => {
+                onOpenChat(acceptedApp);
+                setSuccessMessage(null);
+              }, 1500);
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error updating application:', error);
+    }
+  };
+  
+  // Engage creator - closes job and rejects other applications
+  const handleEngageCreator = async (applicationId: string, jobId: string) => {
+    try {
+      // 1. Update application status to 'engaged'
+      const engageResponse = await fetch('/api/job-applications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId, status: 'engaged' }),
+      });
+      
+      if (!engageResponse.ok) {
+        throw new Error('Failed to engage creator');
+      }
+      
+      // 2. Close the job
+      const closeJobResponse = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, status: 'closed' }),
+      });
+      
+      if (!closeJobResponse.ok) {
+        throw new Error('Failed to close job');
+      }
+      
+      // 3. Reject all other applications for this job
+      const otherApplications = jobApplications.filter(app => app.id !== applicationId && app.status === 'pending');
+      for (const app of otherApplications) {
+        await fetch('/api/job-applications', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ applicationId: app.id, status: 'rejected' }),
+        });
+      }
+      
+      // 4. Update local state
+      setJobApplications(prev => prev.map(app => {
+        if (app.id === applicationId) return { ...app, status: 'engaged' };
+        if (app.status === 'pending') return { ...app, status: 'rejected' };
+        return app;
+      }));
+      
+      setJobs(jobs.map(j => j.id === jobId ? { ...j, status: 'closed' } : j));
+      
+      // Show success message
+      setSuccessMessage('Kreator je angažovan! Posao je zatvoren.');
+      setTimeout(() => setSuccessMessage(null), 5000);
+      
+    } catch (error) {
+      console.error('Error engaging creator:', error);
     }
   };
   
@@ -3598,10 +3796,12 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               app.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                               app.status === 'accepted' ? 'bg-success/10 text-success' :
+                              app.status === 'engaged' ? 'bg-primary/10 text-primary' :
                               'bg-error/10 text-error'
                             }`}>
                               {app.status === 'pending' ? 'Na čekanju' : 
-                               app.status === 'accepted' ? 'Prihvaćeno' : 'Odbijeno'}
+                               app.status === 'accepted' ? 'Prihvaćeno' : 
+                               app.status === 'engaged' ? 'Angažovan' : 'Odbijeno'}
                             </span>
                           </div>
                           <p className="text-sm text-muted">
@@ -3649,24 +3849,42 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       )}
                       
                       {app.status === 'accepted' && (
-                        <div className="pt-3 border-t border-border">
-                          <div className="flex items-center gap-2 text-success text-sm">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="pt-3 border-t border-border flex items-center justify-between">
+                          <span className="text-xs text-success flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            Prijava prihvaćena - kontaktirajte kreatora
-                          </div>
-                          {app.creator?.email && (
-                            <a 
-                              href={`mailto:${app.creator.email}`}
-                              className="mt-2 inline-flex items-center gap-2 text-primary text-sm hover:underline"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                              </svg>
-                              {app.creator.email}
-                            </a>
-                          )}
+                            Prihvaćeno
+                          </span>
+                          <button
+                            onClick={() => onOpenChat && onOpenChat(app)}
+                            className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            Poruke
+                          </button>
+                        </div>
+                      )}
+                      
+                      {app.status === 'engaged' && (
+                        <div className="pt-3 border-t border-border flex items-center justify-between">
+                          <span className="text-xs text-primary font-medium flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Angažovan
+                          </span>
+                          <button
+                            onClick={() => onOpenChat && onOpenChat(app)}
+                            className="px-3 py-1.5 border border-primary text-primary rounded-lg text-xs font-medium hover:bg-primary/5 transition-colors flex items-center gap-1.5"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            Poruke
+                          </button>
                         </div>
                       )}
                     </div>
@@ -3683,6 +3901,360 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           </div>
         </div>
       )}
+      
+    </div>
+  );
+}
+
+// ============================================
+// BUSINESS MESSAGES TAB
+// ============================================
+interface BusinessMessagesTabProps {
+  applications: any[];
+  activeChat: any | null;
+  setActiveChat: (app: any | null) => void;
+  businessId: string;
+  jobs: any[];
+  onEngageCreator?: (applicationId: string, jobId: string) => void;
+  setApplications?: (apps: any[]) => void;
+}
+
+function BusinessMessagesTab({ applications, activeChat, setActiveChat, businessId, jobs, onEngageCreator, setApplications }: BusinessMessagesTabProps) {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isEngaging, setIsEngaging] = useState(false);
+  const [engageSuccess, setEngageSuccess] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Scroll to bottom - only within messages container
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+  
+  // Handle engage creator
+  const handleEngage = async () => {
+    if (!activeChat || isEngaging) return;
+    
+    setIsEngaging(true);
+    try {
+      // 1. Update application status to 'engaged'
+      await fetch('/api/job-applications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId: activeChat.id, status: 'engaged' }),
+      });
+      
+      // 2. Close the job
+      await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: activeChat.jobId, status: 'closed' }),
+      });
+      
+      // 3. Update local state
+      if (setApplications) {
+        setApplications(applications.map(app => 
+          app.id === activeChat.id ? { ...app, status: 'engaged' } : app
+        ));
+      }
+      setActiveChat({ ...activeChat, status: 'engaged' });
+      setEngageSuccess(true);
+      setTimeout(() => setEngageSuccess(false), 3000);
+      
+    } catch (error) {
+      console.error('Error engaging creator:', error);
+    } finally {
+      setIsEngaging(false);
+    }
+  };
+
+  // Track if this is first load for this chat
+  const isFirstLoadRef = useRef(true);
+  
+  // Reset first load when chat changes
+  useEffect(() => {
+    isFirstLoadRef.current = true;
+  }, [activeChat?.id]);
+  
+  // Fetch messages
+  useEffect(() => {
+    if (!activeChat) return;
+    
+    const fetchMessages = async () => {
+      // Only show loading on first fetch
+      if (isFirstLoadRef.current) setIsLoading(true);
+      
+      try {
+        const response = await fetch(`/api/job-messages?applicationId=${activeChat.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data.messages || []);
+        }
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      } finally {
+        if (isFirstLoadRef.current) {
+          setIsLoading(false);
+          isFirstLoadRef.current = false;
+        }
+      }
+    };
+    
+    fetchMessages();
+    pollIntervalRef.current = setInterval(fetchMessages, 5000);
+    
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, [activeChat?.id]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !activeChat || isSending) return;
+
+    setIsSending(true);
+    try {
+      const response = await fetch('/api/job-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: activeChat.id,
+          senderType: 'business',
+          senderId: businessId,
+          message: newMessage.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(prev => [...prev, data.message]);
+        setNewMessage('');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Get job title for an application
+  const getJobTitle = (app: any) => {
+    const job = jobs.find(j => j.id === app.jobId);
+    return job?.title || app.job?.title || 'Posao';
+  };
+
+  if (applications.length === 0) {
+    return (
+      <div className="text-center py-16 bg-white rounded-2xl border border-border">
+        <div className="text-5xl mb-4">💬</div>
+        <h3 className="text-lg font-medium mb-2">Nemate aktivnih razgovora</h3>
+        <p className="text-muted">Razgovori će se pojaviti kada prihvatite prijavu kreatora</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-border overflow-hidden">
+      <div className="flex h-[600px] lg:h-[650px]">
+        {/* Conversations list */}
+        <div className={`${activeChat ? 'hidden lg:block' : 'w-full'} lg:w-80 border-r border-border flex-shrink-0`}>
+          <div className="p-4 border-b border-border">
+            <h3 className="font-medium">Razgovori</h3>
+            <p className="text-xs text-muted">{applications.length} aktivnih</p>
+          </div>
+          <div className="overflow-y-auto h-[calc(100%-65px)]">
+            {applications.map((app) => (
+              <button
+                key={app.id}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveChat(app);
+                }}
+                className={`w-full p-4 text-left border-b border-border hover:bg-secondary/50 transition-colors ${
+                  activeChat?.id === app.id ? 'bg-secondary' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {app.creator?.photo ? (
+                      <Image src={app.creator.photo} alt="" width={40} height={40} className="object-cover" />
+                    ) : (
+                      <span className="text-sm font-medium text-muted">
+                        {app.creator?.name?.charAt(0) || 'K'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm truncate">{app.creator?.name || 'Kreator'}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        app.status === 'engaged' ? 'bg-primary/10 text-primary' : 'bg-success/10 text-success'
+                      }`}>
+                        {app.status === 'engaged' ? 'Angažovan' : 'Aktivan'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted truncate">{getJobTitle(app)}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat area */}
+        <div className={`${activeChat ? 'flex' : 'hidden lg:flex'} flex-1 flex-col`}>
+          {activeChat ? (
+            <>
+              {/* Header */}
+              <div className="p-4 border-b border-border flex items-center gap-3">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveChat(null);
+                  }}
+                  className="lg:hidden p-1.5 hover:bg-secondary rounded-lg"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+                  {activeChat.creator?.photo ? (
+                    <Image src={activeChat.creator.photo} alt="" width={40} height={40} className="object-cover" />
+                  ) : (
+                    <span className="text-sm font-medium text-muted">
+                      {activeChat.creator?.name?.charAt(0) || 'K'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-medium text-sm">{activeChat.creator?.name || 'Kreator'}</h4>
+                  <p className="text-xs text-muted">{getJobTitle(activeChat)}</p>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-secondary/20">
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center py-8 text-muted text-sm">
+                    <p>Započnite razgovor!</p>
+                    <p className="text-xs mt-1">Dogovorite detalje projekta sa kreatorom.</p>
+                  </div>
+                ) : (
+                  messages.map((msg) => {
+                    const isMe = msg.senderType === 'business';
+                    return (
+                      <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                          isMe 
+                            ? 'bg-primary text-white rounded-br-md' 
+                            : 'bg-white text-foreground rounded-bl-md shadow-sm'
+                        }`}>
+                          <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                          <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-white/70' : 'text-muted'}`}>
+                            {formatTime(msg.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Engage button - only for accepted applications */}
+              {activeChat.status === 'accepted' && (
+                <div className="px-4 py-2 border-t border-border flex items-center justify-between">
+                  <span className="text-xs text-muted">Dogovor postignut?</span>
+                  <button
+                    onClick={handleEngage}
+                    disabled={isEngaging}
+                    className="px-4 py-1.5 bg-success text-white rounded-lg text-xs font-medium hover:bg-success/90 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                  >
+                    {isEngaging ? (
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Angažuj
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+              
+              {/* Success message */}
+              {engageSuccess && (
+                <div className="px-4 py-1.5 bg-success/10 text-success text-xs text-center">
+                  ✓ Kreator je angažovan!
+                </div>
+              )}
+              
+              {/* Engaged status */}
+              {activeChat.status === 'engaged' && !engageSuccess && (
+                <div className="px-4 py-1.5 bg-primary/5 text-primary text-xs text-center flex items-center justify-center gap-1">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Angažovan
+                </div>
+              )}
+
+              {/* Input */}
+              <form onSubmit={handleSend} className="p-4 border-t border-border bg-white">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Napišite poruku..."
+                    className="flex-1 px-4 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim() || isSending}
+                    className="px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >
+                    {isSending ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-center p-8">
+              <div>
+                <div className="text-4xl mb-4">💬</div>
+                <p className="text-muted">Izaberite razgovor sa leve strane</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -3694,10 +4266,12 @@ interface CreatorApplicationsTabProps {
   applications: any[];
   setApplications: (apps: any[]) => void;
   isLoading: boolean;
+  creatorId: string;
+  onOpenChat: (app: any) => void;
 }
 
-function CreatorApplicationsTab({ applications, setApplications, isLoading }: CreatorApplicationsTabProps) {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
+function CreatorApplicationsTab({ applications, setApplications, isLoading, creatorId, onOpenChat }: CreatorApplicationsTabProps) {
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'engaged'>('all');
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   
   const handleWithdraw = async (applicationId: string) => {
@@ -3726,6 +4300,8 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading }: Cr
         return <span className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">Na čekanju</span>;
       case 'accepted':
         return <span className="px-3 py-1 text-xs bg-success/10 text-success rounded-full">Prihvaćeno</span>;
+      case 'engaged':
+        return <span className="px-3 py-1 text-xs bg-primary/10 text-primary rounded-full font-medium">Angažovan</span>;
       case 'rejected':
         return <span className="px-3 py-1 text-xs bg-error/10 text-error rounded-full">Odbijeno</span>;
       case 'withdrawn':
@@ -3745,6 +4321,7 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading }: Cr
     total: applications.length,
     pending: applications.filter(a => a.status === 'pending').length,
     accepted: applications.filter(a => a.status === 'accepted').length,
+    engaged: applications.filter(a => a.status === 'engaged').length,
     rejected: applications.filter(a => a.status === 'rejected').length,
   };
 
@@ -3759,23 +4336,27 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading }: Cr
 
   return (
     <div>
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl p-4 border border-border text-center">
-          <div className="text-2xl font-medium">{stats.total}</div>
-          <div className="text-sm text-muted">Ukupno prijava</div>
+      {/* Stats - compact */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+          <div className="text-lg font-medium">{stats.total}</div>
+          <div className="text-xs text-muted">Ukupno</div>
         </div>
-        <div className="bg-white rounded-xl p-4 border border-border text-center">
-          <div className="text-2xl font-medium text-amber-600">{stats.pending}</div>
-          <div className="text-sm text-muted">Na čekanju</div>
+        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+          <div className="text-lg font-medium text-amber-600">{stats.pending}</div>
+          <div className="text-xs text-muted">Čeka</div>
         </div>
-        <div className="bg-white rounded-xl p-4 border border-border text-center">
-          <div className="text-2xl font-medium text-success">{stats.accepted}</div>
-          <div className="text-sm text-muted">Prihvaćeno</div>
+        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+          <div className="text-lg font-medium text-success">{stats.accepted}</div>
+          <div className="text-xs text-muted">Prihvaćeno</div>
         </div>
-        <div className="bg-white rounded-xl p-4 border border-border text-center">
-          <div className="text-2xl font-medium text-error">{stats.rejected}</div>
-          <div className="text-sm text-muted">Odbijeno</div>
+        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+          <div className="text-lg font-medium text-primary">{stats.engaged}</div>
+          <div className="text-xs text-muted">Angažovan</div>
+        </div>
+        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+          <div className="text-lg font-medium text-error">{stats.rejected}</div>
+          <div className="text-xs text-muted">Odbijeno</div>
         </div>
       </div>
 
@@ -3790,6 +4371,7 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading }: Cr
           <option value="all">Sve prijave ({stats.total})</option>
           <option value="pending">Na čekanju ({stats.pending})</option>
           <option value="accepted">Prihvaćeno ({stats.accepted})</option>
+          <option value="engaged">Angažovan ({stats.engaged})</option>
           <option value="rejected">Odbijeno ({stats.rejected})</option>
         </select>
       </div>
@@ -3838,11 +4420,49 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading }: Cr
                     Povuci prijavu
                   </button>
                 )}
-                
-                {app.status === 'accepted' && (
-                  <span className="text-xs text-success font-medium">✓ Čestitamo!</span>
-                )}
               </div>
+              
+              {/* Accepted - show chat link */}
+              {app.status === 'accepted' && (
+                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                  <span className="text-xs text-success flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Prihvaćeno
+                  </span>
+                  <button
+                    onClick={() => onOpenChat(app)}
+                    className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    Poruke
+                  </button>
+                </div>
+              )}
+              
+              {/* Engaged - show chat link */}
+              {app.status === 'engaged' && (
+                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                  <span className="text-xs text-primary font-medium flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Angažovan
+                  </span>
+                  <button
+                    onClick={() => onOpenChat(app)}
+                    className="px-3 py-1.5 border border-primary text-primary rounded-lg text-xs font-medium hover:bg-primary/5 transition-colors flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    Poruke
+                  </button>
+                </div>
+              )}
               
               {/* Withdraw confirmation */}
               {withdrawingId === app.id && (
@@ -3888,6 +4508,280 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading }: Cr
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================
+// CREATOR MESSAGES TAB
+// ============================================
+interface CreatorMessagesTabProps {
+  applications: any[];
+  activeChat: any | null;
+  setActiveChat: (app: any | null) => void;
+  creatorId: string;
+}
+
+function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId }: CreatorMessagesTabProps) {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Scroll to bottom - only within messages container
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+
+  // Track if this is first load for this chat
+  const isFirstLoadRef = useRef(true);
+  
+  // Reset first load when chat changes
+  useEffect(() => {
+    isFirstLoadRef.current = true;
+  }, [activeChat?.id]);
+  
+  // Fetch messages for active chat
+  useEffect(() => {
+    if (!activeChat) return;
+    
+    const fetchMessages = async () => {
+      // Only show loading on first fetch
+      if (isFirstLoadRef.current) setIsLoading(true);
+      
+      try {
+        const response = await fetch(`/api/job-messages?applicationId=${activeChat.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data.messages || []);
+        }
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      } finally {
+        if (isFirstLoadRef.current) {
+          setIsLoading(false);
+          isFirstLoadRef.current = false;
+        }
+      }
+    };
+    
+    fetchMessages();
+    
+    // Poll for new messages (silently in background)
+    pollIntervalRef.current = setInterval(fetchMessages, 5000);
+    
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, [activeChat?.id]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Send message
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !activeChat || isSending) return;
+
+    setIsSending(true);
+    try {
+      const response = await fetch('/api/job-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: activeChat.id,
+          senderType: 'creator',
+          senderId: creatorId,
+          message: newMessage.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(prev => [...prev, data.message]);
+        setNewMessage('');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    if (date.toDateString() === today.toDateString()) return 'Danas';
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return 'Juče';
+    return date.toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' });
+  };
+
+  // No conversations
+  if (applications.length === 0) {
+    return (
+      <div className="text-center py-16 bg-white rounded-2xl border border-border">
+        <div className="text-5xl mb-4">💬</div>
+        <h3 className="text-lg font-medium mb-2">Nemate aktivnih razgovora</h3>
+        <p className="text-muted">Razgovori će se pojaviti kada biznis prihvati vašu prijavu</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-border overflow-hidden">
+      <div className="flex h-[600px] lg:h-[650px]">
+        {/* Conversations list - left side */}
+        <div className={`${activeChat ? 'hidden lg:block' : 'w-full'} lg:w-80 border-r border-border flex-shrink-0`}>
+          <div className="p-4 border-b border-border">
+            <h3 className="font-medium">Razgovori</h3>
+            <p className="text-xs text-muted">{applications.length} aktivnih</p>
+          </div>
+          <div className="overflow-y-auto h-[calc(100%-65px)]">
+            {applications.map((app) => (
+              <button
+                key={app.id}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveChat(app);
+                }}
+                className={`w-full p-4 text-left border-b border-border hover:bg-secondary/50 transition-colors ${
+                  activeChat?.id === app.id ? 'bg-secondary' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-medium text-primary">
+                      {app.job?.businessName?.charAt(0) || 'B'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm truncate">{app.job?.businessName || 'Biznis'}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        app.status === 'engaged' ? 'bg-primary/10 text-primary' : 'bg-success/10 text-success'
+                      }`}>
+                        {app.status === 'engaged' ? 'Angažovan' : 'Aktivan'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted truncate">{app.job?.title || 'Posao'}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat area - right side */}
+        <div className={`${activeChat ? 'flex' : 'hidden lg:flex'} flex-1 flex-col`}>
+          {activeChat ? (
+            <>
+              {/* Chat header */}
+              <div className="p-4 border-b border-border flex items-center gap-3">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveChat(null);
+                  }}
+                  className="lg:hidden p-1.5 hover:bg-secondary rounded-lg"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-sm font-medium text-primary">
+                    {activeChat.job?.businessName?.charAt(0) || 'B'}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-medium text-sm">{activeChat.job?.businessName || 'Biznis'}</h4>
+                  <p className="text-xs text-muted">{activeChat.job?.title || 'Posao'}</p>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-secondary/20">
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center py-8 text-muted text-sm">
+                    <p>Započnite razgovor!</p>
+                    <p className="text-xs mt-1">Dogovorite detalje projekta.</p>
+                  </div>
+                ) : (
+                  messages.map((msg) => {
+                    const isMe = msg.senderType === 'creator';
+                    return (
+                      <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                          isMe 
+                            ? 'bg-primary text-white rounded-br-md' 
+                            : 'bg-white text-foreground rounded-bl-md shadow-sm'
+                        }`}>
+                          <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                          <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-white/70' : 'text-muted'}`}>
+                            {formatTime(msg.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Input */}
+              <form onSubmit={handleSend} className="p-4 border-t border-border bg-white">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Napišite poruku..."
+                    className="flex-1 px-4 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim() || isSending}
+                    className="px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >
+                    {isSending ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-center p-8">
+              <div>
+                <div className="text-4xl mb-4">💬</div>
+                <p className="text-muted">Izaberite razgovor sa leve strane</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
