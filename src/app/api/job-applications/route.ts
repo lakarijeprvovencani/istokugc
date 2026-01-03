@@ -257,13 +257,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update application' }, { status: 500 });
     }
 
-    // If accepted, update job status to in_progress
-    if (status === 'accepted') {
-      await supabase
-        .from('jobs')
-        .update({ status: 'in_progress', updated_at: new Date().toISOString() })
-        .eq('id', application.job_id);
-    }
+    // NOTE: Job status only changes when business clicks "Angažuj kreatora"
+    // Accepting an application keeps the job "open" for other applications
 
     return NextResponse.json({ application });
 

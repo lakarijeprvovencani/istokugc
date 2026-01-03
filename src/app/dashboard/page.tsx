@@ -2859,6 +2859,12 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   const [editingJob, setEditingJob] = useState<any | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
+  // Sub-tab state: 'active' or 'completed'
+  const [jobsFilter, setJobsFilter] = useState<'active' | 'completed'>('active');
+  
+  // Application counts per job
+  const [applicationCounts, setApplicationCounts] = useState<{[key: string]: number}>({});
+  
   // Success message state
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
@@ -2895,6 +2901,29 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     };
     fetchCategories();
   }, []);
+  
+  // Fetch application counts for all jobs
+  useEffect(() => {
+    const fetchApplicationCounts = async () => {
+      if (!jobs || jobs.length === 0) return;
+      
+      const counts: {[key: string]: number} = {};
+      for (const job of jobs) {
+        try {
+          const response = await fetch(`/api/job-applications?jobId=${job.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            counts[job.id] = (data.applications || []).length;
+          }
+        } catch (error) {
+          counts[job.id] = 0;
+        }
+      }
+      setApplicationCounts(counts);
+    };
+    
+    fetchApplicationCounts();
+  }, [jobs]);
   
   const resetForm = () => {
     setFormData({
@@ -3067,12 +3096,8 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           app.id === applicationId ? { ...app, status: action } : app
         ));
         
-        // If accepted, update the job status
-        if (action === 'accepted' && viewingJobApplications) {
-          setJobs(jobs.map(j => 
-            j.id === viewingJobApplications ? { ...j, status: 'in_progress' } : j
-          ));
-        }
+        // NOTE: Job status changes only when business clicks "Angažuj kreatora" (Plan 2)
+        // Accepting an application doesn't change the job status
       }
     } catch (error) {
       console.error('Error updating application:', error);
@@ -3107,15 +3132,15 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <span className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">Čeka odobrenje</span>;
+        return <span className="px-3 py-1.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">Čeka odobrenje</span>;
       case 'open':
-        return <span className="px-3 py-1 text-xs bg-success/10 text-success rounded-full">Aktivan</span>;
+        return <span className="px-3 py-1.5 text-xs font-medium bg-success/10 text-success rounded-full">Aktivan</span>;
       case 'in_progress':
-        return <span className="px-3 py-1 text-xs bg-primary/10 text-primary rounded-full">U toku</span>;
+        return <span className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-600 rounded-full">U toku</span>;
       case 'completed':
-        return <span className="px-3 py-1 text-xs bg-secondary text-muted rounded-full">Završen</span>;
+        return <span className="px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-500 rounded-full">Završen</span>;
       case 'closed':
-        return <span className="px-3 py-1 text-xs bg-muted/20 text-muted rounded-full">Zatvoren</span>;
+        return <span className="px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-500 rounded-full">Zatvoren</span>;
       default:
         return null;
     }
@@ -3171,12 +3196,51 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           Dodaj posao
         </button>
       </div>
+      
+      {/* Sub-tabs: Aktivni / Završeni */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setJobsFilter('active')}
+          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            jobsFilter === 'active'
+              ? 'bg-primary text-white'
+              : 'bg-white border border-border text-muted hover:bg-secondary'
+          }`}
+        >
+          Aktivni poslovi
+          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+            jobsFilter === 'active' ? 'bg-white/20' : 'bg-secondary'
+          }`}>
+            {jobs.filter(j => j.status !== 'closed' && j.status !== 'completed').length}
+          </span>
+        </button>
+        <button
+          onClick={() => setJobsFilter('completed')}
+          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            jobsFilter === 'completed'
+              ? 'bg-slate-600 text-white'
+              : 'bg-white border border-border text-muted hover:bg-secondary'
+          }`}
+        >
+          Završeni poslovi
+          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+            jobsFilter === 'completed' ? 'bg-white/20' : 'bg-secondary'
+          }`}>
+            {jobs.filter(j => j.status === 'closed' || j.status === 'completed').length}
+          </span>
+        </button>
+      </div>
 
       {/* Jobs List */}
-      {jobs.length > 0 ? (
+      {(() => {
+        const filteredJobs = jobsFilter === 'active'
+          ? jobs.filter(j => j.status !== 'closed' && j.status !== 'completed')
+          : jobs.filter(j => j.status === 'closed' || j.status === 'completed');
+        
+        return filteredJobs.length > 0 ? (
         <div className="space-y-4">
-          {jobs.map((job) => (
-            <div key={job.id} className="bg-white rounded-2xl border border-border p-6">
+          {filteredJobs.map((job) => (
+            <div key={job.id} className="bg-white rounded-2xl border border-border p-6 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
@@ -3199,19 +3263,24 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                 ))}
               </div>
               
+              {/* Prijave dugme - istaknuto */}
+              <div className="mb-4">
+                <button
+                  onClick={() => handleViewApplications(job.id)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary/5 hover:bg-primary/10 border-2 border-primary/20 hover:border-primary/40 text-primary rounded-xl font-medium transition-all"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Pogledaj prijave
+                  <span className="ml-1 px-2.5 py-0.5 bg-primary text-white text-sm rounded-full">
+                    {applicationCounts[job.id] !== undefined ? applicationCounts[job.id] : '...'}
+                  </span>
+                </button>
+              </div>
+              
               <div className="flex items-center justify-between pt-4 border-t border-border">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted">Kreirano: {formatDate(job.createdAt)}</span>
-                  <button
-                    onClick={() => handleViewApplications(job.id)}
-                    className="text-xs px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Prijave
-                  </button>
-                </div>
+                <span className="text-xs text-muted">Kreirano: {formatDate(job.createdAt)}</span>
                 <div className="flex items-center gap-2">
                   {job.status === 'open' && (
                     <button
@@ -3221,12 +3290,14 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       Zatvori
                     </button>
                   )}
-                  <button
-                    onClick={() => handleEditJob(job)}
-                    className="text-xs px-3 py-1.5 text-primary hover:bg-primary/10 border border-primary/20 rounded-lg transition-colors"
-                  >
-                    Uredi
-                  </button>
+                  {job.status !== 'closed' && job.status !== 'completed' && (
+                    <button
+                      onClick={() => handleEditJob(job)}
+                      className="text-xs px-3 py-1.5 text-primary hover:bg-primary/10 border border-primary/20 rounded-lg transition-colors"
+                    >
+                      Uredi
+                    </button>
+                  )}
                   <button
                     onClick={() => setDeleteConfirmId(job.id)}
                     className="text-xs px-3 py-1.5 text-error hover:bg-error/10 border border-error/20 rounded-lg transition-colors"
@@ -3260,21 +3331,34 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 bg-white rounded-2xl border border-border">
-          <div className="text-6xl mb-6">💼</div>
-          <h3 className="text-xl font-medium mb-2">Nemate postavljenih poslova</h3>
-          <p className="text-muted mb-6">Kreirajte prvi posao i pronađite savršenog kreatora</p>
-          <button
-            onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Dodaj prvi posao
-          </button>
+        <div className="text-center py-16 bg-white rounded-2xl border border-border">
+          <div className="text-5xl mb-4">
+            {jobsFilter === 'active' ? '📋' : '✅'}
+          </div>
+          <h3 className="text-lg font-medium mb-2">
+            {jobsFilter === 'active' 
+              ? 'Nemate aktivnih poslova' 
+              : 'Nemate završenih poslova'}
+          </h3>
+          <p className="text-sm text-muted mb-4">
+            {jobsFilter === 'active' 
+              ? 'Kreirajte novi posao i pronađite savršenog kreatora' 
+              : 'Ovde će se pojaviti poslovi koje zatvorite'}
+          </p>
+          {jobsFilter === 'active' && (
+            <button
+              onClick={handleOpenAddModal}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Dodaj posao
+            </button>
+          )}
         </div>
-      )}
+      );
+      })()}
 
       {/* Add/Edit Job Modal */}
       {showAddModal && (
