@@ -25,7 +25,8 @@ export default function PricingPage() {
 
       if (response.ok) {
         const { url } = await response.json();
-        // Sačuvaj business ID za later
+        // Sačuvaj business ID za aktivaciju/obnovu pretplate
+        // Ovo pokriva i slučaj kad biznis nikad nije platio
         if (currentUser.businessId) {
           sessionStorage.setItem('renewBusinessId', currentUser.businessId);
         }
@@ -46,13 +47,10 @@ export default function PricingPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl lg:text-5xl font-light mb-4">
-            {currentUser.type === 'business' ? 'Obnovi pretplatu' : 'Izaberi plan'}
+            Izaberi plan
           </h1>
           <p className="text-muted text-lg max-w-2xl mx-auto">
-            {currentUser.type === 'business' 
-              ? 'Vaša pretplata je istekla. Izaberite plan da biste nastavili sa pristupom svim kreatorima.'
-              : 'Pristupite svim kreatorima, njihovim kontakt informacijama i mogućnosti direktne saradnje.'
-            }
+            Pristupite svim kreatorima, njihovim kontakt informacijama i mogućnosti direktne saradnje.
           </p>
         </div>
 
@@ -193,8 +191,11 @@ export default function PricingPage() {
 
         {/* Back link */}
         <div className="text-center mt-12">
-          <Link href="/dashboard" className="text-muted hover:text-foreground transition-colors">
-            ← Nazad na Dashboard
+          <Link 
+            href={currentUser.type === 'business' ? '/dashboard' : '/'} 
+            className="text-muted hover:text-foreground transition-colors"
+          >
+            ← {currentUser.type === 'business' ? 'Nazad na Dashboard' : 'Nazad na početnu'}
           </Link>
         </div>
 

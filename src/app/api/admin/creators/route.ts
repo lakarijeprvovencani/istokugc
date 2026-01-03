@@ -26,6 +26,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch creators' }, { status: 500 });
     }
 
+    // Get email verification status for each creator from auth.users
+    const userIds = creators?.map(c => c.user_id).filter(Boolean) || [];
+    const emailVerificationMap: Record<string, boolean> = {};
+    
+    if (userIds.length > 0) {
+      // Fetch auth users to check email_confirmed_at
+      const { data: authUsers } = await supabase.auth.admin.listUsers();
+      
+      if (authUsers?.users) {
+        for (const user of authUsers.users) {
+          if (userIds.includes(user.id)) {
+            emailVerificationMap[user.id] = user.email_confirmed_at !== null;
+          }
+        }
+      }
+    }
+
     // Transform data for frontend
     const formattedCreators = creators?.map(creator => ({
       id: creator.id,
@@ -50,6 +67,7 @@ export async function GET(request: NextRequest) {
       averageRating: creator.average_rating || 0,
       totalReviews: creator.total_reviews || 0,
       createdAt: creator.created_at,
+      emailVerified: creator.user_id ? emailVerificationMap[creator.user_id] ?? false : false,
     })) || [];
 
     return NextResponse.json({ creators: formattedCreators });

@@ -4,7 +4,7 @@ import "./globals.css";
 import { DemoProvider } from "@/context/DemoContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import DemoSwitcher from "@/components/DemoSwitcher";
+// import DemoSwitcher from "@/components/DemoSwitcher"; // Sakriveno - radimo sa pravim podacima
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -31,7 +31,8 @@ export default function RootLayout({
             {children}
           </main>
           <Footer />
-          <DemoSwitcher />
+          {/* Demo dugme sakriveno - sada radimo sa pravim podacima */}
+          {/* <DemoSwitcher /> */}
         </DemoProvider>
       </body>
     </html>

@@ -1603,6 +1603,14 @@ function BusinessDashboard() {
     );
   }
 
+  // Paywall za biznise koji nikad nisu platili
+  const hasNeverPaid = !businessData?.subscription_type && 
+                       (!businessData?.subscription_status || businessData?.subscription_status === 'none');
+  
+  if (hasNeverPaid) {
+    return <BusinessPaywallScreen companyName={businessData?.company_name || currentUser.companyName} />;
+  }
+
   return (
     <div className="min-h-screen bg-secondary/30">
       <div className="max-w-6xl 2xl:max-w-7xl mx-auto px-6 lg:px-12 py-8 lg:py-12">
@@ -1625,39 +1633,83 @@ function BusinessDashboard() {
             {/* Subscription status */}
             <div className={`rounded-2xl p-6 border ${
               subscription.status === 'active' 
-                ? 'bg-white border-border' 
+                ? subscription.cancelAtPeriodEnd 
+                  ? 'bg-amber-50 border-amber-200' 
+                  : 'bg-white border-border'
                 : 'bg-error/5 border-error/20'
             }`}>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-medium mb-1">Tvoja pretplata</h2>
-                  <p className="text-sm text-muted">
-                    {subscription.plan === 'yearly' ? 'Godišnji' : 'Mesečni'} plan • {subscription.price}
-                  </p>
+                  {subscription.status === 'none' || !subscription.plan ? (
+                    <p className="text-sm text-muted">Još uvek nemate aktivnu pretplatu</p>
+                  ) : (
+                    <p className="text-sm text-muted">
+                      {subscription.plan === 'yearly' ? 'Godišnji' : 'Mesečni'} plan • {subscription.price}
+                    </p>
+                  )}
                 </div>
                 <span className={`px-4 py-1.5 rounded-full text-sm flex items-center gap-2 ${
                   subscription.status === 'active' 
-                    ? 'bg-success/10 text-success' 
+                    ? subscription.cancelAtPeriodEnd
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-success/10 text-success'
+                    : subscription.status === 'none' || !subscription.plan
+                    ? 'bg-gray-100 text-gray-600'
                     : 'bg-error/10 text-error'
                 }`}>
                   <span className={`w-2 h-2 rounded-full ${
-                    subscription.status === 'active' ? 'bg-success' : 'bg-error'
+                    subscription.status === 'active' 
+                      ? subscription.cancelAtPeriodEnd ? 'bg-amber-500' : 'bg-success'
+                      : subscription.status === 'none' || !subscription.plan
+                      ? 'bg-gray-400'
+                      : 'bg-error'
                   }`}></span>
-                  {subscription.status === 'active' ? 'Aktivna' : 'Istekla'}
+                  {subscription.status === 'active' 
+                    ? subscription.cancelAtPeriodEnd ? 'Otkazana' : 'Aktivna'
+                    : subscription.status === 'none' || !subscription.plan
+                    ? 'Neaktivna'
+                    : 'Istekla'}
                 </span>
               </div>
               
-              {/* Show warning and renew button if subscription is not active */}
-              {subscription.status !== 'active' && (
+              {/* Show warning for users who NEVER paid (none status) */}
+              {(subscription.status === 'none' || (!subscription.plan && subscription.status !== 'active')) && (
+                <div className="mt-4 p-4 bg-primary/5 rounded-xl border border-primary/20">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">Završite registraciju</p>
+                      <p className="text-sm text-muted mt-1">
+                        Kreirali ste nalog, ali još uvek niste aktivirali pretplatu. Pretplatom dobijate pristup svim kreatorima, njihovim kontakt informacijama i mogućnost ostavljanja recenzija.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/pricing"
+                    className="mt-4 w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Aktiviraj pretplatu
+                  </Link>
+                </div>
+              )}
+              
+              {/* Show warning for EXPIRED subscriptions */}
+              {subscription.status === 'expired' && subscription.plan && (
                 <div className="mt-4 p-4 bg-error/10 rounded-xl">
                   <div className="flex items-start gap-3">
                     <svg className="w-5 h-5 text-error flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-error">Pretplata nije aktivna</p>
+                      <p className="text-sm font-medium text-error">Pretplata je istekla</p>
                       <p className="text-sm text-error/80 mt-1">
-                        Nemate pristup kreatorima i njihovim kontakt informacijama. Obnovite pretplatu da nastavite sa korišćenjem platforme.
+                        Vaša pretplata je istekla. Obnovite je da biste ponovo imali pristup kreatorima i svim funkcionalnostima platforme.
                       </p>
                     </div>
                   </div>
@@ -1673,23 +1725,52 @@ function BusinessDashboard() {
                 </div>
               )}
               
-              {/* Show normal info if subscription is active */}
-              {subscription.status === 'active' && (
+              {/* Show cancellation notice for active but cancelled subscriptions */}
+              {subscription.status === 'active' && subscription.cancelAtPeriodEnd && (
+                <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-800">Pretplata je otkazana</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Otkazali ste pretplatu. Imate pristup do{' '}
+                        <strong>
+                          {new Date(subscription.expiresAt).toLocaleDateString('sr-Latn-RS', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </strong>
+                        . Nakon toga gubite pristup kreatorima.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleManageSubscription}
+                    className="mt-4 w-full py-3 bg-amber-600 text-white rounded-xl font-medium hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Ponovo aktiviraj pretplatu
+                  </button>
+                </div>
+              )}
+              
+              {/* Show normal info if subscription is active and NOT cancelled */}
+              {subscription.status === 'active' && !subscription.cancelAtPeriodEnd && (
                 <div className="mt-6 pt-6 border-t border-border grid sm:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted">
-                      {subscription.cancelAtPeriodEnd ? 'Pretplata ističe' : 'Sledeće plaćanje'}
-                    </p>
+                    <p className="text-sm text-muted">Sledeće plaćanje</p>
                     <p className="font-medium">
-                      {new Date(subscription.expiresAt).toLocaleDateString('sr-RS', {
+                      {new Date(subscription.expiresAt).toLocaleDateString('sr-Latn-RS', {
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric',
                       })}
                     </p>
-                    {subscription.cancelAtPeriodEnd && (
-                      <p className="text-xs text-warning mt-1">Otkazano - neće se obnoviti</p>
-                    )}
                   </div>
                   <div className="sm:text-right">
                     <button 
@@ -2339,6 +2420,161 @@ function CreatorRejectedScreen({ rejectionReason }: { rejectionReason?: string }
             Nazad na početnu
           </Link>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============== BUSINESS PAYWALL SCREEN ==============
+function BusinessPaywallScreen({ companyName }: { companyName: string }) {
+  const router = useRouter();
+  const { logout } = useDemo();
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const handleActivateSubscription = async () => {
+    setIsLoading(true);
+    try {
+      // Redirect to pricing page with business context
+      router.push('/pricing?from=dashboard');
+    } catch (error) {
+      console.error('Error:', error);
+      setIsLoading(false);
+    }
+  };
+  
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-secondary via-white to-primary/5 flex items-center justify-center p-6">
+      <div className="max-w-2xl w-full text-center">
+        {/* Logo/Brand */}
+        <div className="mb-8">
+          <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-light text-foreground mb-2">
+            Dobrodošli, {companyName}!
+          </h1>
+          <p className="text-muted text-lg">
+            Završite registraciju aktiviranjem pretplate
+          </p>
+        </div>
+
+        {/* Info Card */}
+        <div className="bg-white rounded-2xl border border-border p-8 mb-8 shadow-sm">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-medium text-foreground">
+              Pretplata nije aktivirana
+            </h2>
+          </div>
+          
+          <p className="text-muted mb-8 max-w-md mx-auto">
+            Da biste pristupili platformi i pronašli idealne kreatore za vaš biznis, potrebno je da aktivirate pretplatu.
+          </p>
+
+          {/* Features List */}
+          <div className="grid sm:grid-cols-2 gap-4 text-left mb-8">
+            <div className="flex items-start gap-3 p-4 bg-secondary/50 rounded-xl">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-foreground text-sm">Pristup kreatorima</p>
+                <p className="text-xs text-muted">Pregledajte profile svih kreatora</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3 p-4 bg-secondary/50 rounded-xl">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-foreground text-sm">Postavljanje poslova</p>
+                <p className="text-xs text-muted">Objavite oglase za UGC projekte</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3 p-4 bg-secondary/50 rounded-xl">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-foreground text-sm">Direktna komunikacija</p>
+                <p className="text-xs text-muted">Komunicirajte sa kreatorima</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3 p-4 bg-secondary/50 rounded-xl">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-foreground text-sm">Recenzije i ocene</p>
+                <p className="text-xs text-muted">Ostavite povratnu informaciju</p>
+              </div>
+            </div>
+          </div>
+
+          {/* CTA Button */}
+          <button
+            onClick={handleActivateSubscription}
+            disabled={isLoading}
+            className="w-full sm:w-auto px-8 py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto"
+          >
+            {isLoading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Učitavanje...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                Aktiviraj pretplatu
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Pricing preview */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+          <div className="bg-white rounded-xl border border-border px-6 py-4 text-center">
+            <p className="text-sm text-muted mb-1">Mesečna pretplata</p>
+            <p className="text-2xl font-bold text-foreground">€49<span className="text-sm font-normal text-muted">/mesec</span></p>
+          </div>
+          <div className="bg-primary/5 rounded-xl border border-primary/20 px-6 py-4 text-center relative">
+            <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-white text-xs px-2 py-0.5 rounded-full">Ušteda 17%</span>
+            <p className="text-sm text-muted mb-1">Godišnja pretplata</p>
+            <p className="text-2xl font-bold text-foreground">€490<span className="text-sm font-normal text-muted">/godina</span></p>
+          </div>
+        </div>
+
+        {/* Logout option */}
+        <button
+          onClick={handleLogout}
+          className="text-muted hover:text-foreground transition-colors text-sm underline underline-offset-4"
+        >
+          Odjavi se
+        </button>
       </div>
     </div>
   );

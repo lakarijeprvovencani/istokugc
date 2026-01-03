@@ -1,18 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 
-// GET /api/creators - Dohvati sve odobrene kreatore
+// GET /api/creators - Dohvati kreatore sa paginacijom
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const includeAll = searchParams.get('includeAll') === 'true'; // Za admin
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '12'); // 12 kreatora po stranici
+    const offset = (page - 1) * limit;
 
     const supabase = createAdminClient();
 
+    // Prvo dohvati ukupan broj za paginaciju
+    let countQuery = supabase
+      .from('creators')
+      .select('*', { count: 'exact', head: true });
+    
+    if (!includeAll) {
+      countQuery = countQuery.eq('status', 'approved');
+    }
+    
+    const { count: totalCount } = await countQuery;
+
+    // Dohvati kreatore sa paginacijom
     let query = supabase
       .from('creators')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     // Ako nije admin, prikaži samo odobrene
     if (!includeAll) {
@@ -53,7 +69,18 @@ export async function GET(request: NextRequest) {
       createdAt: creator.created_at,
     })) || [];
 
-    return NextResponse.json({ creators: formattedCreators });
+    const totalPages = Math.ceil((totalCount || 0) / limit);
+
+    return NextResponse.json({ 
+      creators: formattedCreators,
+      pagination: {
+        page,
+        limit,
+        total: totalCount || 0,
+        totalPages,
+        hasMore: page < totalPages,
+      }
+    });
 
   } catch (error: any) {
     console.error('Creators fetch error:', error);

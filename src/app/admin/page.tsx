@@ -770,7 +770,22 @@ export default function AdminPage() {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium text-base truncate">{creator.name}</h3>
                             <p className="text-xs text-muted truncate">{creator.location}</p>
-                            <p className="text-xs text-muted truncate">{creator.email}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs text-muted truncate">{creator.email}</p>
+                              {creator.emailVerified ? (
+                                <span className="flex-shrink-0 text-success" title="Email verifikovan">
+                                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                  </svg>
+                                </span>
+                              ) : (
+                                <span className="flex-shrink-0 text-amber-500" title="Email nije verifikovan">
+                                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                  </svg>
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="font-medium text-sm">€{creator.priceFrom}</p>
@@ -827,7 +842,24 @@ export default function AdminPage() {
                               <div>
                                 <h3 className="font-medium text-lg">{creator.name}</h3>
                                 <p className="text-sm text-muted">{creator.location}</p>
-                                <p className="text-sm text-muted">{creator.email}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm text-muted">{creator.email}</p>
+                                  {creator.emailVerified ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-success/10 text-success rounded-full text-xs">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                      </svg>
+                                      Verifikovan
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                      </svg>
+                                      Čeka verifikaciju
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div className="text-right">
                                 <p className="font-medium">€{creator.priceFrom}</p>
@@ -1515,7 +1547,24 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 p-4 bg-secondary/50 rounded-xl">
                   <div>
                     <span className="text-xs text-muted block">Email</span>
-                    <span className="text-sm font-medium break-all">{viewingCreator.email}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium break-all">{viewingCreator.email}</span>
+                      {viewingCreator.emailVerified ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-success/10 text-success rounded-full text-xs flex-shrink-0">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                          </svg>
+                          Verifikovan
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs flex-shrink-0">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                          </svg>
+                          Čeka verifikaciju
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {viewingCreator.phone && (
                     <div>
@@ -1627,6 +1676,23 @@ export default function AdminPage() {
                           )}
                         </button>
                       ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Warning if email not verified */}
+                {viewingFromPending && !viewingCreator.emailVerified && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <div className="flex items-start gap-2">
+                      <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                      </svg>
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">Email nije verifikovan</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          Ovaj kreator još uvek nije potvrdio svoju email adresu. Ako ga odobrite, neće moći da se prijavi dok ne verifikuje email.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}

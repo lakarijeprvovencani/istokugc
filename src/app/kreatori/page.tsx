@@ -27,6 +27,10 @@ export default function KreatoriPage() {
   // Categories from database
   const [categories, setCategories] = useState<string[]>([]);
   
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const creatorsPerPage = 12; // 12 kreatora po stranici
+  
   // Get creator status for pending check
   const creatorStatus = getOwnCreatorStatus();
   
@@ -201,6 +205,18 @@ export default function KreatoriPage() {
     
     return results;
   }, [allCreators, currentUser.type, selectedCategory, selectedPlatform, selectedLanguage, priceRange, searchQuery, minRating, sortBy, getCreatorRating, getCreatorReviewCount]);
+
+  // Paginacija - prikaži samo kreatore za trenutnu stranicu
+  const totalPages = Math.ceil(filteredCreators.length / creatorsPerPage);
+  const paginatedCreators = useMemo(() => {
+    const startIndex = (currentPage - 1) * creatorsPerPage;
+    return filteredCreators.slice(startIndex, startIndex + creatorsPerPage);
+  }, [filteredCreators, currentPage, creatorsPerPage]);
+
+  // Reset na prvu stranicu kad se promene filteri
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedPlatform, selectedLanguage, priceRange, searchQuery, minRating, sortBy]);
 
   const clearFilters = () => {
     setSelectedCategory('');
@@ -530,7 +546,7 @@ export default function KreatoriPage() {
                   {isLoadingCreators ? (
                     <span className="text-muted">Učitavanje...</span>
                   ) : (
-                    <>Prikazano <span className="font-medium text-foreground">{filteredCreators.length}</span> kreatora</>
+                    <>Prikazano <span className="font-medium text-foreground">{paginatedCreators.length}</span> od <span className="font-medium text-foreground">{filteredCreators.length}</span> kreatora</>
                   )}
                 </p>
               </div>
@@ -557,11 +573,75 @@ export default function KreatoriPage() {
                 <p className="text-muted">Molimo sačekajte</p>
               </div>
             ) : filteredCreators.length > 0 ? (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                {filteredCreators.map((creator) => (
-                  <CreatorCard key={creator.id} creator={creator} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+                  {paginatedCreators.map((creator) => (
+                    <CreatorCard key={creator.id} creator={creator} />
+                  ))}
+                </div>
+                
+                {/* Paginacija */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
+                    <div className="flex items-center gap-2">
+                      {/* Previous button */}
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 border border-border rounded-lg hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      
+                      {/* Page numbers */}
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                          .filter(page => {
+                            // Show first, last, and pages around current
+                            if (page === 1 || page === totalPages) return true;
+                            if (Math.abs(page - currentPage) <= 1) return true;
+                            return false;
+                          })
+                          .map((page, index, arr) => (
+                            <div key={page} className="flex items-center">
+                              {/* Add ellipsis if there's a gap */}
+                              {index > 0 && arr[index - 1] !== page - 1 && (
+                                <span className="px-2 text-muted">...</span>
+                              )}
+                              <button
+                                onClick={() => setCurrentPage(page)}
+                                className={`w-10 h-10 rounded-lg font-medium transition-colors ${
+                                  currentPage === page
+                                    ? 'bg-primary text-white'
+                                    : 'hover:bg-secondary'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                      
+                      {/* Next button */}
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-4 py-2 border border-border rounded-lg hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    <p className="text-sm text-muted">
+                      Stranica {currentPage} od {totalPages}
+                    </p>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-20">
                 <div className="text-4xl mb-4">🔍</div>
