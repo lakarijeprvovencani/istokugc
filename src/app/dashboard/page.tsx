@@ -48,6 +48,31 @@ function CreatorDashboard() {
   
   const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'poslovi' | 'poruke'>('overview');
   
+  // Read tab from URL on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      if (tab === 'reviews' || tab === 'poslovi' || tab === 'poruke') {
+        setActiveTab(tab);
+      }
+    }
+  }, []);
+  
+  // Update URL when tab changes
+  const handleTabChange = (tab: 'overview' | 'reviews' | 'poslovi' | 'poruke') => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (tab === 'overview') {
+        url.searchParams.delete('tab');
+      } else {
+        url.searchParams.set('tab', tab);
+      }
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
+  
   // Job applications state
   const [myApplications, setMyApplications] = useState<any[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(false);
@@ -497,7 +522,7 @@ function CreatorDashboard() {
   // Handle opening chat from applications tab
   const handleOpenChat = (app: any) => {
     setActiveChat(app);
-    setActiveTab('poruke');
+    handleTabChange('poruke');
   };
 
   return (
@@ -525,7 +550,7 @@ function CreatorDashboard() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                 activeTab === tab.id
                   ? 'bg-primary text-white'
@@ -1380,7 +1405,7 @@ function CreatorDashboard() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-medium">Recenzije</h3>
                   <button 
-                    onClick={() => setActiveTab('reviews')}
+                    onClick={() => handleTabChange('reviews')}
                     className="text-sm text-primary hover:underline"
                   >
                     Vidi sve →
@@ -1414,7 +1439,7 @@ function CreatorDashboard() {
             {/* Statistics section */}
             <div className="bg-white rounded-2xl p-6 border border-border">
               <h2 className="text-lg font-medium mb-6">Statistika profila</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-secondary/30 rounded-xl">
                   <div className="text-3xl font-light mb-1">{creator.profileViews || 0}</div>
                   <div className="text-sm text-muted">Pregleda profila</div>
@@ -1426,10 +1451,6 @@ function CreatorDashboard() {
                 <div className="text-center p-4 bg-secondary/30 rounded-xl">
                   <div className="text-3xl font-light mb-1">{allReviews.length}</div>
                   <div className="text-sm text-muted">Ukupno recenzija</div>
-                </div>
-                <div className="text-center p-4 bg-secondary/30 rounded-xl">
-                  <div className="text-3xl font-light mb-1">{approvedReviews.length}</div>
-                  <div className="text-sm text-muted">Odobrenih</div>
                 </div>
               </div>
             </div>
@@ -1630,6 +1651,22 @@ function BusinessDashboard() {
       }
     }
   }, []);
+  
+  // Update URL when tab changes
+  const handleTabChange = (tab: 'pregled' | 'poslovi' | 'poruke') => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (tab === 'pregled') {
+        url.searchParams.delete('tab');
+        url.searchParams.delete('action');
+      } else {
+        url.searchParams.set('tab', tab);
+        url.searchParams.delete('action');
+      }
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
   
   // Fetch all applications for messages tab
   useEffect(() => {
@@ -1867,7 +1904,7 @@ function BusinessDashboard() {
         {/* Tab Navigation */}
         <div className="flex gap-1 mb-8 border-b border-border">
           <button
-            onClick={() => setActiveTab('pregled')}
+            onClick={() => handleTabChange('pregled')}
             className={`px-6 py-3 text-sm font-medium transition-colors relative ${
               activeTab === 'pregled' 
                 ? 'text-primary' 
@@ -1880,7 +1917,7 @@ function BusinessDashboard() {
             )}
           </button>
           <button
-            onClick={() => setActiveTab('poslovi')}
+            onClick={() => handleTabChange('poslovi')}
             className={`px-6 py-3 text-sm font-medium transition-colors relative ${
               activeTab === 'poslovi' 
                 ? 'text-primary' 
@@ -1898,7 +1935,7 @@ function BusinessDashboard() {
             )}
           </button>
           <button
-            onClick={() => setActiveTab('poruke')}
+            onClick={() => handleTabChange('poruke')}
             className={`px-6 py-3 text-sm font-medium transition-colors relative ${
               activeTab === 'poruke' 
                 ? 'text-primary' 
@@ -2497,7 +2534,7 @@ function BusinessDashboard() {
               
               // Then switch to messages tab
               setActiveChat(app);
-              setActiveTab('poruke');
+              handleTabChange('poruke');
               // Also refresh applications for messages tab
               setAllApplications(prev => {
                 const exists = prev.find(a => a.id === app.id);
@@ -3002,6 +3039,11 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   const [jobApplications, setJobApplications] = useState<any[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(false);
   
+  // Track engaged creators per job
+  const [engagedCreators, setEngagedCreators] = useState<{[jobId: string]: {id: string, name: string, applicationId: string} | null}>({});
+  
+  // Reopen job confirmation
+  const [reopenConfirmJob, setReopenConfirmJob] = useState<any | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -3032,27 +3074,44 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     fetchCategories();
   }, []);
   
-  // Fetch application counts for all jobs
+  // Fetch application counts and engaged creators for all jobs
   useEffect(() => {
-    const fetchApplicationCounts = async () => {
+    const fetchApplicationData = async () => {
       if (!jobs || jobs.length === 0) return;
       
       const counts: {[key: string]: number} = {};
+      const engaged: {[key: string]: {id: string, name: string, applicationId: string} | null} = {};
+      
       for (const job of jobs) {
         try {
           const response = await fetch(`/api/job-applications?jobId=${job.id}`);
           if (response.ok) {
             const data = await response.json();
-            counts[job.id] = (data.applications || []).length;
+            const apps = data.applications || [];
+            counts[job.id] = apps.length;
+            
+            // Find engaged creator for this job
+            const engagedApp = apps.find((app: any) => app.status === 'engaged');
+            if (engagedApp) {
+              engaged[job.id] = {
+                id: engagedApp.creatorId,
+                name: engagedApp.creator?.name || 'Kreator',
+                applicationId: engagedApp.id
+              };
+            } else {
+              engaged[job.id] = null;
+            }
           }
         } catch (error) {
           counts[job.id] = 0;
+          engaged[job.id] = null;
         }
       }
       setApplicationCounts(counts);
+      setEngagedCreators(engaged);
     };
     
-    fetchApplicationCounts();
+    fetchApplicationData();
   }, [jobs]);
   
   const resetForm = () => {
@@ -3195,6 +3254,40 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     }
   };
   
+  // Reopen a closed job
+  const handleReopenJob = async (jobId: string, rejectEngagedCreator: boolean = false) => {
+    try {
+      // If there's an engaged creator, reject their application first
+      if (rejectEngagedCreator && engagedCreators[jobId]) {
+        await fetch('/api/job-applications', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            applicationId: engagedCreators[jobId]!.applicationId, 
+            status: 'rejected' 
+          }),
+        });
+      }
+      
+      // Reopen the job
+      const response = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, status: 'open' }),
+      });
+      
+      if (response.ok) {
+        setJobs(jobs.map(j => j.id === jobId ? { ...j, status: 'open' } : j));
+        // Clear engaged creator for this job
+        if (rejectEngagedCreator) {
+          setEngagedCreators(prev => ({ ...prev, [jobId]: null }));
+        }
+      }
+    } catch (error) {
+      console.error('Error reopening job:', error);
+    }
+  };
+  
   // View applications for a job
   const handleViewApplications = async (jobId: string) => {
     setViewingJobApplications(jobId);
@@ -3327,7 +3420,10 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     return 'Po dogovoru';
   };
   
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, jobId?: string) => {
+    // Check if job has engaged creator
+    const hasEngaged = jobId && engagedCreators[jobId];
+    
     switch (status) {
       case 'pending':
         return <span className="px-3 py-1.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">Čeka odobrenje</span>;
@@ -3336,8 +3432,11 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       case 'in_progress':
         return <span className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-600 rounded-full">U toku</span>;
       case 'completed':
-        return <span className="px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-500 rounded-full">Završen</span>;
+        return <span className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-full">Završen</span>;
       case 'closed':
+        if (hasEngaged) {
+          return <span className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-full">Angažovan</span>;
+        }
         return <span className="px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-500 rounded-full">Zatvoren</span>;
       default:
         return null;
@@ -3443,7 +3542,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
                     <h3 className="font-medium text-lg truncate">{job.title}</h3>
-                    {getStatusBadge(job.status)}
+                    {getStatusBadge(job.status, job.id)}
                   </div>
                   <p className="text-sm text-muted">{job.businessName} • {job.category}</p>
                 </div>
@@ -3461,24 +3560,23 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                 ))}
               </div>
               
-              {/* Prijave dugme - istaknuto */}
-              <div className="mb-4">
-                <button
-                  onClick={() => handleViewApplications(job.id)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary/5 hover:bg-primary/10 border-2 border-primary/20 hover:border-primary/40 text-primary rounded-xl font-medium transition-all"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Pogledaj prijave
-                  <span className="ml-1 px-2.5 py-0.5 bg-primary text-white text-sm rounded-full">
-                    {applicationCounts[job.id] !== undefined ? applicationCounts[job.id] : '...'}
-                  </span>
-                </button>
-              </div>
-              
               <div className="flex items-center justify-between pt-4 border-t border-border">
-                <span className="text-xs text-muted">Kreirano: {formatDate(job.createdAt)}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted">Kreirano: {formatDate(job.createdAt)}</span>
+                  {/* Prijave badge */}
+                  <button
+                    onClick={() => handleViewApplications(job.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Prijave
+                    <span className="px-1.5 py-0.5 bg-white/20 rounded text-[10px]">
+                      {applicationCounts[job.id] !== undefined ? applicationCounts[job.id] : '...'}
+                    </span>
+                  </button>
+                </div>
                 <div className="flex items-center gap-2">
                   {job.status === 'open' && (
                     <button
@@ -3486,6 +3584,21 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       className="text-xs px-3 py-1.5 text-muted hover:text-foreground border border-border rounded-lg hover:bg-secondary transition-colors"
                     >
                       Zatvori
+                    </button>
+                  )}
+                  {(job.status === 'closed' || job.status === 'completed') && (
+                    <button
+                      onClick={() => {
+                        // Check if has engaged creator
+                        if (engagedCreators[job.id]) {
+                          setReopenConfirmJob(job);
+                        } else {
+                          handleReopenJob(job.id);
+                        }
+                      }}
+                      className="text-xs px-3 py-1.5 text-success hover:bg-success/10 border border-success/20 rounded-lg transition-colors"
+                    >
+                      Otvori
                     </button>
                   )}
                   {job.status !== 'closed' && job.status !== 'completed' && (
@@ -3902,6 +4015,48 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         </div>
       )}
       
+      {/* Reopen Job Confirmation Modal */}
+      {reopenConfirmJob && engagedCreators[reopenConfirmJob.id] && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="p-6">
+              {/* Warning icon */}
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              
+              <h3 className="text-lg font-medium text-center mb-2">Pažnja!</h3>
+              <p className="text-center text-muted mb-4">
+                Ako ponovo otvorite ovu poziciju, kreator <strong className="text-foreground">{engagedCreators[reopenConfirmJob.id]?.name}</strong> više neće biti angažovan na ovom projektu.
+              </p>
+              <p className="text-center text-sm text-muted mb-6">
+                Kreator će dobiti obaveštenje da je njegov angažman otkazan.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setReopenConfirmJob(null)}
+                  className="flex-1 px-4 py-3 border border-border rounded-xl hover:bg-secondary transition-colors"
+                >
+                  Otkaži
+                </button>
+                <button
+                  onClick={() => {
+                    handleReopenJob(reopenConfirmJob.id, true);
+                    setReopenConfirmJob(null);
+                  }}
+                  className="flex-1 px-4 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors font-medium"
+                >
+                  Da, otvori
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 }
@@ -3925,7 +4080,9 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isEngaging, setIsEngaging] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
   const [engageSuccess, setEngageSuccess] = useState(false);
+  const [rejectSuccess, setRejectSuccess] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -3970,6 +4127,37 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
       console.error('Error engaging creator:', error);
     } finally {
       setIsEngaging(false);
+    }
+  };
+  
+  // Handle reject creator
+  const handleReject = async () => {
+    if (!activeChat || isRejecting) return;
+    
+    setIsRejecting(true);
+    try {
+      // Update application status to 'rejected'
+      await fetch('/api/job-applications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId: activeChat.id, status: 'rejected' }),
+      });
+      
+      // Update local state - remove from active conversations
+      if (setApplications) {
+        setApplications(applications.filter(app => app.id !== activeChat.id));
+      }
+      
+      setRejectSuccess(true);
+      setTimeout(() => {
+        setRejectSuccess(false);
+        setActiveChat(null); // Go back to conversation list
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error rejecting creator:', error);
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -4179,33 +4367,57 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
                 )}
               </div>
 
-              {/* Engage button - only for accepted applications */}
-              {activeChat.status === 'accepted' && (
+              {/* Action buttons - only for accepted applications */}
+              {activeChat.status === 'accepted' && !rejectSuccess && (
                 <div className="px-4 py-2 border-t border-border flex items-center justify-between">
-                  <span className="text-xs text-muted">Dogovor postignut?</span>
-                  <button
-                    onClick={handleEngage}
-                    disabled={isEngaging}
-                    className="px-4 py-1.5 bg-success text-white rounded-lg text-xs font-medium hover:bg-success/90 disabled:opacity-50 transition-colors flex items-center gap-1.5"
-                  >
-                    {isEngaging ? (
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                      <>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Angažuj
-                      </>
-                    )}
-                  </button>
+                  <span className="text-xs text-muted">Da li želite saradnju?</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleEngage}
+                      disabled={isEngaging || isRejecting}
+                      className="px-3 py-1.5 bg-success text-white rounded-lg text-xs font-medium hover:bg-success/90 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                    >
+                      {isEngaging ? (
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Angažuj
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleReject}
+                      disabled={isRejecting || isEngaging}
+                      className="px-3 py-1.5 text-error border border-error/30 rounded-lg text-xs font-medium hover:bg-error/5 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                    >
+                      {isRejecting ? (
+                        <div className="w-3 h-3 border-2 border-error border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          Odbij
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
               
-              {/* Success message */}
+              {/* Success messages */}
               {engageSuccess && (
                 <div className="px-4 py-1.5 bg-success/10 text-success text-xs text-center">
                   ✓ Kreator je angažovan!
+                </div>
+              )}
+              
+              {rejectSuccess && (
+                <div className="px-4 py-1.5 bg-error/10 text-error text-xs text-center">
+                  ✓ Kreator je odbijen
                 </div>
               )}
               

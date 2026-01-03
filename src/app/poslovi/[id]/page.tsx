@@ -44,6 +44,11 @@ export default function JobDetailPage() {
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
   
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  
   // Fetch job details
   useEffect(() => {
     const fetchJob = async () => {

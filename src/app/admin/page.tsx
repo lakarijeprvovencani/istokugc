@@ -2980,6 +2980,7 @@ function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal 
   const [categories, setCategories] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [editingJob, setEditingJob] = useState<any | null>(null);
+  const [viewingJob, setViewingJob] = useState<any | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'open' | 'closed'>('all');
   
@@ -3307,10 +3308,10 @@ function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal 
                         {job.status === 'open' ? 'Zatvori' : 'Otvori'}
                       </button>
                       <button
-                        onClick={() => handleEditJob(job)}
+                        onClick={() => setViewingJob(job)}
                         className="text-xs px-3 py-1.5 text-primary hover:bg-primary/10 border border-primary/20 rounded-lg transition-colors"
                       >
-                        Uredi
+                        Pogledaj
                       </button>
                     </>
                   )}
@@ -3543,6 +3544,134 @@ function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal 
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      
+      {/* View Job Modal */}
+      {viewingJob && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="p-6 border-b border-border flex items-center justify-between">
+              <h2 className="text-xl font-medium">Detalji posla</h2>
+              <button
+                onClick={() => setViewingJob(null)}
+                className="p-2 hover:bg-secondary rounded-xl transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Title and Status */}
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="text-2xl font-medium">{viewingJob.title}</h3>
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    viewingJob.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                    viewingJob.status === 'open' ? 'bg-success/10 text-success' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {viewingJob.status === 'pending' ? 'Čeka odobrenje' :
+                     viewingJob.status === 'open' ? 'Aktivan' : 'Zatvoren'}
+                  </span>
+                </div>
+                <p className="text-muted text-sm">
+                  {viewingJob.businessName || 'Biznis'} • {viewingJob.category}
+                </p>
+              </div>
+              
+              {/* Budget */}
+              <div className="bg-secondary/50 rounded-xl p-4">
+                <p className="text-sm text-muted mb-1">Budžet</p>
+                <p className="text-xl font-medium">
+                  {viewingJob.budgetMin && viewingJob.budgetMax 
+                    ? `€${viewingJob.budgetMin} - €${viewingJob.budgetMax}`
+                    : viewingJob.budgetMin 
+                      ? `Od €${viewingJob.budgetMin}`
+                      : 'Nije navedeno'
+                  }
+                  <span className="text-sm text-muted ml-2">
+                    {viewingJob.budgetType === 'fixed' ? 'fiksno' : 'po satu'}
+                  </span>
+                </p>
+              </div>
+              
+              {/* Description */}
+              <div>
+                <h4 className="font-medium mb-2">Opis posla</h4>
+                <p className="text-foreground whitespace-pre-wrap">{viewingJob.description}</p>
+              </div>
+              
+              {/* Details */}
+              <div className="grid grid-cols-2 gap-4">
+                {viewingJob.platforms?.length > 0 && (
+                  <div>
+                    <p className="text-sm text-muted mb-2">Platforme</p>
+                    <div className="flex flex-wrap gap-2">
+                      {viewingJob.platforms.map((platform: string) => (
+                        <span key={platform} className="px-3 py-1 bg-secondary rounded-full text-sm">
+                          {platform}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {viewingJob.duration && (
+                  <div>
+                    <p className="text-sm text-muted mb-2">Trajanje</p>
+                    <p className="font-medium">{viewingJob.duration}</p>
+                  </div>
+                )}
+                {viewingJob.experienceLevel && (
+                  <div>
+                    <p className="text-sm text-muted mb-2">Nivo iskustva</p>
+                    <p className="font-medium">{viewingJob.experienceLevel}</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Date */}
+              <div className="text-sm text-muted pt-4 border-t border-border">
+                Kreirano: {new Date(viewingJob.createdAt).toLocaleDateString('sr-RS', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </div>
+            </div>
+            
+            {/* Footer with actions */}
+            <div className="p-6 border-t border-border flex gap-3 justify-end">
+              {viewingJob.status === 'pending' && (
+                <>
+                  <button
+                    onClick={() => {
+                      handleRejectJob(viewingJob.id);
+                      setViewingJob(null);
+                    }}
+                    className="px-4 py-2 border border-error text-error rounded-xl hover:bg-error/5 transition-colors"
+                  >
+                    Odbij
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleApproveJob(viewingJob.id);
+                      setViewingJob(null);
+                    }}
+                    className="px-4 py-2 bg-success text-white rounded-xl hover:bg-success/90 transition-colors"
+                  >
+                    Odobri
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => setViewingJob(null)}
+                className="px-6 py-2 border border-border rounded-xl hover:bg-secondary transition-colors"
+              >
+                Zatvori
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -70,6 +70,16 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
 
+    // Check if this is a new view (this business hasn't viewed this creator before)
+    const { data: existingView } = await supabase
+      .from('creator_views')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('creator_id', creatorId)
+      .single();
+    
+    const isNewView = !existingView;
+
     // Upsert - ako već postoji, ažuriraj viewed_at
     const { error } = await supabase
       .from('creator_views')
@@ -88,6 +98,22 @@ export async function POST(request: NextRequest) {
       // If table doesn't exist, silently ignore
       console.error('Error recording view:', error);
       return NextResponse.json({ success: true });
+    }
+
+    // Increment profile_views only for new unique views
+    if (isNewView) {
+      const { data: creator } = await supabase
+        .from('creators')
+        .select('profile_views')
+        .eq('id', creatorId)
+        .single();
+      
+      if (creator) {
+        await supabase
+          .from('creators')
+          .update({ profile_views: (creator.profile_views || 0) + 1 })
+          .eq('id', creatorId);
+      }
     }
 
     return NextResponse.json({ success: true });
