@@ -219,9 +219,9 @@ export default function PosloviPage() {
               <h1 className="text-4xl lg:text-5xl font-light mb-4">Poslovi</h1>
               <p className="text-muted text-lg">Pronađi savršen projekat za sebe</p>
             </div>
-            {(currentUser.type === 'business' || currentUser.type === 'admin') && (
+            {currentUser.type === 'business' && (
               <Link
-                href={currentUser.type === 'admin' ? '/admin?tab=poslovi&action=new' : '/dashboard?tab=poslovi&action=new'}
+                href="/dashboard?tab=poslovi&action=new"
                 className="hidden sm:flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -336,9 +336,9 @@ export default function PosloviPage() {
               </p>
               
               {/* Mobile add job button */}
-              {(currentUser.type === 'business' || currentUser.type === 'admin') && (
+              {currentUser.type === 'business' && (
                 <Link
-                  href={currentUser.type === 'admin' ? '/admin?tab=poslovi&action=new' : '/dashboard?tab=poslovi&action=new'}
+                  href="/dashboard?tab=poslovi&action=new"
                   className="sm:hidden flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
