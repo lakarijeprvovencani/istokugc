@@ -1741,32 +1741,35 @@ function BusinessDashboard() {
     fetchBusinessData();
   }, [currentUser.businessId, currentUser.subscriptionStatus]);
 
+  // Function to fetch jobs - can be called for refresh
+  const refreshJobs = async () => {
+    if (!currentUser.businessId) return;
+    
+    console.log('Business Dashboard: Fetching jobs for businessId:', currentUser.businessId);
+    setIsLoadingJobs(true);
+    try {
+      const response = await fetch(`/api/jobs?businessId=${currentUser.businessId}`);
+      console.log('Business Dashboard: Response status:', response.status);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Business Dashboard: Received jobs:', data.jobs?.length, data.jobs);
+        setMyJobs(data.jobs || []);
+      } else {
+        const errorText = await response.text();
+        console.error('Business Dashboard: Failed to fetch jobs:', errorText);
+      }
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  };
+  
   // Fetch jobs when tab is active
   useEffect(() => {
-    const fetchJobs = async () => {
-      if (activeTab !== 'poslovi' || !currentUser.businessId) return;
-      
-      console.log('Business Dashboard: Fetching jobs for businessId:', currentUser.businessId);
-      setIsLoadingJobs(true);
-      try {
-        const response = await fetch(`/api/jobs?businessId=${currentUser.businessId}`);
-        console.log('Business Dashboard: Response status:', response.status);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Business Dashboard: Received jobs:', data.jobs?.length, data.jobs);
-          setMyJobs(data.jobs || []);
-        } else {
-          const errorText = await response.text();
-          console.error('Business Dashboard: Failed to fetch jobs:', errorText);
-        }
-      } catch (error) {
-        console.error('Error fetching jobs:', error);
-      } finally {
-        setIsLoadingJobs(false);
-      }
-    };
-    
-    fetchJobs();
+    if (activeTab === 'poslovi') {
+      refreshJobs();
+    }
   }, [activeTab, currentUser.businessId]);
   
   // Handle review delete
@@ -2556,6 +2559,7 @@ function BusinessDashboard() {
             businessId={currentUser.businessId || ''}
             jobs={myJobs}
             setApplications={setAllApplications}
+            onRefresh={refreshJobs}
           />
         )}
 
@@ -3025,8 +3029,8 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   const [editingJob, setEditingJob] = useState<any | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
-  // Sub-tab state: 'active' or 'completed'
-  const [jobsFilter, setJobsFilter] = useState<'active' | 'completed'>('active');
+  // Sub-tab state: 'active', 'in_progress', or 'completed'
+  const [jobsFilter, setJobsFilter] = useState<'active' | 'in_progress' | 'completed'>('active');
   
   // Application counts per job
   const [applicationCounts, setApplicationCounts] = useState<{[key: string]: number}>({});
@@ -3261,6 +3265,23 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     }
   };
   
+  // Mark job as completed
+  const handleCompleteJob = async (jobId: string) => {
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, status: 'completed' }),
+      });
+      if (response.ok) {
+        setJobs(jobs.map(j => j.id === jobId ? { ...j, status: 'completed' } : j));
+        setSuccessMessage('Posao je označen kao završen!');
+      }
+    } catch (error) {
+      console.error('Error completing job:', error);
+    }
+  };
+  
   // Submit review for engaged creator
   const handleSubmitReview = async () => {
     if (!reviewModal || !businessId) return;
@@ -3474,10 +3495,10 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       case 'in_progress':
         return <span className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-600 rounded-full">U toku</span>;
       case 'completed':
-        return <span className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-full">Završen</span>;
+        return <span className="px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-600 rounded-full">Završen</span>;
       case 'closed':
         if (hasEngaged) {
-          return <span className="px-3 py-1.5 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">Angažovan</span>;
+          return <span className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-600 rounded-full">U toku</span>;
         }
         return <span className="px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-500 rounded-full">Zatvoren</span>;
       default:
@@ -3536,45 +3557,68 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         </button>
       </div>
       
-      {/* Sub-tabs: Aktivni / Završeni */}
-      <div className="flex gap-2 mb-6">
+      {/* Sub-tabs: Aktivni / U toku / Završeni */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
         <button
           onClick={() => setJobsFilter('active')}
-          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
             jobsFilter === 'active'
               ? 'bg-primary text-white'
               : 'bg-white border border-border text-muted hover:bg-secondary'
           }`}
         >
-          Aktivni poslovi
+          Aktivni
           <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
             jobsFilter === 'active' ? 'bg-white/20' : 'bg-secondary'
           }`}>
-            {jobs.filter(j => j.status !== 'closed' && j.status !== 'completed').length}
+            {jobs.filter(j => j.status === 'open' || j.status === 'pending').length}
+          </span>
+        </button>
+        <button
+          onClick={() => setJobsFilter('in_progress')}
+          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+            jobsFilter === 'in_progress'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white border border-border text-muted hover:bg-secondary'
+          }`}
+        >
+          U toku
+          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+            jobsFilter === 'in_progress' ? 'bg-white/20' : 'bg-secondary'
+          }`}>
+            {jobs.filter(j => j.status === 'closed' && engagedCreators[j.id]).length}
           </span>
         </button>
         <button
           onClick={() => setJobsFilter('completed')}
-          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
             jobsFilter === 'completed'
               ? 'bg-slate-600 text-white'
               : 'bg-white border border-border text-muted hover:bg-secondary'
           }`}
         >
-          Završeni poslovi
+          Završeni
           <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
             jobsFilter === 'completed' ? 'bg-white/20' : 'bg-secondary'
           }`}>
-            {jobs.filter(j => j.status === 'closed' || j.status === 'completed').length}
+            {jobs.filter(j => j.status === 'completed' || (j.status === 'closed' && !engagedCreators[j.id])).length}
           </span>
         </button>
       </div>
 
       {/* Jobs List */}
       {(() => {
-        const filteredJobs = jobsFilter === 'active'
-          ? jobs.filter(j => j.status !== 'closed' && j.status !== 'completed')
-          : jobs.filter(j => j.status === 'closed' || j.status === 'completed');
+        let filteredJobs: typeof jobs = [];
+        if (jobsFilter === 'active') {
+          // Aktivni = open ili pending
+          filteredJobs = jobs.filter(j => j.status === 'open' || j.status === 'pending');
+        } else if (jobsFilter === 'in_progress') {
+          // U toku = closed sa angažovanim kreatorom
+          filteredJobs = jobs.filter(j => j.status === 'closed' && engagedCreators[j.id]);
+        } else {
+          // Završeni = completed ili closed bez angažovanog kreatora
+          filteredJobs = jobs.filter(j => j.status === 'completed' || (j.status === 'closed' && !engagedCreators[j.id]));
+        }
         
         return filteredJobs.length > 0 ? (
         <div className="space-y-4">
@@ -3626,6 +3670,18 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       className="text-xs px-3 py-1.5 text-muted hover:text-foreground border border-border rounded-lg hover:bg-secondary transition-colors"
                     >
                       Zatvori
+                    </button>
+                  )}
+                  {/* Završi posao - samo za poslove u toku (closed + engaged) */}
+                  {job.status === 'closed' && engagedCreators[job.id] && (
+                    <button
+                      onClick={() => handleCompleteJob(job.id)}
+                      className="text-xs px-3 py-1.5 text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Završi
                     </button>
                   )}
                   {(job.status === 'closed' || job.status === 'completed') && engagedCreators[job.id] && !submittedReviews[job.id] && (
@@ -3709,17 +3765,21 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       ) : (
         <div className="text-center py-16 bg-white rounded-2xl border border-border">
           <div className="text-5xl mb-4">
-            {jobsFilter === 'active' ? '📋' : '✅'}
+            {jobsFilter === 'active' ? '📋' : jobsFilter === 'in_progress' ? '🔄' : '✅'}
           </div>
           <h3 className="text-lg font-medium mb-2">
             {jobsFilter === 'active' 
               ? 'Nemate aktivnih poslova' 
-              : 'Nemate završenih poslova'}
+              : jobsFilter === 'in_progress'
+                ? 'Nemate poslova u toku'
+                : 'Nemate završenih poslova'}
           </h3>
           <p className="text-sm text-muted mb-4">
             {jobsFilter === 'active' 
               ? 'Kreirajte novi posao i pronađite savršenog kreatora' 
-              : 'Ovde će se pojaviti poslovi koje zatvorite'}
+              : jobsFilter === 'in_progress'
+                ? 'Kada angažujete kreatora, posao će se pojaviti ovde'
+                : 'Ovde će se pojaviti poslovi koje označite kao završene'}
           </p>
           {jobsFilter === 'active' && (
             <button
@@ -4217,9 +4277,10 @@ interface BusinessMessagesTabProps {
   jobs: any[];
   onEngageCreator?: (applicationId: string, jobId: string) => void;
   setApplications?: (apps: any[]) => void;
+  onRefresh: () => void;
 }
 
-function BusinessMessagesTab({ applications, activeChat, setActiveChat, businessId, jobs, onEngageCreator, setApplications }: BusinessMessagesTabProps) {
+function BusinessMessagesTab({ applications, activeChat, setActiveChat, businessId, jobs, onEngageCreator, setApplications, onRefresh }: BusinessMessagesTabProps) {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -4228,6 +4289,7 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
   const [isRejecting, setIsRejecting] = useState(false);
   const [engageSuccess, setEngageSuccess] = useState(false);
   const [rejectSuccess, setRejectSuccess] = useState(false);
+  const [showRejectConfirm, setShowRejectConfirm] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -4275,8 +4337,21 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
     }
   };
   
-  // Handle reject creator
-  const handleReject = async () => {
+  // Handle reject creator - check if engaged first
+  const handleRejectClick = () => {
+    if (!activeChat) return;
+    
+    // If this is an engaged creator, show confirmation modal
+    if (activeChat.status === 'engaged') {
+      setShowRejectConfirm(true);
+    } else {
+      // Regular rejection for accepted creators
+      handleReject(false);
+    }
+  };
+  
+  // Handle actual rejection
+  const handleReject = async (reopenJob: boolean) => {
     if (!activeChat || isRejecting) return;
     
     setIsRejecting(true);
@@ -4288,15 +4363,28 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
         body: JSON.stringify({ applicationId: activeChat.id, status: 'rejected' }),
       });
       
+      // If this was an engaged creator, update job status
+      if (activeChat.status === 'engaged') {
+        const newStatus = reopenJob ? 'open' : 'closed';
+        await fetch('/api/jobs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId: activeChat.jobId, status: newStatus }),
+        });
+      }
+      
       // Update local state - remove from active conversations
       if (setApplications) {
         setApplications(applications.filter(app => app.id !== activeChat.id));
       }
       
+      setShowRejectConfirm(false);
       setRejectSuccess(true);
       setTimeout(() => {
         setRejectSuccess(false);
         setActiveChat(null); // Go back to conversation list
+        // Refresh jobs
+        onRefresh();
       }, 1500);
       
     } catch (error) {
@@ -4534,7 +4622,7 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
                       )}
                     </button>
                     <button
-                      onClick={handleReject}
+                      onClick={handleRejectClick}
                       disabled={isRejecting || isEngaging}
                       className="px-3 py-1.5 text-error border border-error/30 rounded-lg text-xs font-medium hover:bg-error/5 disabled:opacity-50 transition-colors flex items-center gap-1.5"
                     >
@@ -4566,13 +4654,31 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
                 </div>
               )}
               
-              {/* Engaged status */}
-              {activeChat.status === 'engaged' && !engageSuccess && (
-                <div className="px-4 py-1.5 bg-primary/5 text-primary text-xs text-center flex items-center justify-center gap-1">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Angažovan
+              {/* Engaged status with reject option */}
+              {activeChat.status === 'engaged' && !engageSuccess && !rejectSuccess && (
+                <div className="px-4 py-2 border-t border-border flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs text-primary">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Angažovan
+                  </div>
+                  <button
+                    onClick={handleRejectClick}
+                    disabled={isRejecting}
+                    className="px-3 py-1.5 text-error border border-error/30 rounded-lg text-xs font-medium hover:bg-error/5 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                  >
+                    {isRejecting ? (
+                      <div className="w-3 h-3 border-2 border-error border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Odbij
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
 
@@ -4612,6 +4718,57 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
           )}
         </div>
       </div>
+      
+      {/* Modal za potvrdu odbijanja angažovanog kreatora */}
+      {showRejectConfirm && activeChat && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Odbiti angažovanog kreatora?</h3>
+              <p className="text-muted text-sm">
+                Kreator <span className="font-medium">{activeChat.creatorName}</span> je već angažovan za ovaj posao.
+                Da li želite da posao ponovo bude aktivan ili da ga zatvorite?
+              </p>
+            </div>
+            <div className="space-y-3">
+              <button
+                onClick={() => handleReject(true)}
+                disabled={isRejecting}
+                className="w-full px-4 py-3 bg-success text-white rounded-xl hover:bg-success/90 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                {isRejecting ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Ponovo otvori posao
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => handleReject(false)}
+                disabled={isRejecting}
+                className="w-full px-4 py-3 border border-border text-foreground rounded-xl hover:bg-secondary transition-colors font-medium"
+              >
+                Zatvori posao
+              </button>
+              <button
+                onClick={() => setShowRejectConfirm(false)}
+                className="w-full px-4 py-3 text-muted hover:text-foreground transition-colors text-sm"
+              >
+                Otkaži
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
