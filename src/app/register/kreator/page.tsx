@@ -969,6 +969,13 @@ export default function RegisterCreatorPage() {
             >
               Idi na prijavu
             </button>
+            
+            <button
+              onClick={() => router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`)}
+              className="w-full mt-3 px-6 py-3 text-muted hover:text-foreground transition-colors text-sm"
+            >
+              Nije stigao email? Pošalji ponovo
+            </button>
           </div>
         </div>
       )}

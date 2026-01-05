@@ -326,6 +326,12 @@ export default function LoginPage() {
               Registruj se
             </Link>
           </p>
+          
+          <p className="text-center text-sm text-muted mt-3">
+            <Link href="/auth/verify-email" className="text-primary hover:underline">
+              Nisam dobio verifikacioni email
+            </Link>
+          </p>
         </div>
       </div>
     </div>
