@@ -5863,8 +5863,10 @@ interface CreatorApplicationsTabProps {
 }
 
 function CreatorApplicationsTab({ applications, setApplications, isLoading, creatorId, onOpenChat }: CreatorApplicationsTabProps) {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'engaged' | 'completed'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'engaged' | 'completed' | 'withdrawn'>('all');
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  const [cancelEngagementId, setCancelEngagementId] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   
   const handleWithdraw = async (applicationId: string) => {
     try {
@@ -5879,6 +5881,37 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
       console.error('Error withdrawing application:', error);
     }
     setWithdrawingId(null);
+  };
+  
+  // Cancel engagement (for engaged status)
+  const handleCancelEngagement = async (applicationId: string, jobId: string) => {
+    setIsCancelling(true);
+    try {
+      // Update application status to withdrawn
+      const response = await fetch('/api/job-applications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId, status: 'withdrawn' }),
+      });
+      
+      if (response.ok) {
+        // Reopen the job so business can find new creator
+        await fetch('/api/jobs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId, status: 'open' }),
+        });
+        
+        // Update local state
+        setApplications(applications.map(a => 
+          a.id === applicationId ? { ...a, status: 'withdrawn' } : a
+        ));
+      }
+    } catch (error) {
+      console.error('Error cancelling engagement:', error);
+    }
+    setIsCancelling(false);
+    setCancelEngagementId(null);
   };
   
   const formatDate = (dateString: string) => {
@@ -5930,6 +5963,7 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
     engaged: applications.filter(a => a.status === 'engaged').length,
     completed: applications.filter(a => a.status === 'completed').length,
     rejected: applications.filter(a => a.status === 'rejected').length,
+    withdrawn: applications.filter(a => a.status === 'withdrawn').length,
     cancelled: applications.filter(a => a.status === 'cancelled').length,
   };
 
@@ -5992,6 +6026,7 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
           <option value="engaged">Angažovan ({stats.engaged})</option>
           <option value="completed">Uspešno završeno ({stats.completed})</option>
           <option value="rejected">Odbijeno ({stats.rejected})</option>
+          {stats.withdrawn > 0 && <option value="withdrawn">Odustao ({stats.withdrawn})</option>}
           {stats.cancelled > 0 && <option value="cancelled">Posao obrisan ({stats.cancelled})</option>}
         </select>
       </div>
@@ -6063,24 +6098,67 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
                 </div>
               )}
               
-              {/* Engaged - show chat link */}
+              {/* Engaged - show chat link and cancel option */}
               {app.status === 'engaged' && (
-                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
-                  <span className="text-xs text-primary font-medium flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Angažovan
-                  </span>
-                  <button
-                    onClick={() => onOpenChat(app)}
-                    className="px-3 py-1.5 border border-primary text-primary rounded-lg text-xs font-medium hover:bg-primary/5 transition-colors flex items-center gap-1.5"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    Poruke
-                  </button>
+                <div className="mt-3 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-primary font-medium flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Angažovan
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCancelEngagementId(app.id)}
+                        className="text-xs text-error hover:underline"
+                      >
+                        Odustani
+                      </button>
+                      <button
+                        onClick={() => onOpenChat(app)}
+                        className="px-3 py-1.5 border border-primary text-primary rounded-lg text-xs font-medium hover:bg-primary/5 transition-colors flex items-center gap-1.5"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        Poruke
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Cancel engagement confirmation */}
+                  {cancelEngagementId === app.id && (
+                    <div className="mt-4 p-4 bg-error/5 border border-error/20 rounded-xl">
+                      <p className="text-sm text-foreground mb-2 font-medium">Odustajanje od angažmana</p>
+                      <p className="text-sm text-muted mb-3">
+                        Da li ste sigurni da želite da odustanete od ovog posla? 
+                        Biznis će biti obavešten i moći će da pronađe drugog kreatora.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleCancelEngagement(app.id, app.jobId)}
+                          disabled={isCancelling}
+                          className="px-4 py-2 bg-error text-white rounded-lg text-sm hover:bg-error/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {isCancelling ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Obrađujem...
+                            </>
+                          ) : (
+                            'Da, odustani'
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setCancelEngagementId(null)}
+                          className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-secondary transition-colors"
+                        >
+                          Otkaži
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               
