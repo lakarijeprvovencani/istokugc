@@ -55,41 +55,30 @@ function VerifyEmailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <span className="text-3xl font-bold text-white">
-              UGC<span className="text-amber-500">Select</span>
-            </span>
-          </Link>
-        </div>
-
-        {/* Card */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-2xl p-8 shadow-xl">
+    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center py-12 lg:py-16 bg-secondary/30">
+      <div className="w-full max-w-md px-6">
+        <div className="bg-white rounded-3xl border border-border shadow-sm p-8">
           {/* Icon */}
           <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-white text-center mb-2">
-            Potvrdi email adresu
-          </h1>
-          
-          <p className="text-gray-400 text-center mb-6">
-            Poslali smo ti email sa linkom za verifikaciju. 
-            Proveri inbox i <span className="text-amber-500">spam folder</span>.
-          </p>
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-light mb-2">Potvrdi email adresu</h1>
+            <p className="text-muted text-sm">
+              Poslali smo ti email sa linkom za verifikaciju. 
+              Proveri inbox i <span className="text-primary font-medium">spam folder</span>.
+            </p>
+          </div>
 
           {/* Email input */}
           {!email && (
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="text-sm text-muted mb-2 block">
                 Email adresa
               </label>
               <input
@@ -97,23 +86,23 @@ function VerifyEmailContent() {
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 placeholder="tvoj@email.com"
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-4 py-3.5 border border-border rounded-xl focus:outline-none focus:border-muted"
               />
             </div>
           )}
 
           {email && (
-            <div className="mb-4 p-3 bg-gray-700/30 rounded-lg">
-              <p className="text-sm text-gray-400">Email poslat na:</p>
-              <p className="text-white font-medium">{email}</p>
+            <div className="mb-4 p-4 bg-secondary rounded-xl">
+              <p className="text-xs text-muted mb-1">Email poslat na:</p>
+              <p className="text-foreground font-medium">{email}</p>
             </div>
           )}
 
           {/* Messages */}
           {message && (
-            <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg">
-              <p className="text-green-400 text-sm flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mb-4 p-4 bg-success/10 border border-success/20 rounded-xl">
+              <p className="text-success text-sm flex items-center gap-2">
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
                 {message}
@@ -122,9 +111,9 @@ function VerifyEmailContent() {
           )}
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
-              <p className="text-red-400 text-sm flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mb-4 p-4 bg-error/10 border border-error/20 rounded-xl">
+              <p className="text-error text-sm flex items-center gap-2">
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {error}
@@ -136,10 +125,10 @@ function VerifyEmailContent() {
           <button
             onClick={handleResendEmail}
             disabled={isLoading || countdown > 0 || !emailInput}
-            className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${
+            className={`w-full py-3.5 rounded-xl font-medium transition-all ${
               isLoading || countdown > 0 || !emailInput
-                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                : 'bg-amber-500 text-black hover:bg-amber-400'
+                ? 'bg-secondary text-muted cursor-not-allowed'
+                : 'bg-primary text-white hover:bg-primary/90'
             }`}
           >
             {isLoading ? (
@@ -158,15 +147,15 @@ function VerifyEmailContent() {
           </button>
 
           {/* Info box */}
-          <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-            <h3 className="text-blue-400 font-medium mb-2 flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="mt-6 p-4 bg-secondary rounded-xl">
+            <h3 className="text-foreground font-medium mb-2 flex items-center gap-2 text-sm">
+              <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Nije stigao email?
             </h3>
-            <ul className="text-sm text-gray-400 space-y-1">
-              <li>• Proveri <span className="text-white">spam/junk</span> folder</li>
+            <ul className="text-sm text-muted space-y-1">
+              <li>• Proveri <span className="text-foreground">spam/junk</span> folder</li>
               <li>• Proveri da li je email adresa tačna</li>
               <li>• Sačekaj par minuta pre ponovnog slanja</li>
               <li>• Kontaktiraj podršku ako problem potraje</li>
@@ -177,13 +166,13 @@ function VerifyEmailContent() {
           <div className="mt-6 flex flex-col gap-2 text-center">
             <Link
               href="/login"
-              className="text-amber-500 hover:text-amber-400 text-sm font-medium transition-colors"
+              className="text-primary hover:underline text-sm font-medium transition-colors"
             >
               ← Nazad na prijavu
             </Link>
-            <p className="text-gray-500 text-sm">
+            <p className="text-muted text-sm">
               Nemaš nalog?{' '}
-              <Link href="/register/kreator" className="text-amber-500 hover:text-amber-400">
+              <Link href="/register/kreator" className="text-foreground hover:underline">
                 Registruj se
               </Link>
             </p>
@@ -197,8 +186,8 @@ function VerifyEmailContent() {
 // Loading fallback
 function LoadingFallback() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-      <div className="animate-spin w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full" />
+    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-secondary/30">
+      <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
     </div>
   );
 }
@@ -210,4 +199,3 @@ export default function VerifyEmailPage() {
     </Suspense>
   );
 }
-
