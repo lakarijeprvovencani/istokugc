@@ -98,6 +98,16 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   const [creatorReviews, setCreatorReviews] = useState<any[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   
+  // Invite to job modal states
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [businessJobs, setBusinessJobs] = useState<any[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  
   // Check if creator is in favorites (for business users)
   useEffect(() => {
     const checkFavorite = async () => {
@@ -115,6 +125,69 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
     };
     checkFavorite();
   }, [currentUser.type, currentUser.businessId, resolvedParams.id]);
+  
+  // Fetch business jobs when invite modal opens
+  useEffect(() => {
+    const fetchBusinessJobs = async () => {
+      if (!showInviteModal || currentUser.type !== 'business' || !currentUser.businessId) return;
+      
+      setIsLoadingJobs(true);
+      try {
+        const response = await fetch(`/api/jobs?businessId=${currentUser.businessId}`);
+        if (response.ok) {
+          const data = await response.json();
+          // Only show active (open) jobs
+          const activeJobs = (data.jobs || []).filter((j: any) => j.status === 'open');
+          setBusinessJobs(activeJobs);
+        }
+      } catch (error) {
+        console.error('Error fetching business jobs:', error);
+      } finally {
+        setIsLoadingJobs(false);
+      }
+    };
+    
+    fetchBusinessJobs();
+  }, [showInviteModal, currentUser.type, currentUser.businessId]);
+  
+  // Handle sending invite
+  const handleSendInvite = async () => {
+    if (!selectedJobId || !currentUser.businessId) return;
+    
+    setIsSendingInvite(true);
+    setInviteError(null);
+    
+    try {
+      const response = await fetch('/api/job-invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: selectedJobId,
+          businessId: currentUser.businessId,
+          creatorId: resolvedParams.id,
+          message: inviteMessage || null,
+        }),
+      });
+      
+      if (response.ok) {
+        setInviteSuccess(true);
+        setTimeout(() => {
+          setShowInviteModal(false);
+          setInviteSuccess(false);
+          setSelectedJobId(null);
+          setInviteMessage('');
+        }, 2000);
+      } else {
+        const data = await response.json();
+        setInviteError(data.error || 'Došlo je do greške');
+      }
+    } catch (error) {
+      console.error('Error sending invite:', error);
+      setInviteError('Došlo je do greške');
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
 
   // Fetch reviews for this creator from Supabase
   useEffect(() => {
@@ -669,6 +742,21 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                       {isTogglingFavorite ? 'Čuvam...' : 'Sačuvaj kreatora'}
                     </button>
                   )}
+                </div>
+              )}
+              
+              {/* Invite to job button - only for business users */}
+              {currentUser.type === 'business' && (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowInviteModal(true)}
+                    className="w-full py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Pozovi na posao
+                  </button>
                 </div>
               )}
             </div>
@@ -1660,6 +1748,143 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Delete Confirmation Modal */}
+      {/* Invite to Job Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h3 className="text-lg font-semibold">Pozovi na posao</h3>
+              <button
+                onClick={() => {
+                  setShowInviteModal(false);
+                  setSelectedJobId(null);
+                  setInviteMessage('');
+                  setInviteError(null);
+                }}
+                className="p-2 hover:bg-secondary rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {inviteSuccess ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-medium mb-2">Poziv poslat!</h4>
+                  <p className="text-muted text-sm">Kreator će dobiti obaveštenje o vašem pozivu.</p>
+                </div>
+              ) : isLoadingJobs ? (
+                <div className="text-center py-8">
+                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-muted">Učitavanje poslova...</p>
+                </div>
+              ) : businessJobs.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-5xl mb-4">📋</div>
+                  <h4 className="text-lg font-medium mb-2">Nemate aktivnih poslova</h4>
+                  <p className="text-muted text-sm mb-6">Kreirajte posao da biste mogli da pozovete kreatora.</p>
+                  <Link
+                    href="/dashboard?tab=poslovi&action=add"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Kreiraj novi posao
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Izaberite posao</label>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {businessJobs.map((job) => (
+                        <button
+                          key={job.id}
+                          onClick={() => setSelectedJobId(job.id)}
+                          className={`w-full text-left p-4 rounded-xl border transition-colors ${
+                            selectedJobId === job.id
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-muted'
+                          }`}
+                        >
+                          <div className="font-medium">{job.title}</div>
+                          <div className="text-sm text-muted mt-1">
+                            {job.category} • {job.budgetMin && job.budgetMax ? `€${job.budgetMin} - €${job.budgetMax}` : 'Po dogovoru'}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Poruka (opciono)</label>
+                    <textarea
+                      value={inviteMessage}
+                      onChange={(e) => setInviteMessage(e.target.value)}
+                      placeholder="Napišite kratku poruku kreatoru..."
+                      rows={3}
+                      className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:border-primary resize-none"
+                    />
+                  </div>
+                  
+                  {inviteError && (
+                    <div className="p-3 bg-error/10 border border-error/20 rounded-xl text-error text-sm">
+                      {inviteError}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            {!inviteSuccess && businessJobs.length > 0 && (
+              <div className="p-6 border-t border-border flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setSelectedJobId(null);
+                    setInviteMessage('');
+                    setInviteError(null);
+                  }}
+                  className="flex-1 px-4 py-3 border border-border rounded-xl font-medium hover:bg-secondary transition-colors"
+                >
+                  Otkaži
+                </button>
+                <button
+                  onClick={handleSendInvite}
+                  disabled={!selectedJobId || isSendingInvite}
+                  className="flex-1 px-4 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  {isSendingInvite ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Šaljem...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      Pošalji poziv
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-8">

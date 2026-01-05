@@ -38,6 +38,11 @@ export default function PosloviPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showFilters, setShowFilters] = useState<boolean>(true);
   
+  // Sorting & Pagination
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [currentPage, setCurrentPage] = useState(1);
+  const JOBS_PER_PAGE = 10;
+  
   // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
@@ -83,9 +88,9 @@ export default function PosloviPage() {
     handleResize();
   }, []);
   
-  // Filtered jobs
+  // Filtered and sorted jobs
   const filteredJobs = useMemo(() => {
-    return jobs.filter((job) => {
+    let result = jobs.filter((job) => {
       if (selectedCategory && job.category !== selectedCategory) return false;
       if (selectedPlatform && !job.platforms.includes(selectedPlatform)) return false;
       
@@ -112,7 +117,28 @@ export default function PosloviPage() {
       
       return true;
     });
-  }, [jobs, selectedCategory, selectedPlatform, budgetRange, searchQuery]);
+    
+    // Sort by date
+    result.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+    
+    return result;
+  }, [jobs, selectedCategory, selectedPlatform, budgetRange, searchQuery, sortOrder]);
+  
+  // Paginated jobs
+  const totalPages = Math.ceil(filteredJobs.length / JOBS_PER_PAGE);
+  const paginatedJobs = useMemo(() => {
+    const start = (currentPage - 1) * JOBS_PER_PAGE;
+    return filteredJobs.slice(start, start + JOBS_PER_PAGE);
+  }, [filteredJobs, currentPage]);
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedPlatform, budgetRange, searchQuery, sortOrder]);
   
   const clearFilters = () => {
     setSelectedCategory('');
@@ -335,18 +361,29 @@ export default function PosloviPage() {
                 )}
               </p>
               
-              {/* Mobile add job button */}
-              {currentUser.type === 'business' && (
-                <Link
-                  href="/dashboard?tab=poslovi&action=new"
-                  className="sm:hidden flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+              <div className="flex items-center gap-3">
+                {/* Sort dropdown */}
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                  className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-primary text-sm bg-white"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Dodaj posao
-                </Link>
-              )}
+                  <option value="newest">Najnoviji</option>
+                  <option value="oldest">Najstariji</option>
+                </select>
+                
+                {/* Mobile add job button */}
+                {currentUser.type === 'business' && (
+                  <Link
+                    href="/dashboard?tab=poslovi&action=new"
+                    className="sm:hidden flex items-center justify-center gap-2 py-3 px-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </Link>
+                )}
+              </div>
             </div>
 
             {/* Jobs list */}
@@ -358,7 +395,7 @@ export default function PosloviPage() {
               </div>
             ) : filteredJobs.length > 0 ? (
               <div className="space-y-4">
-                {filteredJobs.map((job) => (
+                {paginatedJobs.map((job) => (
                   <Link 
                     key={job.id}
                     href={`/poslovi/${job.id}`}
@@ -397,6 +434,59 @@ export default function PosloviPage() {
                     </div>
                   </Link>
                 ))}
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-8">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 border border-border rounded-xl hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    
+                    {/* Page numbers */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(page => {
+                          // Show first, last, current, and neighbors
+                          if (page === 1 || page === totalPages) return true;
+                          if (Math.abs(page - currentPage) <= 1) return true;
+                          return false;
+                        })
+                        .map((page, idx, arr) => (
+                          <span key={page} className="flex items-center">
+                            {idx > 0 && arr[idx - 1] !== page - 1 && (
+                              <span className="px-2 text-muted">...</span>
+                            )}
+                            <button
+                              onClick={() => setCurrentPage(page)}
+                              className={`w-10 h-10 rounded-xl font-medium transition-colors ${
+                                currentPage === page
+                                  ? 'bg-primary text-white'
+                                  : 'hover:bg-secondary'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+                    
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 border border-border rounded-xl hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-20">

@@ -236,7 +236,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'applicationId i status su obavezni' }, { status: 400 });
     }
 
-    if (!['pending', 'accepted', 'rejected', 'withdrawn', 'engaged'].includes(status)) {
+    if (!['pending', 'accepted', 'rejected', 'withdrawn', 'engaged', 'completed'].includes(status)) {
       return NextResponse.json({ error: 'Nevažeći status' }, { status: 400 });
     }
 

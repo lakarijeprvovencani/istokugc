@@ -46,21 +46,21 @@ function CreatorDashboard() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'poslovi' | 'poruke'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'poslovi' | 'poruke' | 'ponude'>('overview');
   
   // Read tab from URL on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');
-      if (tab === 'reviews' || tab === 'poslovi' || tab === 'poruke') {
+      if (tab === 'reviews' || tab === 'poslovi' || tab === 'poruke' || tab === 'ponude') {
         setActiveTab(tab);
       }
     }
   }, []);
   
   // Update URL when tab changes
-  const handleTabChange = (tab: 'overview' | 'reviews' | 'poslovi' | 'poruke') => {
+  const handleTabChange = (tab: 'overview' | 'reviews' | 'poslovi' | 'poruke' | 'ponude') => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -76,6 +76,10 @@ function CreatorDashboard() {
   // Job applications state
   const [myApplications, setMyApplications] = useState<any[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(false);
+  
+  // Job invitations state (Ponude)
+  const [myInvitations, setMyInvitations] = useState<any[]>([]);
+  const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
   
   // Messages/Chat state
   const [activeChat, setActiveChat] = useState<any | null>(null);
@@ -226,10 +230,10 @@ function CreatorDashboard() {
     fetchCategories();
   }, []);
   
-  // Fetch job applications when on poslovi tab
+  // Fetch job applications on mount for badge counts
   useEffect(() => {
     const fetchApplications = async () => {
-      if (activeTab !== 'poslovi' || !currentUser.creatorId) return;
+      if (!currentUser.creatorId) return;
       
       setIsLoadingApplications(true);
       try {
@@ -246,7 +250,29 @@ function CreatorDashboard() {
     };
     
     fetchApplications();
-  }, [activeTab, currentUser.creatorId]);
+  }, [currentUser.creatorId]);
+  
+  // Fetch job invitations (Ponude) on mount to show badge count
+  useEffect(() => {
+    const fetchInvitations = async () => {
+      if (!currentUser.creatorId) return;
+      
+      setIsLoadingInvitations(true);
+      try {
+        const response = await fetch(`/api/job-invitations?creatorId=${currentUser.creatorId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setMyInvitations(data.invitations || []);
+        }
+      } catch (error) {
+        console.error('Error fetching invitations:', error);
+      } finally {
+        setIsLoadingInvitations(false);
+      }
+    };
+    
+    fetchInvitations();
+  }, [currentUser.creatorId]);
   
   // Show loading state
   if (!isHydrated || isLoadingCreator) {
@@ -512,10 +538,13 @@ function CreatorDashboard() {
   // Count conversations (accepted + engaged applications)
   const conversationsCount = myApplications.filter(a => a.status === 'accepted' || a.status === 'engaged').length;
   
+  const pendingInvitationsCount = myInvitations.filter(inv => inv.status === 'pending').length;
+  
   const tabs = [
     { id: 'overview' as const, label: 'Pregled', count: null },
     { id: 'reviews' as const, label: 'Statistika', count: allReviews.length > 0 ? allReviews.length : null },
     { id: 'poslovi' as const, label: 'Moje prijave', count: myApplications.length > 0 ? myApplications.length : null },
+    { id: 'ponude' as const, label: 'Ponude', count: pendingInvitationsCount > 0 ? pendingInvitationsCount : null },
     { id: 'poruke' as const, label: 'Poruke', count: conversationsCount > 0 ? conversationsCount : null },
   ];
   
@@ -1568,6 +1597,21 @@ function CreatorDashboard() {
           />
         )}
         
+        {/* Ponude tab */}
+        {activeTab === 'ponude' && (
+          <CreatorInvitationsTab
+            invitations={myInvitations}
+            setInvitations={setMyInvitations}
+            setApplications={setMyApplications}
+            isLoading={isLoadingInvitations}
+            creatorId={currentUser.creatorId || ''}
+            onOpenChat={(app) => {
+              setActiveChat(app);
+              handleTabChange('poruke');
+            }}
+          />
+        )}
+        
         {/* Poruke tab */}
         {activeTab === 'poruke' && (
           <CreatorMessagesTab
@@ -1625,6 +1669,9 @@ function BusinessDashboard() {
   const [allApplications, setAllApplications] = useState<any[]>([]);
   const [activeChat, setActiveChat] = useState<any | null>(null);
   
+  // Pending applications count for badge
+  const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0);
+  
   // Global toast state
   const [globalToast, setGlobalToast] = useState<string | null>(null);
   
@@ -1668,7 +1715,7 @@ function BusinessDashboard() {
     }
   };
   
-  // Fetch all applications for messages tab
+  // Fetch all applications for messages tab and pending count
   useEffect(() => {
     const fetchApplications = async () => {
       if (!currentUser.businessId) return;
@@ -1677,8 +1724,14 @@ function BusinessDashboard() {
         const response = await fetch(`/api/job-applications?businessId=${currentUser.businessId}`);
         if (response.ok) {
           const data = await response.json();
-          // Only show accepted and engaged applications
-          const activeApps = (data.applications || []).filter(
+          const allApps = data.applications || [];
+          
+          // Count pending applications for badge
+          const pendingCount = allApps.filter((app: any) => app.status === 'pending').length;
+          setPendingApplicationsCount(pendingCount);
+          
+          // Only show accepted and engaged applications for messages
+          const activeApps = allApps.filter(
             (app: any) => app.status === 'accepted' || app.status === 'engaged'
           );
           setAllApplications(activeApps);
@@ -1931,6 +1984,11 @@ function BusinessDashboard() {
             {myJobs.length > 0 && (
               <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
                 {myJobs.length}
+              </span>
+            )}
+            {pendingApplicationsCount > 0 && (
+              <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-amber-500 text-white font-medium">
+                {pendingApplicationsCount} nova
               </span>
             )}
             {activeTab === 'poslovi' && (
@@ -3043,6 +3101,12 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   const [jobApplications, setJobApplications] = useState<any[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(false);
   
+  // Invitations state (Pozivi za posao)
+  const [viewingJobInvitations, setViewingJobInvitations] = useState<string | null>(null);
+  const [jobInvitations, setJobInvitations] = useState<any[]>([]);
+  const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
+  const [invitationCounts, setInvitationCounts] = useState<{[key: string]: number}>({});
+  
   // Track engaged creators per job
   const [engagedCreators, setEngagedCreators] = useState<{[jobId: string]: {id: string, name: string, applicationId: string} | null}>({});
   
@@ -3055,6 +3119,10 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   const [reviewComment, setReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [submittedReviews, setSubmittedReviews] = useState<{[jobId: string]: boolean}>({});
+  
+  // Complete job confirmation modal
+  const [completeJobModal, setCompleteJobModal] = useState<{jobId: string, jobTitle: string, creatorName: string, applicationId: string} | null>(null);
+  const [isCompletingJob, setIsCompletingJob] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -3124,6 +3192,30 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     
     fetchApplicationData();
   }, [jobs]);
+  
+  // Fetch invitation counts for all jobs
+  useEffect(() => {
+    const fetchInvitationCounts = async () => {
+      if (!jobs || jobs.length === 0 || !businessId) return;
+      
+      const counts: {[key: string]: number} = {};
+      
+      for (const job of jobs) {
+        try {
+          const response = await fetch(`/api/job-invitations?jobId=${job.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            counts[job.id] = (data.invitations || []).length;
+          }
+        } catch (error) {
+          counts[job.id] = 0;
+        }
+      }
+      setInvitationCounts(counts);
+    };
+    
+    fetchInvitationCounts();
+  }, [jobs, businessId]);
   
   const resetForm = () => {
     setFormData({
@@ -3265,21 +3357,51 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     }
   };
   
-  // Mark job as completed
-  const handleCompleteJob = async (jobId: string) => {
+  // Open completion confirmation modal
+  const handleCompleteJob = (jobId: string, jobTitle: string) => {
+    const engagedCreator = engagedCreators[jobId];
+    if (engagedCreator) {
+      setCompleteJobModal({
+        jobId,
+        jobTitle,
+        creatorName: engagedCreator.name,
+        applicationId: engagedCreator.applicationId
+      });
+    }
+  };
+  
+  // Confirm job completion
+  const confirmCompleteJob = async () => {
+    if (!completeJobModal) return;
+    
+    setIsCompletingJob(true);
     try {
-      const response = await fetch('/api/jobs', {
+      // 1. Update job status to completed
+      const jobResponse = await fetch('/api/jobs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, status: 'completed' }),
+        body: JSON.stringify({ jobId: completeJobModal.jobId, status: 'completed' }),
       });
-      if (response.ok) {
-        setJobs(jobs.map(j => j.id === jobId ? { ...j, status: 'completed' } : j));
-        setSuccessMessage('Posao je označen kao završen!');
+      
+      if (jobResponse.ok) {
+        // 2. Update application status to completed
+        await fetch('/api/job-applications', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            applicationId: completeJobModal.applicationId, 
+            status: 'completed' 
+          }),
+        });
+        
+        setJobs(jobs.map(j => j.id === completeJobModal.jobId ? { ...j, status: 'completed' } : j));
+        setSuccessMessage(`Posao "${completeJobModal.jobTitle}" je uspešno završen sa kreatorom ${completeJobModal.creatorName}!`);
+        setCompleteJobModal(null);
       }
     } catch (error) {
       console.error('Error completing job:', error);
     }
+    setIsCompletingJob(false);
   };
   
   // Submit review for engaged creator
@@ -3365,6 +3487,45 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       console.error('Error fetching applications:', error);
     } finally {
       setIsLoadingApplications(false);
+    }
+  };
+  
+  // View invitations for a job
+  const handleViewInvitations = async (jobId: string) => {
+    setViewingJobInvitations(jobId);
+    setIsLoadingInvitations(true);
+    try {
+      const response = await fetch(`/api/job-invitations?jobId=${jobId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setJobInvitations(data.invitations || []);
+      }
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+    } finally {
+      setIsLoadingInvitations(false);
+    }
+  };
+  
+  // Cancel invitation
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      const response = await fetch(`/api/job-invitations?invitationId=${invitationId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setJobInvitations(jobInvitations.filter(inv => inv.id !== invitationId));
+        // Update count
+        if (viewingJobInvitations) {
+          setInvitationCounts(prev => ({
+            ...prev,
+            [viewingJobInvitations]: (prev[viewingJobInvitations] || 1) - 1
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error canceling invitation:', error);
     }
   };
   
@@ -3662,6 +3823,21 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       {applicationCounts[job.id] !== undefined ? applicationCounts[job.id] : '...'}
                     </span>
                   </button>
+                  {/* Pozivi badge */}
+                  {invitationCounts[job.id] > 0 && (
+                    <button
+                      onClick={() => handleViewInvitations(job.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-primary/30 text-primary rounded-lg text-xs font-medium hover:bg-primary/5 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      Pozivi
+                      <span className="px-1.5 py-0.5 bg-primary/10 rounded text-[10px]">
+                        {invitationCounts[job.id]}
+                      </span>
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {job.status === 'open' && (
@@ -3675,7 +3851,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                   {/* Završi posao - samo za poslove u toku (closed + engaged) */}
                   {job.status === 'closed' && engagedCreators[job.id] && (
                     <button
-                      onClick={() => handleCompleteJob(job.id)}
+                      onClick={() => handleCompleteJob(job.id, job.title)}
                       className="text-xs px-3 py-1.5 text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition-colors flex items-center gap-1.5"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4140,6 +4316,170 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         </div>
       )}
       
+      {/* Invitations Modal */}
+      {viewingJobInvitations && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-medium">Poslati pozivi</h2>
+                  <p className="text-sm text-muted mt-1">
+                    {jobs.find(j => j.id === viewingJobInvitations)?.title || 'Posao'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setViewingJobInvitations(null); setJobInvitations([]); }}
+                  className="p-2 hover:bg-secondary rounded-xl transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {isLoadingInvitations ? (
+                <div className="text-center py-12">
+                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-muted">Učitavanje poziva...</p>
+                </div>
+              ) : jobInvitations.length > 0 ? (
+                <div className="space-y-4">
+                  {jobInvitations.map((inv) => (
+                    <div key={inv.id} className="border border-border rounded-xl p-4">
+                      {/* Creator info */}
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-secondary flex-shrink-0 overflow-hidden relative">
+                          {inv.creator?.photo ? (
+                            <Image src={inv.creator.photo} alt={inv.creator.name} fill className="object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-lg font-medium">
+                              {inv.creator?.name?.charAt(0) || '?'}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Link 
+                              href={`/kreator/${inv.creator_id}`}
+                              className="font-medium hover:text-primary transition-colors"
+                            >
+                              {inv.creatorName || 'Kreator'}
+                            </Link>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              inv.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                              inv.status === 'accepted' ? 'bg-success/10 text-success' :
+                              'bg-error/10 text-error'
+                            }`}>
+                              {inv.status === 'pending' ? 'Na čekanju' : 
+                               inv.status === 'accepted' ? 'Prihvaćeno' : 'Odbijeno'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted">
+                            {inv.creator?.location || ''}
+                          </p>
+                        </div>
+                        <div className="text-right flex-shrink-0 text-xs text-muted">
+                          Poslato: {new Date(inv.created_at).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' })}
+                        </div>
+                      </div>
+                      
+                      {/* Message */}
+                      {inv.message && (
+                        <div className="bg-secondary/50 rounded-lg p-3 mb-4">
+                          <p className="text-sm text-foreground">{inv.message}</p>
+                        </div>
+                      )}
+                      
+                      {/* Actions */}
+                      {inv.status === 'pending' && (
+                        <div className="flex gap-2 pt-3 border-t border-border">
+                          <Link
+                            href={`/kreator/${inv.creator_id}`}
+                            className="flex-1 py-2.5 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-secondary transition-colors text-center"
+                          >
+                            Vidi profil
+                          </Link>
+                          <button
+                            onClick={() => handleCancelInvitation(inv.id)}
+                            className="flex-1 py-2.5 border border-error/30 text-error rounded-lg text-sm font-medium hover:bg-error/10 transition-colors"
+                          >
+                            Povuci poziv
+                          </button>
+                        </div>
+                      )}
+                      
+                      {inv.status === 'accepted' && (
+                        <div className="pt-3 border-t border-border flex items-center justify-between">
+                          <span className="text-xs text-success font-medium flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Kreator je prihvatio poziv
+                          </span>
+                          <div className="flex gap-2">
+                            <Link
+                              href={`/kreator/${inv.creator_id}`}
+                              className="px-3 py-1.5 border border-border text-foreground rounded-lg text-xs font-medium hover:bg-secondary transition-colors"
+                            >
+                              Profil
+                            </Link>
+                            <button
+                              onClick={async () => {
+                                // Find the engaged application for this invitation
+                                try {
+                                  const response = await fetch(`/api/job-applications?jobId=${inv.job_id}&creatorId=${inv.creator_id}`);
+                                  if (response.ok) {
+                                    const data = await response.json();
+                                    const app = (data.applications || []).find((a: any) => a.status === 'engaged');
+                                    if (app) {
+                                      setViewingJobInvitations(null);
+                                      setJobInvitations([]);
+                                      if (onOpenChat) onOpenChat(app);
+                                    }
+                                  }
+                                } catch (error) {
+                                  console.error('Error finding application:', error);
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                              </svg>
+                              Poruke
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {inv.status === 'rejected' && (
+                        <div className="pt-3 border-t border-border">
+                          <span className="text-xs text-error flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Kreator je odbio poziv
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-4">📬</div>
+                  <h3 className="font-medium mb-2">Nema poslatih poziva</h3>
+                  <p className="text-sm text-muted">Možete pozvati kreatore sa njihovog profila</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Reopen Job Confirmation Modal */}
       {reopenConfirmJob && engagedCreators[reopenConfirmJob.id] && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -4254,6 +4594,67 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                     </>
                   ) : (
                     'Pošalji ocenu'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Complete Job Confirmation Modal */}
+      {completeJobModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="p-6">
+              {/* Success icon */}
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              <h3 className="text-lg font-medium text-center mb-2">Potvrdi završetak posla</h3>
+              <p className="text-center text-muted mb-6">
+                Da li potvrđujete da je kreator <strong className="text-foreground">{completeJobModal.creatorName}</strong> uspešno završio posao <strong className="text-foreground">"{completeJobModal.jobTitle}"</strong>?
+              </p>
+              
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-emerald-700">
+                    Nakon potvrde, posao će biti označen kao završen i kreator će dobiti badge "Uspešno završeno" na svom profilu.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setCompleteJobModal(null)}
+                  disabled={isCompletingJob}
+                  className="flex-1 px-4 py-3 border border-border rounded-xl hover:bg-secondary transition-colors"
+                >
+                  Otkaži
+                </button>
+                <button
+                  onClick={confirmCompleteJob}
+                  disabled={isCompletingJob}
+                  className="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isCompletingJob ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Završavam...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Da, potvrđujem
+                    </>
                   )}
                 </button>
               </div>
@@ -4785,7 +5186,7 @@ interface CreatorApplicationsTabProps {
 }
 
 function CreatorApplicationsTab({ applications, setApplications, isLoading, creatorId, onOpenChat }: CreatorApplicationsTabProps) {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'engaged'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'engaged' | 'completed'>('all');
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   
   const handleWithdraw = async (applicationId: string) => {
@@ -4816,6 +5217,13 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
         return <span className="px-3 py-1 text-xs bg-success/10 text-success rounded-full">Prihvaćeno</span>;
       case 'engaged':
         return <span className="px-3 py-1 text-xs bg-primary/10 text-primary rounded-full font-medium">Angažovan</span>;
+      case 'completed':
+        return <span className="px-3 py-1 text-xs bg-emerald-100 text-emerald-700 rounded-full font-medium flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          Uspešno završeno
+        </span>;
       case 'rejected':
         return <span className="px-3 py-1 text-xs bg-error/10 text-error rounded-full">Odbijeno</span>;
       case 'withdrawn':
@@ -4836,6 +5244,7 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
     pending: applications.filter(a => a.status === 'pending').length,
     accepted: applications.filter(a => a.status === 'accepted').length,
     engaged: applications.filter(a => a.status === 'engaged').length,
+    completed: applications.filter(a => a.status === 'completed').length,
     rejected: applications.filter(a => a.status === 'rejected').length,
   };
 
@@ -4868,6 +5277,10 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
           <div className="text-lg font-medium text-primary">{stats.engaged}</div>
           <div className="text-xs text-muted">Angažovan</div>
         </div>
+        <div className="bg-white rounded-lg px-3 py-2 border border-emerald-200 text-center min-w-[70px] bg-emerald-50">
+          <div className="text-lg font-medium text-emerald-600">{stats.completed}</div>
+          <div className="text-xs text-emerald-600">Završeno</div>
+        </div>
         <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
           <div className="text-lg font-medium text-error">{stats.rejected}</div>
           <div className="text-xs text-muted">Odbijeno</div>
@@ -4886,6 +5299,7 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
           <option value="pending">Na čekanju ({stats.pending})</option>
           <option value="accepted">Prihvaćeno ({stats.accepted})</option>
           <option value="engaged">Angažovan ({stats.engaged})</option>
+          <option value="completed">Uspešno završeno ({stats.completed})</option>
           <option value="rejected">Odbijeno ({stats.rejected})</option>
         </select>
       </div>
@@ -5020,6 +5434,390 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
               Pregledaj poslove
             </Link>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// CREATOR INVITATIONS TAB (PONUDE)
+// ============================================
+interface CreatorInvitationsTabProps {
+  invitations: any[];
+  setInvitations: (inv: any[]) => void;
+  setApplications: (apps: any[]) => void;
+  isLoading: boolean;
+  creatorId: string;
+  onOpenChat: (app: any) => void;
+}
+
+function CreatorInvitationsTab({ invitations, setInvitations, setApplications, isLoading, creatorId, onOpenChat }: CreatorInvitationsTabProps) {
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
+  const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [selectedInvitation, setSelectedInvitation] = useState<any | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  
+  const handleRespond = async (invitationId: string, status: 'accepted' | 'rejected') => {
+    setRespondingId(invitationId);
+    const invitation = invitations.find(inv => inv.id === invitationId);
+    
+    try {
+      const response = await fetch('/api/job-invitations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invitationId, status }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        setInvitations(invitations.map(inv => 
+          inv.id === invitationId 
+            ? { ...inv, status, responded_at: new Date().toISOString() }
+            : inv
+        ));
+        setShowDetailsModal(false);
+        setSelectedInvitation(null);
+        
+        // If accepted, show toast, refresh applications and open chat
+        if (status === 'accepted' && invitation) {
+          // Show toast notification
+          setToastMessage(`Prihvatili ste ponudu za "${invitation.jobTitle || 'posao'}"! Preusmereni ste u poruke.`);
+          setTimeout(() => setToastMessage(null), 4000);
+          
+          // Refresh applications list
+          const appsResponse = await fetch(`/api/job-applications?creatorId=${creatorId}`);
+          if (appsResponse.ok) {
+            const appsData = await appsResponse.json();
+            setApplications(appsData.applications || []);
+            
+            // Find the newly created application and open chat
+            const newApp = (appsData.applications || []).find(
+              (a: any) => a.jobId === invitation.job_id && a.status === 'engaged'
+            );
+            if (newApp) {
+              onOpenChat(newApp);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error responding to invitation:', error);
+    }
+    setRespondingId(null);
+  };
+  
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('sr-RS', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <span className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">Na čekanju</span>;
+      case 'accepted':
+        return <span className="px-3 py-1 text-xs bg-success/10 text-success rounded-full">Prihvaćeno</span>;
+      case 'rejected':
+        return <span className="px-3 py-1 text-xs bg-error/10 text-error rounded-full">Odbijeno</span>;
+      default:
+        return null;
+    }
+  };
+  
+  const filteredInvitations = invitations.filter(inv => {
+    if (statusFilter === 'all') return true;
+    return inv.status === statusFilter;
+  });
+  
+  // Stats
+  const stats = {
+    total: invitations.length,
+    pending: invitations.filter(i => i.status === 'pending').length,
+    accepted: invitations.filter(i => i.status === 'accepted').length,
+    rejected: invitations.filter(i => i.status === 'rejected').length,
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-muted">Učitavanje ponuda...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
+          <div className="bg-success text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+      
+      {/* Stats - compact */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+          <div className="text-lg font-medium">{stats.total}</div>
+          <div className="text-xs text-muted">Ukupno</div>
+        </div>
+        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+          <div className="text-lg font-medium text-amber-600">{stats.pending}</div>
+          <div className="text-xs text-muted">Čeka</div>
+        </div>
+        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+          <div className="text-lg font-medium text-success">{stats.accepted}</div>
+          <div className="text-xs text-muted">Prihvaćeno</div>
+        </div>
+        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+          <div className="text-lg font-medium text-error">{stats.rejected}</div>
+          <div className="text-xs text-muted">Odbijeno</div>
+        </div>
+      </div>
+
+      {/* Filter */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-medium">Ponude za posao</h2>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as any)}
+          className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-primary text-sm bg-white"
+        >
+          <option value="all">Sve ponude ({stats.total})</option>
+          <option value="pending">Na čekanju ({stats.pending})</option>
+          <option value="accepted">Prihvaćeno ({stats.accepted})</option>
+          <option value="rejected">Odbijeno ({stats.rejected})</option>
+        </select>
+      </div>
+
+      {/* Invitations List */}
+      {filteredInvitations.length > 0 ? (
+        <div className="space-y-4">
+          {filteredInvitations.map((inv) => (
+            <div key={inv.id} className="bg-white rounded-2xl border border-border p-5">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-1 flex-wrap">
+                    <Link 
+                      href={`/poslovi/${inv.job_id}`}
+                      className="font-medium hover:text-primary transition-colors truncate"
+                    >
+                      {inv.jobTitle || 'Posao'}
+                    </Link>
+                    {getStatusBadge(inv.status)}
+                  </div>
+                  <p className="text-sm text-muted">{inv.businessName || 'Biznis'}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  {inv.job?.budgetMin && inv.job?.budgetMax ? (
+                    <>
+                      <div className="font-medium">€{inv.job.budgetMin} - €{inv.job.budgetMax}</div>
+                      <div className="text-xs text-muted">Budžet</div>
+                    </>
+                  ) : (
+                    <div className="text-sm text-muted">Po dogovoru</div>
+                  )}
+                </div>
+              </div>
+              
+              {inv.message && (
+                <div className="bg-secondary/50 rounded-xl p-3 mb-3">
+                  <p className="text-sm text-muted line-clamp-2">{inv.message}</p>
+                </div>
+              )}
+              
+              <div className="flex items-center justify-between pt-3 border-t border-border">
+                <div className="flex items-center gap-4 text-xs text-muted">
+                  <span>Primljeno: {formatDate(inv.created_at)}</span>
+                  {inv.job?.category && (
+                    <span>• {inv.job.category}</span>
+                  )}
+                </div>
+                
+                {inv.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedInvitation(inv);
+                        setShowDetailsModal(true);
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                    >
+                      Detalji
+                    </button>
+                    <button
+                      onClick={() => handleRespond(inv.id, 'rejected')}
+                      disabled={respondingId === inv.id}
+                      className="px-4 py-2 text-sm font-medium text-error hover:bg-error/5 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      Odbij
+                    </button>
+                    <button
+                      onClick={() => handleRespond(inv.id, 'accepted')}
+                      disabled={respondingId === inv.id}
+                      className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {respondingId === inv.id ? 'Čuvam...' : 'Prihvati'}
+                    </button>
+                  </div>
+                )}
+                
+                {inv.status === 'accepted' && (
+                  <button
+                    onClick={async () => {
+                      // Find the engaged application for this job
+                      const appsResponse = await fetch(`/api/job-applications?creatorId=${creatorId}`);
+                      if (appsResponse.ok) {
+                        const appsData = await appsResponse.json();
+                        const app = (appsData.applications || []).find(
+                          (a: any) => a.jobId === inv.job_id && a.status === 'engaged'
+                        );
+                        if (app) {
+                          onOpenChat(app);
+                        }
+                      }
+                    }}
+                    className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    Poruke
+                  </button>
+                )}
+                
+                {inv.status === 'rejected' && (
+                  <Link
+                    href={`/poslovi/${inv.job_id}`}
+                    className="px-4 py-2 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                  >
+                    Vidi posao →
+                  </Link>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-16 bg-white rounded-2xl border border-border">
+          <div className="text-5xl mb-4">📬</div>
+          <h3 className="text-lg font-medium mb-2">Nemate ponuda</h3>
+          <p className="text-muted text-sm mb-6 max-w-md mx-auto">
+            Ovde ćete videti kada brendovi pošalju pozive za posao direktno vama.
+          </p>
+          <Link
+            href="/poslovi"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Pregledaj dostupne poslove
+          </Link>
+        </div>
+      )}
+      
+      {/* Details Modal */}
+      {showDetailsModal && selectedInvitation && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h3 className="text-lg font-semibold">Detalji ponude</h3>
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setSelectedInvitation(null);
+                }}
+                className="p-2 hover:bg-secondary rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {/* Job Info */}
+              <div className="mb-6">
+                <h4 className="text-xl font-medium mb-2">{selectedInvitation.jobTitle}</h4>
+                <p className="text-muted">{selectedInvitation.businessName}</p>
+              </div>
+              
+              {/* Job Details */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-secondary/50 rounded-xl p-4">
+                  <div className="text-sm text-muted mb-1">Kategorija</div>
+                  <div className="font-medium">{selectedInvitation.job?.category || 'N/A'}</div>
+                </div>
+                <div className="bg-secondary/50 rounded-xl p-4">
+                  <div className="text-sm text-muted mb-1">Budžet</div>
+                  <div className="font-medium">
+                    {selectedInvitation.job?.budgetMin && selectedInvitation.job?.budgetMax
+                      ? `€${selectedInvitation.job.budgetMin} - €${selectedInvitation.job.budgetMax}`
+                      : 'Po dogovoru'}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Job Description */}
+              {selectedInvitation.job?.description && (
+                <div className="mb-6">
+                  <h5 className="text-sm font-medium mb-2">Opis posla</h5>
+                  <p className="text-sm text-muted whitespace-pre-wrap">
+                    {selectedInvitation.job.description}
+                  </p>
+                </div>
+              )}
+              
+              {/* Invitation Message */}
+              {selectedInvitation.message && (
+                <div className="mb-6 bg-primary/5 rounded-xl p-4 border border-primary/10">
+                  <h5 className="text-sm font-medium mb-2 text-primary">Poruka od brenda</h5>
+                  <p className="text-sm">{selectedInvitation.message}</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="p-6 border-t border-border flex gap-3">
+              <button
+                onClick={() => handleRespond(selectedInvitation.id, 'rejected')}
+                disabled={respondingId === selectedInvitation.id}
+                className="flex-1 px-4 py-3 border border-error text-error rounded-xl font-medium hover:bg-error/5 transition-colors disabled:opacity-50"
+              >
+                Odbij ponudu
+              </button>
+              <button
+                onClick={() => handleRespond(selectedInvitation.id, 'accepted')}
+                disabled={respondingId === selectedInvitation.id}
+                className="flex-1 px-4 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {respondingId === selectedInvitation.id ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Čuvam...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Prihvati ponudu
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

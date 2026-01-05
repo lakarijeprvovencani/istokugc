@@ -186,3 +186,4 @@ CREATE INDEX IF NOT EXISTS idx_businesses_user_id ON public.businesses(user_id);
 -- ============================================
 
 
+
