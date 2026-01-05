@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth-helper';
 
 // GET /api/favorites - Get all favorites for business
 export async function GET(request: NextRequest) {
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform data
-    const formattedFavorites = favorites?.map(fav => ({
+    const formattedFavorites = favorites?.map((fav: any) => ({
       id: fav.creators?.id,
       name: fav.creators?.name,
       photo: fav.creators?.photo,
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
       rating: fav.creators?.average_rating,
       totalReviews: fav.creators?.total_reviews,
       savedAt: fav.saved_at,
-    })).filter(c => c.id) || [];
+    })).filter((c: any) => c.id) || [];
 
     return NextResponse.json({
       success: true,
@@ -63,8 +64,13 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/favorites - Add creator to favorites
+// ZAŠTIĆENO: Samo ulogovani biznisi mogu dodavati favorite
 export async function POST(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const body = await request.json();
     const { businessId, creatorId } = body;
 
@@ -73,6 +79,11 @@ export async function POST(request: NextRequest) {
         { error: 'Business ID and Creator ID are required' },
         { status: 400 }
       );
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Biznis može dodavati samo svoje favorite
+    if (user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
     }
 
     const supabase = createAdminClient();
@@ -114,8 +125,13 @@ export async function POST(request: NextRequest) {
 }
 
 // DELETE /api/favorites - Remove creator from favorites
+// ZAŠTIĆENO: Samo ulogovani biznisi mogu uklanjati favorite
 export async function DELETE(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const { searchParams } = new URL(request.url);
     const businessId = searchParams.get('businessId');
     const creatorId = searchParams.get('creatorId');
@@ -125,6 +141,11 @@ export async function DELETE(request: NextRequest) {
         { error: 'Business ID and Creator ID are required' },
         { status: 400 }
       );
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Biznis može uklanjati samo svoje favorite
+    if (user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
     }
 
     const supabase = createAdminClient();

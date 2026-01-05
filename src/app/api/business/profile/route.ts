@@ -2,11 +2,12 @@
  * Business Profile API
  * 
  * GET - Dohvata profil biznisa
- * PUT - Ažurira profil biznisa
+ * PUT - Ažurira profil biznisa (ZAŠTIĆENO)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthUser } from '@/lib/auth-helper';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -51,8 +52,13 @@ export async function GET(request: NextRequest) {
 }
 
 // PUT /api/business/profile
+// ZAŠTIĆENO: Biznis može menjati samo svoj profil
 export async function PUT(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const body = await request.json();
     const { businessId, companyName, website, industry, description, phone } = body;
 
@@ -60,6 +66,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(
         { error: 'Business ID is required' },
         { status: 400 }
+      );
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Biznis može menjati SAMO svoj profil
+    if (user?.businessId !== businessId) {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za izmenu ovog profila' },
+        { status: 403 }
       );
     }
 

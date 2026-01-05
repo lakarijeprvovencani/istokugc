@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth-helper';
 
 // GET /api/job-messages - Dohvati poruke za prijavu ili broj nepročitanih
 export async function GET(request: NextRequest) {
@@ -30,16 +31,7 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ unreadCount: 0 });
         }
         
-        const { count, error } = await supabase
-          .from('job_messages')
-          .select('*', { count: 'exact', head: true })
-          .in('application_id', 
-            supabase.from('job_applications').select('id').in('job_id', jobIds)
-          )
-          .eq('sender_type', 'creator')
-          .is('read_at', null);
-        
-        // Simpler approach - get all messages for all applications
+        // Get all messages for all applications
         const { data: applications } = await supabase
           .from('job_applications')
           .select('id')
@@ -123,8 +115,13 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/job-messages - Pošalji novu poruku
+// ZAŠTIĆENO: Samo učesnici u konverzaciji mogu slati poruke
 export async function POST(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const body = await request.json();
     const { applicationId, senderType, senderId, message } = body;
 
@@ -137,6 +134,14 @@ export async function POST(request: NextRequest) {
 
     if (!['business', 'creator'].includes(senderType)) {
       return NextResponse.json({ error: 'senderType mora biti business ili creator' }, { status: 400 });
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: senderId mora odgovarati ulogovanom korisniku
+    if (senderType === 'creator' && user?.creatorId !== senderId) {
+      return NextResponse.json({ error: 'Nemate dozvolu da šaljete poruke kao ovaj kreator' }, { status: 403 });
+    }
+    if (senderType === 'business' && user?.businessId !== senderId) {
+      return NextResponse.json({ error: 'Nemate dozvolu da šaljete poruke kao ovaj biznis' }, { status: 403 });
     }
 
     const supabase = createAdminClient();
@@ -196,8 +201,13 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT /api/job-messages - Označi poruke kao pročitane
+// ZAŠTIĆENO: Samo učesnici u konverzaciji mogu označiti poruke kao pročitane
 export async function PUT(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const body = await request.json();
     const { applicationId, recipientType, recipientId } = body;
 
@@ -206,6 +216,14 @@ export async function PUT(request: NextRequest) {
         { error: 'applicationId, recipientType i recipientId su obavezni' },
         { status: 400 }
       );
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: recipientId mora odgovarati ulogovanom korisniku
+    if (recipientType === 'creator' && user?.creatorId !== recipientId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+    }
+    if (recipientType === 'business' && user?.businessId !== recipientId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
     }
 
     const supabase = createAdminClient();

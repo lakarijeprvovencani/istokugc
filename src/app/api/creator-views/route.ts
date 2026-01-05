@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth-helper';
 
 // GET - Dohvati nedavno pregledane kreatore za biznis
 export async function GET(request: NextRequest) {
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transformiši podatke
-    const recentCreators = views?.map(view => ({
+    const recentCreators = views?.map((view: any) => ({
       id: view.creators?.id,
       name: view.creators?.name,
       photo: view.creators?.photo,
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
       categories: view.creators?.categories || [],
       niches: view.creators?.niches || [],
       viewedAt: view.viewed_at,
-    })).filter(c => c.id) || [];
+    })).filter((c: any) => c.id) || [];
 
     return NextResponse.json({ creators: recentCreators });
 
@@ -60,12 +61,22 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Zabeleži pregled kreatora
+// ZAŠTIĆENO: Samo ulogovani biznisi mogu beležiti preglede
 export async function POST(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const { businessId, creatorId } = await request.json();
 
     if (!businessId || !creatorId) {
       return NextResponse.json({ error: 'Business ID and Creator ID are required' }, { status: 400 });
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Biznis može beležiti samo svoje preglede
+    if (user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
     }
 
     const supabase = createAdminClient();

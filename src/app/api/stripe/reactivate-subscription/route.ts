@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Reaktiviraj pretplatu (ukloni cancel_at_period_end)
-    const subscription = await stripe.subscriptions.update(
+    const subscription: any = await stripe.subscriptions.update(
       business.stripe_subscription_id,
       { cancel_at_period_end: false }
     );

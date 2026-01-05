@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-12-15.clover',
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -42,12 +42,12 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       // Pretplata uspešno kreirana ili obnovljena
       case 'invoice.payment_succeeded': {
-        const invoice = event.data.object as Stripe.Invoice;
+        const invoice = event.data.object as any;
         const subscriptionId = invoice.subscription as string;
         const customerId = invoice.customer as string;
 
         if (subscriptionId) {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const subscription: any = await stripe.subscriptions.retrieve(subscriptionId);
           
           // Izračunaj datum isteka na osnovu billing perioda
           const expiresAt = new Date(subscription.current_period_end * 1000);
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
       // Plaćanje nije uspelo (npr. kartica istekla)
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice;
+        const invoice = event.data.object as any;
         const subscriptionId = invoice.subscription as string;
 
         if (subscriptionId) {
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
       // Pretplata istekla (nije obnovljena)
       case 'customer.subscription.updated': {
-        const subscription = event.data.object as Stripe.Subscription;
+        const subscription = event.data.object as any;
         
         if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
           const { error } = await supabase

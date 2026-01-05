@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     // Dohvati live podatke iz Stripe-a
     try {
-      const subscription = await stripe.subscriptions.retrieve(
+      const subscription: any = await stripe.subscriptions.retrieve(
         business.stripe_subscription_id
       );
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth-helper';
 
 // GET /api/creators/[id] - Dohvati pojedinačnog kreatora
 export async function GET(
@@ -66,13 +67,37 @@ export async function GET(
 }
 
 // PUT /api/creators/[id] - Ažuriraj kreatora
+// ZAŠTIĆENO: Kreator može menjati samo svoj profil, admin može sve
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const { id } = await params;
     const body = await request.json();
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Kreator može menjati SAMO svoj profil
+    const isOwner = user?.creatorId === id;
+    const isAdmin = user?.role === 'admin';
+    
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za izmenu ovog profila' },
+        { status: 403 }
+      );
+    }
+    
+    // Samo admin može menjati status
+    if (body.status !== undefined && !isAdmin) {
+      return NextResponse.json(
+        { error: 'Samo admin može menjati status kreatora' },
+        { status: 403 }
+      );
+    }
 
     const supabase = createAdminClient();
 

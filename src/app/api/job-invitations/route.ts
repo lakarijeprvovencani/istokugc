@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { getAuthUser } from '@/lib/auth-helper';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -88,8 +89,13 @@ export async function GET(request: Request) {
 }
 
 // POST - Create new invitation
+// ZAŠTIĆENO: Samo biznis vlasnik posla može slati pozive
 export async function POST(request: Request) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const body = await request.json();
     const { jobId, businessId, creatorId, message } = body;
 
@@ -97,6 +103,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'jobId, businessId, and creatorId are required' },
         { status: 400 }
+      );
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Samo vlasnik može slati pozive
+    if (user?.role === 'business' && user?.businessId !== businessId) {
+      return NextResponse.json(
+        { error: 'Ne možete slati pozive u ime drugog biznisa' },
+        { status: 403 }
       );
     }
 
@@ -156,8 +170,13 @@ export async function POST(request: Request) {
 }
 
 // PUT - Update invitation status (accept/reject)
+// ZAŠTIĆENO: Samo kreator koji je pozvan može prihvatiti/odbiti
 export async function PUT(request: Request) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const body = await request.json();
     const { invitationId, status } = body;
 
@@ -172,6 +191,25 @@ export async function PUT(request: Request) {
       return NextResponse.json(
         { error: 'Status must be accepted or rejected' },
         { status: 400 }
+      );
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Dohvati poziv i proveri vlasništvo
+    const { data: existingInvitation } = await supabase
+      .from('job_invitations')
+      .select('creator_id')
+      .eq('id', invitationId)
+      .single();
+    
+    if (!existingInvitation) {
+      return NextResponse.json({ error: 'Poziv nije pronađen' }, { status: 404 });
+    }
+    
+    // Samo kreator koji je pozvan ili admin može odgovoriti
+    if (user?.creatorId !== existingInvitation.creator_id && user?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za ovu akciju' },
+        { status: 403 }
       );
     }
 
@@ -242,8 +280,13 @@ export async function PUT(request: Request) {
 }
 
 // DELETE - Cancel invitation
+// ZAŠTIĆENO: Samo biznis koji je poslao poziv može ga obrisati
 export async function DELETE(request: Request) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const { searchParams } = new URL(request.url);
     const invitationId = searchParams.get('invitationId');
 
@@ -251,6 +294,25 @@ export async function DELETE(request: Request) {
       return NextResponse.json(
         { error: 'invitationId is required' },
         { status: 400 }
+      );
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Dohvati poziv i proveri vlasništvo
+    const { data: existingInvitation } = await supabase
+      .from('job_invitations')
+      .select('business_id')
+      .eq('id', invitationId)
+      .single();
+    
+    if (!existingInvitation) {
+      return NextResponse.json({ error: 'Poziv nije pronađen' }, { status: 404 });
+    }
+    
+    // Samo biznis koji je poslao poziv ili admin može obrisati
+    if (user?.businessId !== existingInvitation.business_id && user?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za brisanje ovog poziva' },
+        { status: 403 }
       );
     }
 

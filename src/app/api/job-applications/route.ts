@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth-helper';
 
 // GET /api/job-applications - Dohvati prijave
+// NAPOMENA: GET ostaje otvoren jer se koristi za prikaz (bezbednost je u tome ŠTA se prikazuje)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -151,8 +153,13 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/job-applications - Kreiraj novu prijavu
+// ZAŠTIĆENO: Samo ulogovani kreatori mogu kreirati prijave
 export async function POST(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const body = await request.json();
     const {
       jobId,
@@ -166,6 +173,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'jobId, creatorId, coverLetter i proposedPrice su obavezni' },
         { status: 400 }
+      );
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Kreator može prijaviti samo sebe
+    if (user?.role === 'creator' && user?.creatorId !== creatorId) {
+      return NextResponse.json(
+        { error: 'Ne možete se prijaviti u ime drugog kreatora' },
+        { status: 403 }
       );
     }
 
@@ -227,8 +242,13 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT /api/job-applications - Ažuriraj prijavu (prihvati/odbij)
+// ZAŠTIĆENO: Samo vlasnik prijave ili vlasnik posla može menjati status
 export async function PUT(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const body = await request.json();
     const { applicationId, status } = body;
 
@@ -241,6 +261,44 @@ export async function PUT(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Dohvati prijavu i proveri vlasništvo
+    const { data: existingApp } = await supabase
+      .from('job_applications')
+      .select('creator_id, job_id')
+      .eq('id', applicationId)
+      .single();
+    
+    if (!existingApp) {
+      return NextResponse.json({ error: 'Prijava nije pronađena' }, { status: 404 });
+    }
+    
+    // Dohvati posao da proverimo vlasnika
+    const { data: job } = await supabase
+      .from('jobs')
+      .select('business_id')
+      .eq('id', existingApp.job_id)
+      .single();
+    
+    // Proveri da li korisnik ima pravo da menja status
+    const isApplicationOwner = user?.creatorId === existingApp.creator_id;
+    const isJobOwner = user?.businessId === job?.business_id;
+    const isAdminUser = user?.role === 'admin';
+    
+    if (!isApplicationOwner && !isJobOwner && !isAdminUser) {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za ovu akciju' },
+        { status: 403 }
+      );
+    }
+    
+    // Kreator može samo povući svoju prijavu (withdrawn)
+    if (isApplicationOwner && !isJobOwner && !isAdminUser && status !== 'withdrawn') {
+      return NextResponse.json(
+        { error: 'Možete samo povući svoju prijavu' },
+        { status: 403 }
+      );
+    }
 
     const { data: application, error } = await supabase
       .from('job_applications')
@@ -269,8 +327,13 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE /api/job-applications - Povuci prijavu
+// ZAŠTIĆENO: Samo vlasnik prijave može obrisati svoju prijavu
 export async function DELETE(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const { searchParams } = new URL(request.url);
     const applicationId = searchParams.get('applicationId');
 
@@ -279,6 +342,28 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Dohvati prijavu i proveri vlasništvo
+    const { data: application } = await supabase
+      .from('job_applications')
+      .select('creator_id')
+      .eq('id', applicationId)
+      .single();
+    
+    if (!application) {
+      return NextResponse.json({ error: 'Prijava nije pronađena' }, { status: 404 });
+    }
+    
+    // Samo vlasnik prijave ili admin može obrisati
+    const isOwner = user?.creatorId === application.creator_id;
+    const isAdminUser = user?.role === 'admin';
+    
+    if (!isOwner && !isAdminUser) {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za brisanje ove prijave' },
+        { status: 403 }
+      );
+    }
 
     const { error } = await supabase
       .from('job_applications')

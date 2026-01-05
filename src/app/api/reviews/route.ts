@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth-helper';
 
 // GET - Dohvati recenzije
 export async function GET(request: NextRequest) {
@@ -100,8 +101,13 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Kreiraj novu recenziju
+// ZAŠTIĆENO: Samo biznisi mogu kreirati recenzije za kreatore
 export async function POST(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const { businessId, creatorId, rating, comment } = await request.json();
 
     console.log('Creating review:', { businessId, creatorId, rating, comment });
@@ -109,6 +115,11 @@ export async function POST(request: NextRequest) {
     if (!businessId || !creatorId || !rating) {
       console.log('Missing required fields:', { businessId, creatorId, rating });
       return NextResponse.json({ error: 'Business ID, Creator ID, and rating are required' }, { status: 400 });
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Biznis može kreirati recenziju samo u svoje ime
+    if (user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate dozvolu da kreirate recenziju u ime drugog biznisa' }, { status: 403 });
     }
 
     if (rating < 1 || rating > 5) {
@@ -143,8 +154,13 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT - Ažuriraj recenziju
+// ZAŠTIĆENO: Samo vlasnik recenzije ili admin može menjati
 export async function PUT(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const { reviewId, rating, comment, status, rejectionReason } = await request.json();
 
     if (!reviewId) {
@@ -152,6 +168,30 @@ export async function PUT(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Proveri vlasništvo
+    const { data: existingReview } = await supabase
+      .from('reviews')
+      .select('business_id')
+      .eq('id', reviewId)
+      .single();
+    
+    if (!existingReview) {
+      return NextResponse.json({ error: 'Recenzija nije pronađena' }, { status: 404 });
+    }
+    
+    // Samo vlasnik ili admin može menjati
+    const isOwner = user?.businessId === existingReview.business_id;
+    const isAdmin = user?.role === 'admin';
+    
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ error: 'Nemate dozvolu za izmenu ove recenzije' }, { status: 403 });
+    }
+    
+    // Samo admin može menjati status (odobrenje/odbijanje)
+    if (status !== undefined && !isAdmin) {
+      return NextResponse.json({ error: 'Samo admin može menjati status recenzije' }, { status: 403 });
+    }
 
     const updateData: any = { updated_at: new Date().toISOString() };
     if (rating !== undefined) updateData.rating = rating;
@@ -184,8 +224,13 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE - Obriši recenziju
+// ZAŠTIĆENO: Samo vlasnik recenzije ili admin može obrisati
 export async function DELETE(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const { searchParams } = new URL(request.url);
     const reviewId = searchParams.get('reviewId');
 
@@ -194,6 +239,22 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Proveri vlasništvo
+    const { data: existingReview } = await supabase
+      .from('reviews')
+      .select('business_id')
+      .eq('id', reviewId)
+      .single();
+    
+    if (!existingReview) {
+      return NextResponse.json({ error: 'Recenzija nije pronađena' }, { status: 404 });
+    }
+    
+    // Samo vlasnik ili admin može obrisati
+    if (user?.businessId !== existingReview.business_id && user?.role !== 'admin') {
+      return NextResponse.json({ error: 'Nemate dozvolu za brisanje ove recenzije' }, { status: 403 });
+    }
 
     const { error } = await supabase
       .from('reviews')

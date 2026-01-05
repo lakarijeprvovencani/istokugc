@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth-helper';
 
 // GET /api/jobs - Dohvati poslove
 export async function GET(request: NextRequest) {
@@ -122,8 +123,13 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/jobs - Kreiraj novi posao
+// ZAŠTIĆENO: Samo ulogovani biznisi mogu kreirati poslove
 export async function POST(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const body = await request.json();
     const {
       businessId,
@@ -144,6 +150,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'businessId, title, description i category su obavezni' },
         { status: 400 }
+      );
+    }
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Biznis može kreirati samo svoje poslove
+    if (user?.role === 'business' && user?.businessId !== businessId) {
+      return NextResponse.json(
+        { error: 'Ne možete kreirati posao u ime drugog biznisa' },
+        { status: 403 }
       );
     }
 
@@ -191,8 +205,13 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT /api/jobs - Ažuriraj posao
+// ZAŠTIĆENO: Samo vlasnik posla ili admin može menjati posao
 export async function PUT(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const body = await request.json();
     const { jobId, ...updates } = body;
 
@@ -201,6 +220,25 @@ export async function PUT(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Dohvati posao i proveri vlasništvo
+    const { data: existingJob } = await supabase
+      .from('jobs')
+      .select('business_id')
+      .eq('id', jobId)
+      .single();
+    
+    if (!existingJob) {
+      return NextResponse.json({ error: 'Posao nije pronađen' }, { status: 404 });
+    }
+    
+    // Samo vlasnik ili admin može menjati
+    if (user?.businessId !== existingJob.business_id && user?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za izmenu ovog posla' },
+        { status: 403 }
+      );
+    }
 
     // Map camelCase to snake_case
     const dbUpdates: any = {};
@@ -238,8 +276,13 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE /api/jobs - Obriši posao
+// ZAŠTIĆENO: Samo vlasnik posla ili admin može obrisati posao
 export async function DELETE(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');
 
@@ -248,6 +291,25 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Dohvati posao i proveri vlasništvo
+    const { data: existingJob } = await supabase
+      .from('jobs')
+      .select('business_id')
+      .eq('id', jobId)
+      .single();
+    
+    if (!existingJob) {
+      return NextResponse.json({ error: 'Posao nije pronađen' }, { status: 404 });
+    }
+    
+    // Samo vlasnik ili admin može obrisati
+    if (user?.businessId !== existingJob.business_id && user?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za brisanje ovog posla' },
+        { status: 403 }
+      );
+    }
     
     // 1. First, update all job applications to 'cancelled' status
     const { error: appsError } = await supabase

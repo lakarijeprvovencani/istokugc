@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let subscription;
+    let subscription: any;
 
     if (immediate) {
       // Odmah otkaži pretplatu

@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     const subscriptionItemId = currentSubscription.items.data[0].id;
 
     // Ažuriraj pretplatu sa novim planom
-    const updatedSubscription = await stripe.subscriptions.update(
+    const updatedSubscription: any = await stripe.subscriptions.update(
       business.stripe_subscription_id,
       {
         items: [

@@ -844,7 +844,7 @@ export default function AdminPage() {
                         <p className="text-xs text-muted line-clamp-2 mb-3">{creator.bio}</p>
                         
                         <div className="flex flex-wrap gap-1.5 mb-4">
-                          {creator.categories.slice(0, 3).map((cat) => (
+                          {creator.categories.slice(0, 3).map((cat: string) => (
                             <span key={cat} className="px-2 py-0.5 bg-secondary rounded-full text-xs">
                               {cat}
                             </span>
@@ -919,7 +919,7 @@ export default function AdminPage() {
                             <p className="text-sm mt-4 line-clamp-2">{creator.bio}</p>
                             
                             <div className="flex flex-wrap gap-2 mt-4">
-                              {creator.categories.map((cat) => (
+                              {creator.categories.map((cat: string) => (
                                 <span key={cat} className="px-3 py-1 bg-secondary rounded-full text-xs">
                                   {cat}
                                 </span>
@@ -994,7 +994,7 @@ export default function AdminPage() {
                         </div>
                         
                         <div className="flex flex-wrap gap-1.5 mb-3">
-                          {creator.categories.slice(0, 2).map((cat) => (
+                          {creator.categories.slice(0, 2).map((cat: string) => (
                             <span key={cat} className="px-2 py-0.5 bg-secondary rounded text-xs">
                               {cat}
                             </span>
@@ -1086,7 +1086,7 @@ export default function AdminPage() {
                             </td>
                             <td className="py-4">
                               <div className="flex gap-1 flex-wrap">
-                                {creator.categories.slice(0, 2).map((cat) => (
+                                {creator.categories.slice(0, 2).map((cat: string) => (
                                   <span key={cat} className="px-2 py-0.5 bg-secondary rounded text-xs">
                                     {cat}
                                   </span>
@@ -1654,7 +1654,7 @@ export default function AdminPage() {
                 <div className="mb-6">
                   <h3 className="text-sm font-medium text-muted mb-2">Kategorije</h3>
                   <div className="flex flex-wrap gap-2">
-                    {viewingCreator.categories.map((cat) => (
+                    {viewingCreator.categories.map((cat: string) => (
                       <span key={cat} className="px-3 py-1.5 bg-secondary rounded-full text-xs font-medium">
                         {cat}
                       </span>
@@ -1666,7 +1666,7 @@ export default function AdminPage() {
                 <div className="mb-6">
                   <h3 className="text-sm font-medium text-muted mb-2">Platforme</h3>
                   <div className="flex flex-wrap gap-2">
-                    {viewingCreator.platforms.map((platform) => (
+                    {viewingCreator.platforms.map((platform: string) => (
                       <span key={platform} className="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
                         {platform}
                       </span>
@@ -1678,7 +1678,7 @@ export default function AdminPage() {
                 <div className="mb-6">
                   <h3 className="text-sm font-medium text-muted mb-2">Jezici</h3>
                   <div className="flex flex-wrap gap-2">
-                    {viewingCreator.languages.map((lang) => (
+                    {viewingCreator.languages.map((lang: string) => (
                       <span key={lang} className="px-3 py-1.5 bg-secondary rounded-full text-xs">
                         {lang}
                       </span>
@@ -1932,7 +1932,7 @@ export default function AdminPage() {
                   <div className="pt-4 mt-4 border-t border-border">
                     <label className="text-sm text-muted mb-3 block">Portfolio ({editingCreator.portfolio.length} stavki)</label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {editingCreator.portfolio.map((item, index) => (
+                      {editingCreator.portfolio.map((item: { thumbnail?: string; url?: string }, index: number) => (
                         <div key={index} className="relative group">
                           <div className="aspect-square rounded-lg overflow-hidden bg-secondary">
                             {item.thumbnail ? (
@@ -2016,7 +2016,7 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const newPortfolio = editingCreator.portfolio.filter((_, i) => i !== deletingPortfolioIndex);
+                                  const newPortfolio = editingCreator.portfolio.filter((_: unknown, i: number) => i !== deletingPortfolioIndex);
                                   setEditingCreator({...editingCreator, portfolio: newPortfolio});
                                   setDeletingPortfolioIndex(null);
                                 }}
@@ -3446,7 +3446,7 @@ function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal 
                 <>
                   <button
                     onClick={() => {
-                      handleRejectJob(viewingJob.id);
+                      handleDeleteJob(viewingJob.id);
                       setViewingJob(null);
                     }}
                     className="px-4 py-2 border border-error text-error rounded-xl hover:bg-error/5 transition-colors"
@@ -3455,7 +3455,7 @@ function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal 
                   </button>
                   <button
                     onClick={() => {
-                      handleApproveJob(viewingJob.id);
+                      handleApproveRejectJob(viewingJob.id, true);
                       setViewingJob(null);
                     }}
                     className="px-4 py-2 bg-success text-white rounded-xl hover:bg-success/90 transition-colors"

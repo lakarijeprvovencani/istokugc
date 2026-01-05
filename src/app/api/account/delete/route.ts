@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { getAuthUser } from '@/lib/auth-helper';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,19 +9,45 @@ const supabase = createClient(
 );
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil',
+  apiVersion: '2025-12-15.clover',
 });
 
 // DELETE /api/account/delete
 // Briše nalog korisnika (business ili creator)
+// ZAŠTIĆENO: Korisnik može obrisati SAMO svoj nalog
 export async function DELETE(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    
     const { userType, id, userId } = await request.json();
 
     if (!userType || !id) {
       return NextResponse.json(
         { error: 'User type and ID are required' },
         { status: 400 }
+      );
+    }
+    
+    // 🔒 KRITIČNA BEZBEDNOSNA PROVERA: Korisnik može obrisati SAMO SVOJ nalog!
+    if (userType === 'business' && user?.businessId !== id) {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za brisanje ovog naloga' },
+        { status: 403 }
+      );
+    }
+    if (userType === 'creator' && user?.creatorId !== id) {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za brisanje ovog naloga' },
+        { status: 403 }
+      );
+    }
+    // Dodatna provera: userId mora odgovarati ulogovanom korisniku
+    if (userId && user?.id !== userId) {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za brisanje ovog naloga' },
+        { status: 403 }
       );
     }
 

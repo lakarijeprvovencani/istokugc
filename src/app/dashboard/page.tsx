@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDemo } from '@/context/DemoContext';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -585,7 +586,7 @@ function CreatorDashboard() {
       if (response.ok) {
         const data = await response.json();
         // Update local creator data with new photo
-        setCreator(prev => prev ? { ...prev, photo: data.data.photoUrl } : prev);
+        setCreator((prev: any) => prev ? { ...prev, photo: data.data.photoUrl } : prev);
         setEditingPhoto(false);
         setSelectedPhoto(null);
         setPhotoPreview(null);
@@ -655,7 +656,7 @@ function CreatorDashboard() {
             >
               {tab.label}
               {/* Unread messages badge (red) */}
-              {'unread' in tab && tab.unread > 0 ? (
+              {'unread' in tab && (tab.unread ?? 0) > 0 ? (
                 <span className="px-2 py-0.5 rounded-full text-xs bg-error text-white font-medium">
                   {tab.unread}
                 </span>
@@ -1604,9 +1605,12 @@ function CreatorDashboard() {
                               ? { ...r, creatorReply: reply, replyDate: new Date().toISOString().split('T')[0] }
                               : r
                           ));
+                          return true;
                         }
+                        return false;
                       } catch (error) {
                         console.error('Error adding reply:', error);
+                        return false;
                       }
                     }}
                     onEditReply={async (reviewId, reply) => {
@@ -1622,9 +1626,12 @@ function CreatorDashboard() {
                               ? { ...r, creatorReply: reply, replyDate: new Date().toISOString().split('T')[0] }
                               : r
                           ));
+                          return true;
                         }
+                        return false;
                       } catch (error) {
                         console.error('Error updating reply:', error);
+                        return false;
                       }
                     }}
                     onDeleteReply={async (reviewId) => {
@@ -1638,9 +1645,12 @@ function CreatorDashboard() {
                               ? { ...r, creatorReply: undefined, replyDate: undefined }
                               : r
                           ));
+                          return true;
                         }
+                        return false;
                       } catch (error) {
                         console.error('Error deleting reply:', error);
+                        return false;
                       }
                     }}
                   />
