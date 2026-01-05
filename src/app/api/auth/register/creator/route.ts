@@ -40,24 +40,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898';
-    
-    // Kreiraj Supabase admin client (za db operacije)
+    // Kreiraj Supabase admin client
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
-
-    // Kreiraj regular client (za signUp koji šalje email)
-    const supabaseClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         auth: {
           autoRefreshToken: false,
@@ -77,16 +63,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Kreiraj korisnika sa signUp - OVO AUTOMATSKI ŠALJE VERIFIKACIONI EMAIL!
-    const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+    // 2. Kreiraj korisnika u Supabase Auth
+    // email_confirm: true - NE zahteva email potvrdu (admin će odobriti profil)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      options: {
-        emailRedirectTo: `${siteUrl}/auth/callback`,
-        data: {
-          role: 'creator',
-          name,
-        },
+      email_confirm: true, // Email je automatski potvrđen - admin odobrava profil
+      user_metadata: {
+        role: 'creator',
+        name,
       },
     });
 
@@ -105,7 +90,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Kreiraj user record u našoj tabeli (koristi admin client da zaobiđe RLS)
+    // 3. Kreiraj user record u našoj tabeli
     const { error: userError } = await supabaseAdmin
       .from('users')
       .insert({
@@ -124,7 +109,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Kreiraj creator profil sa status='pending'
+    // 4. Kreiraj creator profil sa status='pending' (čeka admin odobrenje)
     const { data: creatorData, error: creatorError } = await supabaseAdmin
       .from('creators')
       .insert({
@@ -143,7 +128,7 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         photo: photo || null,
         portfolio: portfolio || [],
-        status: 'pending',
+        status: 'pending', // Čeka odobrenje admina
       })
       .select()
       .single();
@@ -159,15 +144,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Email verifikacija se automatski šalje preko signUp!
-    console.log(`✅ Creator registered: ${email}, verification email sent automatically`);
+    console.log(`✅ Creator registered: ${email} - waiting for admin approval`);
 
     return NextResponse.json({
       success: true,
-      message: 'Registracija uspešna! Proverite email za verifikaciju.',
+      message: 'Registracija uspešna! Tvoj profil čeka odobrenje.',
       userId: authData.user.id,
       creatorId: creatorData.id,
-      requiresEmailVerification: true,
     });
 
   } catch (error) {

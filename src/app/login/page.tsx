@@ -16,42 +16,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Za ponovno slanje verifikacionog emaila
-  const [showResendOption, setShowResendOption] = useState(false);
-  const [isResending, setIsResending] = useState(false);
-  const [resendCountdown, setResendCountdown] = useState(0);
-  const [resendSuccess, setResendSuccess] = useState(false);
-
-  useEffect(() => {
-    if (resendCountdown > 0) {
-      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCountdown]);
-
-  const handleResendVerification = async () => {
-    if (resendCountdown > 0 || !email) return;
-    
-    setIsResending(true);
-    setResendSuccess(false);
-    
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-      });
-      
-      if (!error) {
-        setResendSuccess(true);
-        setResendCountdown(60);
-      }
-    } catch {
-      // Ignore errors
-    } finally {
-      setIsResending(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,13 +34,8 @@ export default function LoginPage() {
       if (authError) {
         if (authError.message.includes('Invalid login credentials')) {
           setError('Pogrešan email ili lozinka');
-          setShowResendOption(false);
-        } else if (authError.message.includes('Email not confirmed')) {
-          setError('Molimo potvrdite email adresu pre prijave.');
-          setShowResendOption(true);
         } else {
           setError(authError.message);
-          setShowResendOption(false);
         }
         setIsLoading(false);
         return;
@@ -214,38 +173,6 @@ export default function LoginPage() {
             {error && (
               <div className="bg-error/10 border border-error/20 rounded-xl p-4">
                 <p className="text-sm text-error">{error}</p>
-                
-                {/* Opcija za ponovno slanje verifikacionog emaila */}
-                {showResendOption && (
-                  <div className="mt-3 pt-3 border-t border-error/20">
-                    {resendSuccess ? (
-                      <p className="text-sm text-green-600">
-                        ✓ Email je ponovo poslat! Proverite inbox i spam folder.
-                      </p>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleResendVerification}
-                        disabled={isResending || resendCountdown > 0}
-                        className="text-sm text-primary hover:underline disabled:opacity-50 disabled:no-underline flex items-center gap-2"
-                      >
-                        {isResending ? (
-                          <>
-                            <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Šaljem...
-                          </>
-                        ) : resendCountdown > 0 ? (
-                          `Pošalji ponovo za ${resendCountdown}s`
-                        ) : (
-                          'Nije stigao email? Pošalji ponovo'
-                        )}
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
             )}
 
@@ -324,12 +251,6 @@ export default function LoginPage() {
             Nemaš nalog?{' '}
             <Link href="/register" className="text-foreground hover:underline font-medium">
               Registruj se
-            </Link>
-          </p>
-          
-          <p className="text-center text-sm text-muted mt-3">
-            <Link href="/auth/verify-email" className="text-primary hover:underline">
-              Nisam dobio verifikacioni email
             </Link>
           </p>
         </div>

@@ -952,14 +952,12 @@ export default function RegisterCreatorPage() {
             <h2 className="text-2xl font-light mb-4">Registracija uspešna!</h2>
             
             <p className="text-muted mb-6">
-              Poslali smo ti verifikacioni email na <strong>{formData.email}</strong>.
-              <br /><br />
-              Klikni na link u emailu da potvrdite svoju adresu, a zatim se prijavite.
+              Tvoja prijava je primljena! Sada možeš da se prijaviš sa svojim nalogom.
             </p>
             
             <div className="bg-secondary rounded-xl p-4 mb-6">
               <p className="text-sm text-muted">
-                <strong>Napomena:</strong> Nakon verifikacije, tvoj profil će biti na čekanju dok naš tim ne pregleda i odobri tvoju prijavu.
+                <strong>Sledeći korak:</strong> Naš tim će pregledati tvoj profil i obavestiti te kada bude odobren. To obično traje do 24 sata.
               </p>
             </div>
             
@@ -967,14 +965,7 @@ export default function RegisterCreatorPage() {
               onClick={() => router.push('/login')}
               className="w-full px-6 py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
             >
-              Idi na prijavu
-            </button>
-            
-            <button
-              onClick={() => router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`)}
-              className="w-full mt-3 px-6 py-3 text-muted hover:text-foreground transition-colors text-sm"
-            >
-              Nije stigao email? Pošalji ponovo
+              Prijavi se
             </button>
           </div>
         </div>
