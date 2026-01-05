@@ -2796,6 +2796,7 @@ function BusinessDashboard() {
             isLoading={isLoadingJobs}
             showAddModal={showAddJobModal}
             setShowAddModal={setShowAddJobModal}
+            jobsWithNewApplications={jobsWithNewApplications}
             onOpenChat={(app) => {
               // Show toast first - centered on screen for 3 seconds
               setGlobalToast(`Prihvatili ste kreatora ${app.creator?.name || 'Kreator'}! Bićete preusmereni u poruke.`);
@@ -3287,9 +3288,10 @@ interface BusinessJobsTabProps {
   showAddModal: boolean;
   setShowAddModal: (show: boolean) => void;
   onOpenChat?: (app: any) => void;
+  jobsWithNewApplications?: Set<string>;
 }
 
-function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, setShowAddModal, onOpenChat }: BusinessJobsTabProps) {
+function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, setShowAddModal, onOpenChat, jobsWithNewApplications = new Set() }: BusinessJobsTabProps) {
   const [categories, setCategories] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [editingJob, setEditingJob] = useState<any | null>(null);
