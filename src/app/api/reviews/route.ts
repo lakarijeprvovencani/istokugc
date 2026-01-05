@@ -35,43 +35,36 @@ export async function GET(request: NextRequest) {
 
     const { data: reviews, error } = await query;
 
-    console.log('Reviews fetched:', { count: reviews?.length, error: error?.message });
-
     if (error) {
       console.error('Error fetching reviews:', error);
-      // Return empty array instead of error
       return NextResponse.json({ reviews: [] });
     }
 
-    // Dohvati business i creator podatke odvojeno
-    const formattedReviews = await Promise.all((reviews || []).map(async (review) => {
-      // Dohvati business
-      let businessName = 'Anonimni biznis';
-      let businessData = null;
-      if (review.business_id) {
-        const { data: business } = await supabase
-          .from('businesses')
-          .select('id, company_name')
-          .eq('id', review.business_id)
-          .single();
-        if (business) {
-          businessName = business.company_name;
-          businessData = { id: business.id, name: business.company_name };
-        }
-      }
+    // OPTIMIZED: Fetch all businesses and creators in bulk (2 queries instead of N*2)
+    const businessIds = [...new Set((reviews || []).map(r => r.business_id).filter(Boolean))];
+    const creatorIds = [...new Set((reviews || []).map(r => r.creator_id).filter(Boolean))];
 
-      // Dohvati creator
-      let creatorData = null;
-      if (review.creator_id) {
-        const { data: creator } = await supabase
-          .from('creators')
-          .select('id, name, photo')
-          .eq('id', review.creator_id)
-          .single();
-        if (creator) {
-          creatorData = { id: creator.id, name: creator.name, photo: creator.photo };
-        }
-      }
+    const [businessesResult, creatorsResult] = await Promise.all([
+      businessIds.length > 0 
+        ? supabase.from('businesses').select('id, company_name').in('id', businessIds)
+        : { data: [] },
+      creatorIds.length > 0
+        ? supabase.from('creators').select('id, name, photo').in('id', creatorIds)
+        : { data: [] }
+    ]);
+
+    // Create lookup maps
+    const businessMap = new Map(
+      (businessesResult.data || []).map(b => [b.id, { id: b.id, name: b.company_name }])
+    );
+    const creatorMap = new Map(
+      (creatorsResult.data || []).map(c => [c.id, { id: c.id, name: c.name, photo: c.photo }])
+    );
+
+    // Format reviews using lookup maps
+    const formattedReviews = (reviews || []).map(review => {
+      const businessData = businessMap.get(review.business_id);
+      const creatorData = creatorMap.get(review.creator_id);
 
       return {
         id: review.id,
@@ -84,15 +77,22 @@ export async function GET(request: NextRequest) {
         updatedAt: review.updated_at,
         businessId: review.business_id,
         creatorId: review.creator_id,
-        businessName,
-        business: businessData,
-        creator: creatorData,
+        businessName: businessData?.name || 'Anonimni biznis',
+        business: businessData || null,
+        creator: creatorData || null,
         creatorReply: review.reply || null,
         creatorReplyAt: review.reply_date || null,
       };
-    }));
+    });
 
-    return NextResponse.json({ reviews: formattedReviews });
+    const response = NextResponse.json({ reviews: formattedReviews });
+    
+    // Cache public reviews (for creator profiles) for 2 minutes
+    if (creatorId && !businessId) {
+      response.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+    }
+    
+    return response;
 
   } catch (error: any) {
     console.error('Reviews fetch error:', error);

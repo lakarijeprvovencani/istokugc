@@ -41,45 +41,51 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Fetch related data for each invitation
-    const enrichedInvitations = await Promise.all(
-      (invitations || []).map(async (invitation) => {
-        // Fetch job details
-        const { data: job } = await supabase
-          .from('jobs')
-          .select('*')
-          .eq('id', invitation.job_id)
-          .single();
+    // OPTIMIZED: Fetch all related data in bulk (3 queries instead of N*3)
+    const jobIds = [...new Set((invitations || []).map(i => i.job_id).filter(Boolean))];
+    const businessIds = [...new Set((invitations || []).map(i => i.business_id).filter(Boolean))];
+    const creatorIds = [...new Set((invitations || []).map(i => i.creator_id).filter(Boolean))];
 
-        // Fetch business details
-        const { data: business } = await supabase
-          .from('businesses')
-          .select('id, company_name, industry')
-          .eq('id', invitation.business_id)
-          .single();
+    const [jobsResult, businessesResult, creatorsResult] = await Promise.all([
+      jobIds.length > 0 
+        ? supabase.from('jobs').select('*').in('id', jobIds)
+        : { data: [] },
+      businessIds.length > 0
+        ? supabase.from('businesses').select('id, company_name, industry').in('id', businessIds)
+        : { data: [] },
+      creatorIds.length > 0
+        ? supabase.from('creators').select('id, name, photo, location').in('id', creatorIds)
+        : { data: [] }
+    ]);
 
-        // Fetch creator details
-        const { data: creator, error: creatorError } = await supabase
-          .from('creators')
-          .select('id, name, photo, location')
-          .eq('id', invitation.creator_id)
-          .single();
-        
-        if (creatorError) {
-          console.error('Error fetching creator:', creatorError, 'creator_id:', invitation.creator_id);
-        }
+    // Create lookup maps
+    const jobsMap = new Map((jobsResult.data || []).map(j => [j.id, j]));
+    const businessesMap = new Map((businessesResult.data || []).map(b => [b.id, b]));
+    const creatorsMap = new Map((creatorsResult.data || []).map(c => [c.id, c]));
 
-        return {
-          ...invitation,
-          job: job || null,
-          business: business || null,
-          creator: creator || null,
-          businessName: business?.company_name || 'Nepoznat biznis',
-          creatorName: creator?.name || 'Nepoznat kreator',
-          jobTitle: job?.title || 'Nepoznat posao',
-        };
-      })
-    );
+    // Enrich invitations using lookup maps
+    const enrichedInvitations = (invitations || []).map(invitation => {
+      const job = jobsMap.get(invitation.job_id);
+      const business = businessesMap.get(invitation.business_id);
+      const creator = creatorsMap.get(invitation.creator_id);
+
+      return {
+        id: invitation.id,
+        jobId: invitation.job_id,
+        creatorId: invitation.creator_id,
+        businessId: invitation.business_id,
+        message: invitation.message,
+        status: invitation.status,
+        createdAt: invitation.created_at,
+        respondedAt: invitation.responded_at,
+        job: job || null,
+        business: business || null,
+        creator: creator || null,
+        businessName: business?.company_name || 'Nepoznat biznis',
+        creatorName: creator?.name || 'Nepoznat kreator',
+        jobTitle: job?.title || 'Nepoznat posao',
+      };
+    });
 
     return NextResponse.json({ invitations: enrichedInvitations });
   } catch (error) {
