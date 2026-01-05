@@ -42,10 +42,22 @@ export async function POST(request: NextRequest) {
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898';
     
-    // Kreiraj Supabase admin client
+    // Kreiraj Supabase admin client (za db operacije)
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
+    // Kreiraj regular client (za signUp koji šalje email)
+    const supabaseClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         auth: {
           autoRefreshToken: false,
@@ -65,14 +77,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Kreiraj korisnika u Supabase Auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // 2. Kreiraj korisnika sa signUp - OVO AUTOMATSKI ŠALJE VERIFIKACIONI EMAIL!
+    const { data: authData, error: authError } = await supabaseClient.auth.signUp({
       email,
       password,
-      email_confirm: false, // Zahteva email potvrdu
-      user_metadata: {
-        role: 'creator',
-        name,
+      options: {
+        emailRedirectTo: `${siteUrl}/auth/callback`,
+        data: {
+          role: 'creator',
+          name,
+        },
       },
     });
 
@@ -91,7 +105,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Kreiraj user record u našoj tabeli
+    // 3. Kreiraj user record u našoj tabeli (koristi admin client da zaobiđe RLS)
     const { error: userError } = await supabaseAdmin
       .from('users')
       .insert({
@@ -145,22 +159,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Generiši link za email verifikaciju
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
-      email,
-      password,
-      options: {
-        redirectTo: `${siteUrl}/auth/callback`,
-      },
-    });
-
-    if (linkError) {
-      console.error('Link generation error:', linkError);
-    }
-
-    // Link se šalje automatski preko Supabase email template-a
-    // Ako želiš custom email, možeš koristiti linkData.properties.action_link
+    // Email verifikacija se automatski šalje preko signUp!
+    console.log(`✅ Creator registered: ${email}, verification email sent automatically`);
 
     return NextResponse.json({
       success: true,
@@ -168,8 +168,6 @@ export async function POST(request: NextRequest) {
       userId: authData.user.id,
       creatorId: creatorData.id,
       requiresEmailVerification: true,
-      // Za debug - ukloni u produkciji
-      verificationLink: linkData?.properties?.action_link,
     });
 
   } catch (error) {

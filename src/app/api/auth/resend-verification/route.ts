@@ -17,10 +17,22 @@ export async function POST(request: NextRequest) {
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898';
 
-    // Kreiraj Supabase admin client
+    // Kreiraj Supabase admin client (za proveru korisnika)
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
+    // Kreiraj regular client (za resend koji šalje email)
+    const supabaseClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         auth: {
           autoRefreshToken: false,
@@ -49,33 +61,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generiši novi link za verifikaciju
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink', // Koristi magic link umesto signup za resend
+    // Koristi resend metodu koja AUTOMATSKI šalje email
+    const { error: resendError } = await supabaseClient.auth.resend({
+      type: 'signup',
       email,
       options: {
-        redirectTo: `${siteUrl}/auth/callback`,
+        emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     });
 
-    if (linkError) {
-      console.error('Link generation error:', linkError);
+    if (resendError) {
+      console.error('Resend verification error:', resendError);
+      
+      // Ako je rate limit, vrati specifičnu poruku
+      if (resendError.message.includes('rate') || resendError.message.includes('limit')) {
+        return NextResponse.json(
+          { error: 'Previše zahteva. Molimo sačekajte par minuta pre ponovnog slanja.' },
+          { status: 429 }
+        );
+      }
+      
       return NextResponse.json(
         { error: 'Greška pri slanju email-a. Pokušajte ponovo za par minuta.' },
         { status: 500 }
       );
     }
 
-    // Supabase automatski šalje email
-    // Za custom email, koristi linkData.properties.action_link
+    console.log(`✅ Verification email resent to: ${email}`);
 
     return NextResponse.json({
       success: true,
       message: 'Email za verifikaciju je poslat. Proverite inbox i spam folder.',
-      // Debug - ukloni u produkciji ako ne želiš da se vidi
-      ...(process.env.NODE_ENV === 'development' && {
-        verificationLink: linkData?.properties?.action_link,
-      }),
     });
 
   } catch (error) {
@@ -86,4 +102,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
