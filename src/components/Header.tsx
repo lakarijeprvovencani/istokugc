@@ -85,9 +85,23 @@ export default function Header() {
     };
     
     checkNotifications();
-    // Re-check every 30 seconds
-    const interval = setInterval(checkNotifications, 30000);
-    return () => clearInterval(interval);
+    
+    // Re-check only when tab becomes visible (not every 30 seconds)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkNotifications();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also check every 60 seconds as backup (reduced from 30)
+    const interval = setInterval(checkNotifications, 60000);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(interval);
+    };
   }, [isHydrated, isLoggedIn, currentUser.type, currentUser.creatorId, currentUser.businessId]);
   
   // Logout i redirect na početnu

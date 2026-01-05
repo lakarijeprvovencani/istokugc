@@ -62,26 +62,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 });
     }
 
-    // For each job, fetch its business company_name directly
-    const jobsWithBusiness = await Promise.all(
-      (jobs || []).map(async (job) => {
-        let companyName = '';
-        
-        if (job.business_id) {
-          const { data: business } = await supabase
-            .from('businesses')
-            .select('company_name')
-            .eq('id', job.business_id)
-            .single();
-          
-          if (business) {
-            companyName = business.company_name;
-          }
-        }
-        
-        return { ...job, companyName };
-      })
+    // Get unique business IDs
+    const businessIds = [...new Set((jobs || []).map(j => j.business_id).filter(Boolean))];
+    
+    // Fetch all business names in ONE query (instead of N queries!)
+    const { data: businesses } = await supabase
+      .from('businesses')
+      .select('id, company_name')
+      .in('id', businessIds);
+    
+    // Create lookup map
+    const businessMap = new Map(
+      (businesses || []).map(b => [b.id, b.company_name])
     );
+    
+    // Add company names to jobs
+    const jobsWithBusiness = (jobs || []).map(job => ({
+      ...job,
+      companyName: businessMap.get(job.business_id) || ''
+    }));
 
     // Format jobs
     const formattedJobs = jobsWithBusiness.map(job => {
@@ -114,7 +113,14 @@ export async function GET(request: NextRequest) {
       ? formattedJobs 
       : formattedJobs.filter(job => !job.isExpired);
 
-    return NextResponse.json({ jobs: filteredJobs });
+    const response = NextResponse.json({ jobs: filteredJobs });
+    
+    // Cache public job listings (not business-specific)
+    if (!businessId) {
+      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    }
+    
+    return response;
 
   } catch (error: any) {
     console.error('Jobs fetch error:', error);

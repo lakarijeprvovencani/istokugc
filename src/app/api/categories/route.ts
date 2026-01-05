@@ -20,8 +20,8 @@ export async function GET() {
       categories: categories.map(c => c.name) 
     });
     
-    // Categories rarely change - cache for 5 minutes
-    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    // Categories rarely change - cache aggressively (1 hour, stale for 24h)
+    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
     
     return response;
 

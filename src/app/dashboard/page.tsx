@@ -169,7 +169,7 @@ function CreatorDashboard() {
   const availablePlatforms = ['Instagram', 'TikTok', 'YouTube'];
   const availableLanguages = ['Srpski', 'Engleski', 'Nemački', 'Francuski', 'Španski', 'Italijanski'];
   
-  // Fetch creator data from Supabase - wait for hydration first
+  // Fetch creator data from Supabase - with caching for instant display
   useEffect(() => {
     const fetchCreator = async () => {
       // Wait for hydration before making decisions
@@ -182,11 +182,27 @@ function CreatorDashboard() {
         return;
       }
       
+      // Try to load from cache first for instant display
+      const cacheKey = `dashboard_creator_${currentUser.creatorId}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const cachedData = JSON.parse(cached);
+          setCreator(cachedData);
+          setIsLoadingCreator(false); // Show cached data immediately
+        } catch (e) {
+          // Invalid cache, ignore
+        }
+      }
+      
+      // Fetch fresh data in background
       try {
         const response = await fetch(`/api/creators/${currentUser.creatorId}`);
         if (response.ok) {
           const data = await response.json();
           setCreator(data.creator);
+          // Update cache
+          sessionStorage.setItem(cacheKey, JSON.stringify(data.creator));
         }
       } catch (error) {
         console.error('Error fetching creator:', error);
@@ -1885,7 +1901,7 @@ function BusinessDashboard() {
     fetchApplications();
   }, [currentUser.businessId]);
 
-  // Fetch real business data from Supabase - wait for hydration first
+  // Fetch real business data from Supabase - with caching and parallel fetching
   useEffect(() => {
     const fetchBusinessData = async () => {
       // Wait for hydration before making decisions
@@ -1898,9 +1914,39 @@ function BusinessDashboard() {
         return;
       }
       
+      // Try to load from cache first for instant display
+      const cacheKey = `dashboard_business_${currentUser.businessId}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const cachedData = JSON.parse(cached);
+          if (cachedData.profile) {
+            setBusinessData(cachedData.profile);
+            setCompanyName(cachedData.profile.company_name || '');
+            setWebsite(cachedData.profile.website || '');
+            setIndustry(cachedData.profile.industry || '');
+            setDescription(cachedData.profile.description || '');
+          }
+          if (cachedData.subscription) setSubscriptionData(cachedData.subscription);
+          if (cachedData.recentCreators) setRecentCreators(cachedData.recentCreators);
+          if (cachedData.reviews) setMyReviews(cachedData.reviews);
+          setIsLoading(false); // Show cached data immediately
+        } catch (e) {
+          // Invalid cache, ignore
+        }
+      }
+      
       try {
-        // Fetch business profile with cache-busting
-        const profileRes = await fetch(`/api/business/profile?businessId=${currentUser.businessId}&t=${Date.now()}`);
+        // Fetch ALL data in PARALLEL for speed
+        const [profileRes, subRes, viewsRes, reviewsRes] = await Promise.all([
+          fetch(`/api/business/profile?businessId=${currentUser.businessId}&t=${Date.now()}`),
+          fetch(`/api/stripe/subscription-status?businessId=${currentUser.businessId}&t=${Date.now()}`),
+          fetch(`/api/creator-views?businessId=${currentUser.businessId}&limit=3`),
+          fetch(`/api/reviews?businessId=${currentUser.businessId}`)
+        ]);
+        
+        const cacheData: any = {};
+        
         if (profileRes.ok) {
           const profile = await profileRes.json();
           setBusinessData(profile);
@@ -1908,28 +1954,29 @@ function BusinessDashboard() {
           setWebsite(profile.website || '');
           setIndustry(profile.industry || '');
           setDescription(profile.description || '');
+          cacheData.profile = profile;
         }
         
-        // Fetch subscription status from Stripe
-        const subRes = await fetch(`/api/stripe/subscription-status?businessId=${currentUser.businessId}&t=${Date.now()}`);
         if (subRes.ok) {
           const subData = await subRes.json();
           setSubscriptionData(subData);
+          cacheData.subscription = subData;
         }
         
-        // Fetch recently viewed creators
-        const viewsRes = await fetch(`/api/creator-views?businessId=${currentUser.businessId}&limit=3`);
         if (viewsRes.ok) {
           const viewsData = await viewsRes.json();
           setRecentCreators(viewsData.creators || []);
+          cacheData.recentCreators = viewsData.creators || [];
         }
         
-        // Fetch business reviews
-        const reviewsRes = await fetch(`/api/reviews?businessId=${currentUser.businessId}`);
         if (reviewsRes.ok) {
           const reviewsData = await reviewsRes.json();
           setMyReviews(reviewsData.reviews || []);
+          cacheData.reviews = reviewsData.reviews || [];
         }
+        
+        // Update cache
+        sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
       } catch (error) {
         console.error('Error fetching business data:', error);
       } finally {
