@@ -252,46 +252,50 @@ export default function AdminPage() {
     }
   };
   
-  // Approve review
+  // Approve review - using dedicated admin endpoint
   const handleApproveReview = async (reviewId: string) => {
     try {
-      const response = await fetch('/api/reviews', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewId, status: 'approved' }),
+      const response = await fetch(`/api/reviews/${reviewId}/approve`, {
+        method: 'POST',
       });
       if (response.ok) {
         await refreshReviews();
+      } else {
+        console.error('Failed to approve review:', await response.text());
       }
     } catch (error) {
       console.error('Error approving review:', error);
     }
   };
   
-  // Reject review
+  // Reject review - using dedicated admin endpoint
   const handleRejectReview = async (reviewId: string, reason?: string) => {
     try {
-      const response = await fetch('/api/reviews', {
-        method: 'PUT',
+      const response = await fetch(`/api/reviews/${reviewId}/reject`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewId, status: 'rejected', rejectionReason: reason }),
+        body: JSON.stringify({ reason }),
       });
       if (response.ok) {
         await refreshReviews();
+      } else {
+        console.error('Failed to reject review:', await response.text());
       }
     } catch (error) {
       console.error('Error rejecting review:', error);
     }
   };
   
-  // Delete review
+  // Delete review - using admin supabase client directly via API
   const handleDeleteReview = async (reviewId: string) => {
     try {
-      const response = await fetch(`/api/reviews?reviewId=${reviewId}`, {
+      const response = await fetch(`/api/reviews/${reviewId}`, {
         method: 'DELETE',
       });
       if (response.ok) {
         await refreshReviews();
+      } else {
+        console.error('Failed to delete review:', await response.text());
       }
     } catch (error) {
       console.error('Error deleting review:', error);
@@ -561,14 +565,15 @@ export default function AdminPage() {
         }
         setCancellingSubscription(null);
       } else {
+        alert('Greška pri otkazivanju pretplate');
         setCancellingSubscription(null);
       }
     } catch (error) {
       console.error('Error cancelling subscription:', error);
+      alert('Greška pri otkazivanju pretplate');
       setCancellingSubscription(null);
     } finally {
       setIsCancellingSubscription(false);
-      alert('Greška pri otkazivanju pretplate');
     }
   };
 
@@ -658,22 +663,26 @@ export default function AdminPage() {
     }
   };
 
-  // Sačuvaj izmene kreatora
+  // Sačuvaj izmene kreatora - koristi admin endpoint
   const handleSaveCreator = async (updatedCreator: Creator) => {
     try {
-      const response = await fetch(`/api/creators/${updatedCreator.id}`, {
+      const response = await fetch('/api/admin/creators', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          creatorId: updatedCreator.id,
           name: updatedCreator.name,
           location: updatedCreator.location,
           bio: updatedCreator.bio,
-          price_from: updatedCreator.priceFrom,
+          priceFrom: updatedCreator.priceFrom,
           phone: updatedCreator.phone,
           instagram: updatedCreator.instagram,
           tiktok: updatedCreator.tiktok,
           youtube: updatedCreator.youtube,
           portfolio: updatedCreator.portfolio,
+          categories: updatedCreator.categories,
+          platforms: updatedCreator.platforms,
+          languages: updatedCreator.languages,
         }),
       });
       
@@ -681,7 +690,8 @@ export default function AdminPage() {
         await refreshCreators();
         setEditingCreator(null);
       } else {
-        alert('Greška pri čuvanju izmena');
+        const data = await response.json();
+        alert(data.error || 'Greška pri čuvanju izmena');
       }
     } catch (error) {
       console.error('Error saving creator:', error);
@@ -3070,8 +3080,8 @@ function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal 
       };
       
       if (editingJob) {
-        // Update existing job
-        const response = await fetch('/api/jobs', {
+        // Update existing job - using admin endpoint
+        const response = await fetch('/api/admin/jobs', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ jobId: editingJob.id, ...payload }),
@@ -3079,13 +3089,16 @@ function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal 
         
         if (response.ok) {
           setJobs(jobs.map(j => j.id === editingJob.id ? { ...j, ...payload } : j));
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Greška pri čuvanju posla');
         }
       } else {
-        // Admin creates job - automatically approved
-        const response = await fetch('/api/jobs', {
+        // Admin creates job - using admin endpoint
+        const response = await fetch('/api/admin/jobs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ businessId: 'admin', ...payload, isAdmin: true }),
+          body: JSON.stringify(payload),
         });
         
         if (response.ok) {
@@ -3095,6 +3108,9 @@ function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal 
             const data = await refreshRes.json();
             setJobs(data.jobs || []);
           }
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Greška pri kreiranju posla');
         }
       }
       
@@ -3109,9 +3125,11 @@ function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal 
   
   const handleDeleteJob = async (jobId: string) => {
     try {
-      const response = await fetch(`/api/jobs?jobId=${jobId}`, { method: 'DELETE' });
+      const response = await fetch(`/api/admin/jobs?jobId=${jobId}`, { method: 'DELETE' });
       if (response.ok) {
         setJobs(jobs.filter(j => j.id !== jobId));
+      } else {
+        console.error('Failed to delete job:', await response.text());
       }
     } catch (error) {
       console.error('Error deleting job:', error);
@@ -3122,30 +3140,34 @@ function AdminJobsTab({ jobs, setJobs, isLoading, showAddModal, setShowAddModal 
   const handleToggleStatus = async (job: any) => {
     const newStatus = job.status === 'open' ? 'closed' : 'open';
     try {
-      const response = await fetch('/api/jobs', {
+      const response = await fetch('/api/admin/jobs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: job.id, status: newStatus }),
       });
       if (response.ok) {
         setJobs(jobs.map(j => j.id === job.id ? { ...j, status: newStatus } : j));
+      } else {
+        console.error('Failed to toggle job status:', await response.text());
       }
     } catch (error) {
       console.error('Error updating job status:', error);
     }
   };
   
-  // Approve or reject a pending job
+  // Approve or reject a pending job - using admin endpoint
   const handleApproveRejectJob = async (jobId: string, approve: boolean) => {
     const newStatus = approve ? 'open' : 'rejected';
     try {
-      const response = await fetch('/api/jobs', {
+      const response = await fetch('/api/admin/jobs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId, status: newStatus }),
       });
       if (response.ok) {
         setJobs(jobs.map(j => j.id === jobId ? { ...j, status: newStatus } : j));
+      } else {
+        console.error('Failed to approve/reject job:', await response.text());
       }
     } catch (error) {
       console.error('Error approving/rejecting job:', error);

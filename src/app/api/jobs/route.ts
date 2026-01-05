@@ -68,19 +68,23 @@ export async function GET(request: NextRequest) {
     // Fetch all business names in ONE query (instead of N queries!)
     const { data: businesses } = await supabase
       .from('businesses')
-      .select('id, company_name')
+      .select('id, company_name, logo')
       .in('id', businessIds);
     
     // Create lookup map
     const businessMap = new Map(
-      (businesses || []).map(b => [b.id, b.company_name])
+      (businesses || []).map(b => [b.id, { name: b.company_name, logo: b.logo }])
     );
     
-    // Add company names to jobs
-    const jobsWithBusiness = (jobs || []).map(job => ({
-      ...job,
-      companyName: businessMap.get(job.business_id) || ''
-    }));
+    // Add company names and logos to jobs
+    const jobsWithBusiness = (jobs || []).map(job => {
+      const business = businessMap.get(job.business_id);
+      return {
+        ...job,
+        companyName: business?.name || '',
+        businessLogo: business?.logo || null
+      };
+    });
 
     // Format jobs
     const formattedJobs = jobsWithBusiness.map(job => {
@@ -91,6 +95,7 @@ export async function GET(request: NextRequest) {
         id: job.id,
         businessId: job.business_id,
         businessName: job.companyName || '',
+        businessLogo: job.businessLogo || null,
         title: job.title,
         description: job.description,
         category: job.category,

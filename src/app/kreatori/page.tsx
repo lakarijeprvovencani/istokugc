@@ -7,8 +7,19 @@ import CreatorCard from '@/components/CreatorCard';
 import { useDemo } from '@/context/DemoContext';
 import { createClient } from '@/lib/supabase/client';
 
+// Serbian pluralization helper for "kreator/kreatora"
+const formatCreatorCount = (count: number): string => {
+  const lastDigit = count % 10;
+  const lastTwoDigits = count % 100;
+  
+  if (count === 1) return '1 kreator';
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 19) return `${count} kreatora`;
+  if (lastDigit >= 2 && lastDigit <= 4) return `${count} kreatora`;
+  return `${count} kreatora`;
+};
+
 export default function KreatoriPage() {
-  const { currentUser, isLoggedIn, getOwnCreatorStatus, updateCurrentUser } = useDemo();
+  const { currentUser, isLoggedIn, isHydrated, getOwnCreatorStatus, updateCurrentUser } = useDemo();
   
   // ALL HOOKS MUST BE AT THE TOP - before any conditional returns
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -297,6 +308,18 @@ export default function KreatoriPage() {
     );
   }
 
+  // Show loading while checking auth state
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-secondary/30">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted">Učitavanje...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Only show login prompt to guests (non-logged in users)
   if (!isLoggedIn) {
     return (
@@ -464,7 +487,7 @@ export default function KreatoriPage() {
                 {isLoadingCreators ? (
                   'Učitavanje...'
                 ) : (
-                  <>Prikazano <span className="font-medium text-foreground">{paginatedCreators.length}</span> od <span className="font-medium text-foreground">{filteredCreators.length}</span> kreatora</>
+                  <>Prikazano <span className="font-medium text-foreground">{paginatedCreators.length}</span> od <span className="font-medium text-foreground">{formatCreatorCount(filteredCreators.length)}</span></>
                 )}
               </p>
               <select

@@ -60,7 +60,7 @@ export async function PUT(request: NextRequest) {
     if (authError) return authError;
     
     const body = await request.json();
-    const { businessId, companyName, website, industry, description, phone } = body;
+    const { businessId, companyName, website, industry, description, phone, logo } = body;
 
     if (!businessId) {
       return NextResponse.json(
@@ -84,6 +84,7 @@ export async function PUT(request: NextRequest) {
     if (industry !== undefined) updateData.industry = industry;
     if (description !== undefined) updateData.description = description;
     if (phone !== undefined) updateData.phone = phone;
+    if (logo !== undefined) updateData.logo = logo;
 
     const { data, error } = await supabase
       .from('businesses')

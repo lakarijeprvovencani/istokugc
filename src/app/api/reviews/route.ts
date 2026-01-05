@@ -128,6 +128,21 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
 
+    // 🔒 Proveri da li ovaj biznis već ima recenziju za ovog kreatora
+    const { data: existingReview } = await supabase
+      .from('reviews')
+      .select('id, status')
+      .eq('business_id', businessId)
+      .eq('creator_id', creatorId)
+      .single();
+
+    if (existingReview) {
+      return NextResponse.json({ 
+        error: 'Već ste ostavili recenziju za ovog kreatora',
+        existingReviewId: existingReview.id 
+      }, { status: 409 }); // 409 Conflict
+    }
+
     const { data: review, error } = await supabase
       .from('reviews')
       .insert({

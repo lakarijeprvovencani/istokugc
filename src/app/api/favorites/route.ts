@@ -14,43 +14,61 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    const { data: favorites, error } = await supabase
+    // Step 1: Fetch favorites
+    const { data: favorites, error: favError } = await supabase
       .from('saved_creators')
-      .select(`
-        id,
-        saved_at,
-        creator_id,
-        creators (
-          id,
-          name,
-          photo,
-          location,
-          categories,
-          price_from,
-          average_rating,
-          total_reviews
-        )
-      `)
+      .select('id, saved_at, creator_id')
       .eq('business_id', businessId)
       .order('saved_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching favorites:', error);
+    if (favError) {
+      console.error('Error fetching favorites:', favError);
       return NextResponse.json({ error: 'Failed to fetch favorites' }, { status: 500 });
     }
 
-    // Transform data
-    const formattedFavorites = favorites?.map((fav: any) => ({
-      id: fav.creators?.id,
-      name: fav.creators?.name,
-      photo: fav.creators?.photo,
-      location: fav.creators?.location,
-      categories: fav.creators?.categories || [],
-      priceFrom: fav.creators?.price_from,
-      rating: fav.creators?.average_rating,
-      totalReviews: fav.creators?.total_reviews,
-      savedAt: fav.saved_at,
-    })).filter((c: any) => c.id) || [];
+    if (!favorites || favorites.length === 0) {
+      return NextResponse.json({ success: true, favorites: [] });
+    }
+
+    // Step 2: Get unique creator IDs
+    const creatorIds = [...new Set(favorites.map(f => f.creator_id).filter(Boolean))];
+
+    if (creatorIds.length === 0) {
+      return NextResponse.json({ success: true, favorites: [] });
+    }
+
+    // Step 3: Fetch creators data
+    const { data: creators, error: creatorsError } = await supabase
+      .from('creators')
+      .select('id, name, photo, location, categories, price_from')
+      .in('id', creatorIds);
+
+    if (creatorsError) {
+      console.error('Error fetching creators:', creatorsError);
+      return NextResponse.json({ success: true, favorites: [] });
+    }
+
+    // Step 4: Create lookup map
+    const creatorMap = new Map(
+      (creators || []).map(c => [c.id, c])
+    );
+
+    // Step 5: Combine favorites with creator data
+    const formattedFavorites = favorites
+      .map((fav) => {
+        const creator = creatorMap.get(fav.creator_id);
+        if (!creator) return null;
+        return {
+          id: creator.id,
+          name: creator.name,
+          photo: creator.photo,
+          location: creator.location,
+          categories: creator.categories || [],
+          priceFrom: creator.price_from,
+          savedAt: fav.saved_at,
+        };
+      })
+      .filter(Boolean);
 
     return NextResponse.json({
       success: true,

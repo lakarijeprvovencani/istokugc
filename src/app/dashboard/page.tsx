@@ -95,6 +95,9 @@ function CreatorDashboard() {
       } else if (tab === 'ponude' && currentUser.creatorId) {
         localStorage.setItem(`lastViewed_invitations_${currentUser.creatorId}`, now);
         setPendingInvitationsNewCount(0);
+      } else if (tab === 'poruke' && currentUser.creatorId) {
+        localStorage.setItem(`lastViewed_messages_${currentUser.creatorId}`, now);
+        setUnreadMessagesCount(0);
       }
     }
   };
@@ -201,8 +204,13 @@ function CreatorDashboard() {
         if (response.ok) {
           const data = await response.json();
           setCreator(data.creator);
-          // Update cache
-          sessionStorage.setItem(cacheKey, JSON.stringify(data.creator));
+          // Update cache (with try/catch to avoid QuotaExceededError)
+          try {
+            sessionStorage.setItem(cacheKey, JSON.stringify(data.creator));
+          } catch (e) {
+            // Quota exceeded, clear old items
+            sessionStorage.clear();
+          }
         }
       } catch (error) {
         console.error('Error fetching creator:', error);
@@ -440,7 +448,8 @@ function CreatorDashboard() {
   const allReviews = reviews;
   const approvedReviews = reviews.filter(r => r.status === 'approved');
   const pendingReviews = reviews.filter(r => r.status === 'pending');
-  const stats = generateReviewStats(reviews);
+  // Statistika se računa samo na osnovu odobrenih recenzija
+  const stats = generateReviewStats(approvedReviews);
 
   // Pencil icon component
   const PencilButton = ({ onClick, editing }: { onClick: () => void; editing?: boolean }) => (
@@ -1594,7 +1603,7 @@ function CreatorDashboard() {
                   <div className="text-sm text-muted">Prosečna ocena</div>
                 </div>
                 <div className="text-center p-4 bg-secondary/30 rounded-xl">
-                  <div className="text-3xl font-light mb-1">{allReviews.length}</div>
+                  <div className="text-3xl font-light mb-1">{approvedReviews.length}</div>
                   <div className="text-sm text-muted">Ukupno recenzija</div>
                 </div>
               </div>
@@ -1623,10 +1632,10 @@ function CreatorDashboard() {
               </div>
             )}
 
-            {/* Reviews list */}
-            {allReviews.length > 0 ? (
+            {/* Reviews list - samo odobrene recenzije */}
+            {approvedReviews.length > 0 ? (
               <div className="space-y-4">
-                {allReviews.map((review) => (
+                {approvedReviews.map((review) => (
                   <ReviewCard
                     key={review.id}
                     review={review}
@@ -1727,6 +1736,7 @@ function CreatorDashboard() {
           <CreatorInvitationsTab
             invitations={myInvitations}
             setInvitations={setMyInvitations}
+            applications={myApplications}
             setApplications={setMyApplications}
             isLoading={isLoadingInvitations}
             creatorId={currentUser.creatorId || ''}
@@ -1850,6 +1860,10 @@ function BusinessDashboard() {
         const now = new Date().toISOString();
         localStorage.setItem(`lastViewed_jobs_${currentUser.businessId}`, now);
         setNewPendingApplicationsCount(0);
+      } else if (tab === 'poruke' && currentUser.businessId) {
+        const now = new Date().toISOString();
+        localStorage.setItem(`lastViewed_messages_${currentUser.businessId}`, now);
+        setUnreadMessagesCount(0);
       }
     }
   };
@@ -1980,8 +1994,11 @@ function BusinessDashboard() {
         
         if (viewsRes.ok) {
           const viewsData = await viewsRes.json();
+          console.log('Recent creators fetched:', viewsData);
           setRecentCreators(viewsData.creators || []);
           cacheData.recentCreators = viewsData.creators || [];
+        } else {
+          console.log('Failed to fetch recent creators:', viewsRes.status);
         }
         
         if (reviewsRes.ok) {
@@ -1990,8 +2007,13 @@ function BusinessDashboard() {
           cacheData.reviews = reviewsData.reviews || [];
         }
         
-        // Update cache
-        sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        // Update cache (with try/catch to avoid QuotaExceededError)
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        } catch (e) {
+          // Quota exceeded, clear old items
+          sessionStorage.clear();
+        }
       } catch (error) {
         console.error('Error fetching business data:', error);
       } finally {
@@ -2190,7 +2212,7 @@ function BusinessDashboard() {
             }`}
           >
             <span className="relative">
-              Poslovi
+              Tvoji poslovi
               {myJobs.length > 0 && (
                 <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
                   {myJobs.length}
@@ -2579,7 +2601,7 @@ function BusinessDashboard() {
                       <div className="flex-1">
                         <h3 className="font-medium">{creator.name}</h3>
                         <p className="text-sm text-muted">
-                          {creator.categories?.length > 0 ? creator.categories.join(', ') : creator.niches?.join(', ') || 'Kreator'}
+                          {creator.categories?.length > 0 ? creator.categories.join(', ') : 'Kreator'}
                         </p>
                       </div>
                       <div className="text-right">
@@ -3300,11 +3322,15 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   // Sub-tab state: 'active', 'in_progress', or 'completed'
   const [jobsFilter, setJobsFilter] = useState<'active' | 'in_progress' | 'completed'>('active');
   
+  // Sorting state
+  const [jobsSort, setJobsSort] = useState<'newest' | 'oldest'>('newest');
+  
   // Application counts per job
   const [applicationCounts, setApplicationCounts] = useState<{[key: string]: number}>({});
   
   // Success message state
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // Applications state
   const [viewingJobApplications, setViewingJobApplications] = useState<string | null>(null);
@@ -3327,6 +3353,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   const [reviewModal, setReviewModal] = useState<{jobId: string, creatorId: string, creatorName: string} | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  const [duplicateReviewModal, setDuplicateReviewModal] = useState<{creatorName: string, message: string} | null>(null);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [submittedReviews, setSubmittedReviews] = useState<{[jobId: string]: boolean}>({});
   
@@ -3500,6 +3527,29 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     e.preventDefault();
     if (!businessId) return;
     
+    // Validate budget values (max PostgreSQL integer is ~2.1 billion)
+    const MAX_BUDGET = 1000000; // Max €1,000,000
+    const budgetMinNum = formData.budgetMin ? parseInt(formData.budgetMin) : 0;
+    const budgetMaxNum = formData.budgetMax ? parseInt(formData.budgetMax) : 0;
+    
+    if (budgetMinNum > MAX_BUDGET || budgetMaxNum > MAX_BUDGET) {
+      setErrorMessage(`Maksimalni budžet je €${MAX_BUDGET.toLocaleString()}`);
+      setTimeout(() => setErrorMessage(null), 4000);
+      return;
+    }
+    
+    if (budgetMinNum < 0 || budgetMaxNum < 0) {
+      setErrorMessage('Budžet ne može biti negativan');
+      setTimeout(() => setErrorMessage(null), 4000);
+      return;
+    }
+    
+    if (budgetMinNum > budgetMaxNum && budgetMaxNum > 0) {
+      setErrorMessage('Minimalni budžet ne može biti veći od maksimalnog');
+      setTimeout(() => setErrorMessage(null), 4000);
+      return;
+    }
+    
     setIsSaving(true);
     try {
       const payload = {
@@ -3556,12 +3606,14 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           // Show styled message that job needs approval
           if (needsApproval) {
             setSuccessMessage('Posao je uspešno kreiran i čeka odobrenje admina.');
-            setTimeout(() => setSuccessMessage(null), 5000);
+            setTimeout(() => setSuccessMessage(null), 2000);
           }
         } else {
           const errorData = await response.json();
           console.error('Failed to create job:', errorData);
-          setSuccessMessage(`Greška: ${errorData.error || 'Neuspešno kreiranje posla'}`);
+          setErrorMessage(errorData.error || 'Neuspešno kreiranje posla');
+          setTimeout(() => setErrorMessage(null), 4000);
+          return; // Don't close modal on error
         }
       }
       
@@ -3640,6 +3692,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         
         setJobs(jobs.map(j => j.id === completeJobModal.jobId ? { ...j, status: 'completed' } : j));
         setSuccessMessage(`Posao "${completeJobModal.jobTitle}" je uspešno završen sa kreatorom ${completeJobModal.creatorName}!`);
+        setTimeout(() => setSuccessMessage(null), 3000); // Auto-hide after 3 seconds
         setCompleteJobModal(null);
       }
     } catch (error) {
@@ -3700,12 +3753,25 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       if (response.ok) {
         setSubmittedReviews(prev => ({ ...prev, [reviewModal.jobId]: true }));
         setSuccessMessage(`Recenzija za ${reviewModal.creatorName} je poslata na odobrenje!`);
+        setTimeout(() => setSuccessMessage(null), 2000);
         setReviewModal(null);
         setReviewRating(5);
         setReviewComment('');
       } else {
         const data = await response.json();
-        alert(data.error || 'Greška pri slanju recenzije');
+        // Check for duplicate review (409 Conflict)
+        if (response.status === 409) {
+          setReviewModal(null);
+          setReviewRating(5);
+          setReviewComment('');
+          // Show duplicate review modal
+          setDuplicateReviewModal({
+            creatorName: reviewModal.creatorName,
+            message: 'Već ste ostavili recenziju za ovog kreatora. Kako bismo osigurali autentičnost i fer ocenjivanje, svaki biznis može ostaviti samo jednu recenziju po kreatoru.'
+          });
+        } else {
+          alert(data.error || 'Greška pri slanju recenzije');
+        }
       }
     } catch (error) {
       console.error('Error submitting review:', error);
@@ -3888,7 +3954,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       
       // Show success message
       setSuccessMessage('Kreator je angažovan! Posao je zatvoren.');
-      setTimeout(() => setSuccessMessage(null), 5000);
+      setTimeout(() => setSuccessMessage(null), 2000);
       
     } catch (error) {
       console.error('Error engaging creator:', error);
@@ -3966,6 +4032,18 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         </div>
       )}
 
+      {/* Error Toast */}
+      {errorMessage && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none p-4">
+          <div className="bg-error text-white px-6 sm:px-8 py-4 sm:py-5 rounded-2xl shadow-2xl flex items-center gap-3 animate-in zoom-in-95 fade-in duration-200 max-w-sm sm:max-w-md text-center pointer-events-auto">
+            <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span className="text-sm sm:text-base">{errorMessage}</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -4030,6 +4108,16 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
             {jobs.filter(j => j.status === 'completed' || (j.status === 'closed' && !engagedCreators[j.id])).length}
           </span>
         </button>
+
+        {/* Sorting dropdown */}
+        <select
+          value={jobsSort}
+          onChange={(e) => setJobsSort(e.target.value as 'newest' | 'oldest')}
+          className="ml-auto px-3 py-2 rounded-xl border border-border text-sm bg-white focus:outline-none focus:border-primary"
+        >
+          <option value="newest">Najnoviji</option>
+          <option value="oldest">Najstariji</option>
+        </select>
       </div>
 
       {/* Jobs List */}
@@ -4046,11 +4134,11 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           filteredJobs = jobs.filter(j => j.status === 'completed' || (j.status === 'closed' && !engagedCreators[j.id]));
         }
         
-        // Sort by newest first (updatedAt or createdAt)
+        // Sort based on jobsSort state
         filteredJobs = filteredJobs.sort((a, b) => {
           const dateA = new Date(a.updatedAt || a.createdAt).getTime();
           const dateB = new Date(b.updatedAt || b.createdAt).getTime();
-          return dateB - dateA; // Newest first
+          return jobsSort === 'newest' ? dateB - dateA : dateA - dateB;
         });
         
         return filteredJobs.length > 0 ? (
@@ -4942,6 +5030,34 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         </div>
       )}
       
+      {/* Duplicate Review Modal */}
+      {duplicateReviewModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              
+              <h3 className="text-xl font-medium mb-2">Već ste ocenili {duplicateReviewModal.creatorName}</h3>
+              
+              <p className="text-muted mb-6">
+                {duplicateReviewModal.message}
+              </p>
+              
+              <button
+                onClick={() => setDuplicateReviewModal(null)}
+                className="w-full px-4 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium"
+              >
+                Razumem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Complete Job Confirmation Modal */}
       {completeJobModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -5100,6 +5216,75 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Archive functionality
+  const [messageTab, setMessageTab] = useState<'active' | 'archived'>('active');
+  const [archivedIds, setArchivedIds] = useState<string[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  
+  // Load archived IDs from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(`archived_chats_business_${businessId}`);
+    if (saved) {
+      try {
+        setArchivedIds(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error parsing archived chats:', e);
+      }
+    }
+  }, [businessId]);
+  
+  // Save archived IDs to localStorage
+  const saveArchivedIds = (ids: string[]) => {
+    setArchivedIds(ids);
+    localStorage.setItem(`archived_chats_business_${businessId}`, JSON.stringify(ids));
+  };
+  
+  // Toggle archive status
+  const toggleArchive = (appId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (archivedIds.includes(appId)) {
+      saveArchivedIds(archivedIds.filter(id => id !== appId));
+    } else {
+      saveArchivedIds([...archivedIds, appId]);
+      // If currently viewing this chat, close it
+      if (activeChat?.id === appId) {
+        setActiveChat(null);
+      }
+    }
+  };
+  
+  // Fetch unread counts for all applications
+  useEffect(() => {
+    const fetchUnreadCounts = async () => {
+      if (!businessId || applications.length === 0) return;
+      
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        applications.map(async (app) => {
+          try {
+            const res = await fetch(`/api/job-messages?applicationId=${app.id}&countUnread=true&recipientType=business&recipientId=${businessId}`);
+            if (res.ok) {
+              const data = await res.json();
+              counts[app.id] = data.unreadCount || 0;
+            }
+          } catch (e) {
+            console.error('Error fetching unread count:', e);
+          }
+        })
+      );
+      setUnreadCounts(counts);
+    };
+    
+    fetchUnreadCounts();
+    const interval = setInterval(fetchUnreadCounts, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, [applications, businessId]);
+  
+  // Filter applications by archive status
+  const activeApplications = applications.filter(app => !archivedIds.includes(app.id));
+  const archivedApplications = applications.filter(app => archivedIds.includes(app.id));
+  const displayedApplications = messageTab === 'active' ? activeApplications : archivedApplications;
 
   // Scroll to bottom - only within messages container
   const scrollToBottom = () => {
@@ -5313,47 +5498,111 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
     <div className="bg-white rounded-2xl border border-border overflow-hidden">
       <div className="flex h-[600px] lg:h-[650px]">
         {/* Conversations list */}
-        <div className={`${activeChat ? 'hidden lg:block' : 'w-full'} lg:w-80 border-r border-border flex-shrink-0`}>
-          <div className="p-4 border-b border-border">
-            <h3 className="font-medium">Razgovori</h3>
-            <p className="text-xs text-muted">{applications.length} aktivnih</p>
-          </div>
-          <div className="overflow-y-auto h-[calc(100%-65px)]">
-            {applications.map((app) => (
+        <div className={`${activeChat ? 'hidden lg:block' : 'w-full'} lg:w-80 border-r border-border flex-shrink-0 flex flex-col`}>
+          {/* Header with tabs */}
+          <div className="p-3 border-b border-border">
+            <h3 className="font-medium mb-2">Razgovori</h3>
+            <div className="flex gap-1 bg-secondary/50 p-1 rounded-lg">
               <button
-                key={app.id}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveChat(app);
-                }}
-                className={`w-full p-4 text-left border-b border-border hover:bg-secondary/50 transition-colors ${
-                  activeChat?.id === app.id ? 'bg-secondary' : ''
+                onClick={() => setMessageTab('active')}
+                className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  messageTab === 'active' 
+                    ? 'bg-white shadow-sm text-foreground' 
+                    : 'text-muted hover:text-foreground'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {app.creator?.photo ? (
-                      <Image src={app.creator.photo} alt="" width={40} height={40} className="object-cover" />
-                    ) : (
-                      <span className="text-sm font-medium text-muted">
-                        {app.creator?.name?.charAt(0) || 'K'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm truncate">{app.creator?.name || 'Kreator'}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                        app.status === 'engaged' ? 'bg-primary/10 text-primary' : 'bg-success/10 text-success'
-                      }`}>
-                        {app.status === 'engaged' ? 'Angažovan' : 'Aktivan'}
-                      </span>
+                Aktivni
+                {activeApplications.length > 0 && (
+                  <span className="ml-1 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                    {activeApplications.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setMessageTab('archived')}
+                className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  messageTab === 'archived' 
+                    ? 'bg-white shadow-sm text-foreground' 
+                    : 'text-muted hover:text-foreground'
+                }`}
+              >
+                Arhivirani
+                {archivedApplications.length > 0 && (
+                  <span className="ml-1 text-[10px] bg-muted/20 text-muted px-1.5 py-0.5 rounded-full">
+                    {archivedApplications.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+          
+          {/* Conversations list */}
+          <div className="overflow-y-auto flex-1">
+            {displayedApplications.length === 0 ? (
+              <div className="p-4 text-center text-muted text-sm">
+                {messageTab === 'active' ? 'Nema aktivnih razgovora' : 'Nema arhiviranih razgovora'}
+              </div>
+            ) : (
+              displayedApplications.map((app) => (
+                <div
+                  key={app.id}
+                  className={`relative group border-b border-border hover:bg-secondary/50 transition-colors cursor-pointer ${
+                    activeChat?.id === app.id ? 'bg-secondary' : ''
+                  }`}
+                  onClick={() => {
+                    setActiveChat(app);
+                    setUnreadCounts(prev => ({ ...prev, [app.id]: 0 }));
+                  }}
+                >
+                  <div className="w-full p-3 text-left">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {app.creator?.photo ? (
+                            <Image src={app.creator.photo} alt="" width={40} height={40} className="object-cover" />
+                          ) : (
+                            <span className="text-sm font-medium text-muted">
+                              {app.creator?.name?.charAt(0) || 'K'}
+                            </span>
+                          )}
+                        </div>
+                        {/* Unread badge */}
+                        {(unreadCounts[app.id] || 0) > 0 && (
+                          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-error text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                            {unreadCounts[app.id]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`font-medium text-sm truncate ${(unreadCounts[app.id] || 0) > 0 ? 'font-semibold' : ''}`}>
+                            {app.creator?.name || 'Kreator'}
+                          </span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            app.status === 'engaged' ? 'bg-primary/10 text-primary' : 'bg-success/10 text-success'
+                          }`}>
+                            {app.status === 'engaged' ? 'Angažovan' : 'Aktivan'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted truncate flex-1">{getJobTitle(app)}</p>
+                          {/* Archive button */}
+                          <button
+                            onClick={(e) => toggleArchive(app.id, e)}
+                            className="ml-2 p-1 rounded hover:bg-secondary/80 transition-all opacity-60 hover:opacity-100"
+                            title={archivedIds.includes(app.id) ? 'Vrati iz arhive' : 'Arhiviraj'}
+                          >
+                            <svg className="w-3.5 h-3.5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted truncate">{getJobTitle(app)}</p>
                   </div>
                 </div>
-              </button>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -5414,7 +5663,10 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
                           <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-white/70' : 'text-muted'}`}>
                             <span className="text-[10px]">{formatTime(msg.createdAt)}</span>
                             {isMe && (
-                              <span className="text-[10px]" title={msg.readAt ? 'Pročitano' : 'Dostavljeno'}>
+                              <span 
+                                className={`text-[10px] ${msg.readAt ? 'text-blue-400' : ''}`} 
+                                title={msg.readAt ? 'Pročitano' : 'Poslato'}
+                              >
                                 {msg.readAt ? '✓✓' : '✓'}
                               </span>
                             )}
@@ -5886,13 +6138,14 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
 interface CreatorInvitationsTabProps {
   invitations: any[];
   setInvitations: (inv: any[]) => void;
+  applications: any[];
   setApplications: (apps: any[]) => void;
   isLoading: boolean;
   creatorId: string;
   onOpenChat: (app: any) => void;
 }
 
-function CreatorInvitationsTab({ invitations, setInvitations, setApplications, isLoading, creatorId, onOpenChat }: CreatorInvitationsTabProps) {
+function CreatorInvitationsTab({ invitations, setInvitations, applications, setApplications, isLoading, creatorId, onOpenChat }: CreatorInvitationsTabProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [selectedInvitation, setSelectedInvitation] = useState<any | null>(null);
@@ -5954,7 +6207,19 @@ function CreatorInvitationsTab({ invitations, setInvitations, setApplications, i
     return date.toLocaleDateString('sr-RS', { day: 'numeric', month: 'short', year: 'numeric' });
   };
   
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, jobId?: string) => {
+    // Check if there's a completed application for this job
+    const completedApp = jobId && applications.find(app => app.jobId === jobId && app.status === 'completed');
+    
+    if (completedApp) {
+      return <span className="px-3 py-1 text-xs bg-emerald-100 text-emerald-700 rounded-full font-medium flex items-center gap-1">
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+        Uspešno završeno
+      </span>;
+    }
+    
     switch (status) {
       case 'pending':
         return <span className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">Na čekanju</span>;
@@ -6059,7 +6324,7 @@ function CreatorInvitationsTab({ invitations, setInvitations, setApplications, i
                     >
                       {inv.jobTitle || 'Posao'}
                     </Link>
-                    {getStatusBadge(inv.status)}
+                    {getStatusBadge(inv.status, inv.jobId)}
                   </div>
                   <p className="text-sm text-muted">{inv.businessName || 'Biznis'}</p>
                 </div>
@@ -6289,6 +6554,74 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Archive functionality
+  const [messageTab, setMessageTab] = useState<'active' | 'archived'>('active');
+  const [archivedIds, setArchivedIds] = useState<string[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  
+  // Load archived IDs from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(`archived_chats_creator_${creatorId}`);
+    if (saved) {
+      try {
+        setArchivedIds(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error parsing archived chats:', e);
+      }
+    }
+  }, [creatorId]);
+  
+  // Save archived IDs to localStorage
+  const saveArchivedIds = (ids: string[]) => {
+    setArchivedIds(ids);
+    localStorage.setItem(`archived_chats_creator_${creatorId}`, JSON.stringify(ids));
+  };
+  
+  // Toggle archive status
+  const toggleArchive = (appId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (archivedIds.includes(appId)) {
+      saveArchivedIds(archivedIds.filter(id => id !== appId));
+    } else {
+      saveArchivedIds([...archivedIds, appId]);
+      if (activeChat?.id === appId) {
+        setActiveChat(null);
+      }
+    }
+  };
+  
+  // Fetch unread counts for all applications
+  useEffect(() => {
+    const fetchUnreadCounts = async () => {
+      if (!creatorId || applications.length === 0) return;
+      
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        applications.map(async (app) => {
+          try {
+            const res = await fetch(`/api/job-messages?applicationId=${app.id}&countUnread=true&recipientType=creator&recipientId=${creatorId}`);
+            if (res.ok) {
+              const data = await res.json();
+              counts[app.id] = data.unreadCount || 0;
+            }
+          } catch (e) {
+            console.error('Error fetching unread count:', e);
+          }
+        })
+      );
+      setUnreadCounts(counts);
+    };
+    
+    fetchUnreadCounts();
+    const interval = setInterval(fetchUnreadCounts, 30000);
+    return () => clearInterval(interval);
+  }, [applications, creatorId]);
+  
+  // Filter applications by archive status
+  const activeApplications = applications.filter(app => !archivedIds.includes(app.id));
+  const archivedApplications = applications.filter(app => archivedIds.includes(app.id));
+  const displayedApplications = messageTab === 'active' ? activeApplications : archivedApplications;
 
   // Scroll to bottom - only within messages container
   const scrollToBottom = () => {
@@ -6423,43 +6756,107 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
     <div className="bg-white rounded-2xl border border-border overflow-hidden">
       <div className="flex h-[600px] lg:h-[650px]">
         {/* Conversations list - left side */}
-        <div className={`${activeChat ? 'hidden lg:block' : 'w-full'} lg:w-80 border-r border-border flex-shrink-0`}>
-          <div className="p-4 border-b border-border">
-            <h3 className="font-medium">Razgovori</h3>
-            <p className="text-xs text-muted">{applications.length} aktivnih</p>
-          </div>
-          <div className="overflow-y-auto h-[calc(100%-65px)]">
-            {applications.map((app) => (
+        <div className={`${activeChat ? 'hidden lg:block' : 'w-full'} lg:w-80 border-r border-border flex-shrink-0 flex flex-col`}>
+          {/* Header with tabs */}
+          <div className="p-3 border-b border-border">
+            <h3 className="font-medium mb-2">Razgovori</h3>
+            <div className="flex gap-1 bg-secondary/50 p-1 rounded-lg">
               <button
-                key={app.id}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveChat(app);
-                }}
-                className={`w-full p-4 text-left border-b border-border hover:bg-secondary/50 transition-colors ${
-                  activeChat?.id === app.id ? 'bg-secondary' : ''
+                onClick={() => setMessageTab('active')}
+                className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  messageTab === 'active' 
+                    ? 'bg-white shadow-sm text-foreground' 
+                    : 'text-muted hover:text-foreground'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-medium text-primary">
-                      {app.job?.businessName?.charAt(0) || 'B'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm truncate">{app.job?.businessName || 'Biznis'}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                        app.status === 'engaged' ? 'bg-primary/10 text-primary' : 'bg-success/10 text-success'
-                      }`}>
-                        {app.status === 'engaged' ? 'Angažovan' : 'Aktivan'}
-                      </span>
+                Aktivni
+                {activeApplications.length > 0 && (
+                  <span className="ml-1 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                    {activeApplications.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setMessageTab('archived')}
+                className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  messageTab === 'archived' 
+                    ? 'bg-white shadow-sm text-foreground' 
+                    : 'text-muted hover:text-foreground'
+                }`}
+              >
+                Arhivirani
+                {archivedApplications.length > 0 && (
+                  <span className="ml-1 text-[10px] bg-muted/20 text-muted px-1.5 py-0.5 rounded-full">
+                    {archivedApplications.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+          
+          {/* Conversations list */}
+          <div className="overflow-y-auto flex-1">
+            {displayedApplications.length === 0 ? (
+              <div className="p-4 text-center text-muted text-sm">
+                {messageTab === 'active' ? 'Nema aktivnih razgovora' : 'Nema arhiviranih razgovora'}
+              </div>
+            ) : (
+              displayedApplications.map((app) => (
+                <div
+                  key={app.id}
+                  className={`relative group border-b border-border hover:bg-secondary/50 transition-colors cursor-pointer ${
+                    activeChat?.id === app.id ? 'bg-secondary' : ''
+                  }`}
+                  onClick={() => {
+                    setActiveChat(app);
+                    setUnreadCounts(prev => ({ ...prev, [app.id]: 0 }));
+                  }}
+                >
+                  <div className="w-full p-3 text-left">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-medium text-primary">
+                            {app.job?.businessName?.charAt(0) || 'B'}
+                          </span>
+                        </div>
+                        {/* Unread badge */}
+                        {(unreadCounts[app.id] || 0) > 0 && (
+                          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-error text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                            {unreadCounts[app.id]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`font-medium text-sm truncate ${(unreadCounts[app.id] || 0) > 0 ? 'font-semibold' : ''}`}>
+                            {app.job?.businessName || 'Biznis'}
+                          </span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            app.status === 'engaged' ? 'bg-primary/10 text-primary' : 'bg-success/10 text-success'
+                          }`}>
+                            {app.status === 'engaged' ? 'Angažovan' : 'Aktivan'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted truncate flex-1">{app.job?.title || 'Posao'}</p>
+                          {/* Archive button */}
+                          <button
+                            onClick={(e) => toggleArchive(app.id, e)}
+                            className="ml-2 p-1 rounded hover:bg-secondary/80 transition-all opacity-60 hover:opacity-100"
+                            title={archivedIds.includes(app.id) ? 'Vrati iz arhive' : 'Arhiviraj'}
+                          >
+                            <svg className="w-3.5 h-3.5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted truncate">{app.job?.title || 'Posao'}</p>
                   </div>
                 </div>
-              </button>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -6516,7 +6913,10 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
                           <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-white/70' : 'text-muted'}`}>
                             <span className="text-[10px]">{formatTime(msg.createdAt)}</span>
                             {isMe && (
-                              <span className="text-[10px]" title={msg.readAt ? 'Pročitano' : 'Dostavljeno'}>
+                              <span 
+                                className={`text-[10px] ${msg.readAt ? 'text-blue-400' : ''}`} 
+                                title={msg.readAt ? 'Pročitano' : 'Poslato'}
+                              >
                                 {msg.readAt ? '✓✓' : '✓'}
                               </span>
                             )}

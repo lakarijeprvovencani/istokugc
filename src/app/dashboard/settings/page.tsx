@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDemo } from '@/context/DemoContext';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 
 type SettingsTab = 'profile' | 'notifications' | 'subscription' | 'security';
@@ -21,6 +22,11 @@ export default function SettingsPage() {
     phone: '',
     companyName: '',
   });
+  
+  // Logo state (business only)
+  const [logo, setLogo] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   
   const [notificationForm, setNotificationForm] = useState({
     email: true,
@@ -66,6 +72,7 @@ export default function SettingsPage() {
               phone: business.phone || '',
               companyName: business.company_name || '',
             });
+            setLogo(business.logo || null);
           }
         } else if (currentUser.type === 'creator' && currentUser.creatorId) {
           // Fetch creator data
@@ -180,6 +187,59 @@ export default function SettingsPage() {
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     }, 500);
+  };
+  
+  // Logo upload handler
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser.businessId) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Molimo izaberite sliku');
+      return;
+    }
+    
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Logo mora biti manji od 2MB');
+      return;
+    }
+    
+    setIsUploadingLogo(true);
+    
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64Data = event.target?.result as string;
+        
+        // Upload to API
+        const response = await fetch(`/api/business/${currentUser.businessId}/logo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logo: base64Data }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setLogo(data.data.logoUrl);
+          setShowSuccess(true);
+          setTimeout(() => setShowSuccess(false), 3000);
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Greška pri uploadu loga');
+        }
+        
+        setIsUploadingLogo(false);
+      };
+      
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Logo upload error:', error);
+      alert('Greška pri uploadu loga');
+      setIsUploadingLogo(false);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -297,6 +357,49 @@ export default function SettingsPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   {currentUser.type === 'business' ? (
                     <>
+                      {/* Logo upload section */}
+                      <div className="md:col-span-2 mb-2">
+                        <label className="block text-sm text-muted mb-3">Logo kompanije</label>
+                        <div className="flex items-center gap-6">
+                          <div className="relative">
+                            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center overflow-hidden border-2 border-dashed border-border">
+                              {logo ? (
+                                <Image src={logo} alt="Logo" width={96} height={96} className="object-cover w-full h-full" />
+                              ) : (
+                                <span className="text-3xl font-semibold text-primary">
+                                  {profileForm.companyName?.charAt(0)?.toUpperCase() || 'B'}
+                                </span>
+                              )}
+                            </div>
+                            {isUploadingLogo && (
+                              <div className="absolute inset-0 bg-white/80 rounded-2xl flex items-center justify-center">
+                                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <input
+                              ref={logoInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={handleLogoUpload}
+                              className="hidden"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => logoInputRef.current?.click()}
+                              disabled={isUploadingLogo}
+                              className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                            >
+                              {logo ? 'Promeni logo' : 'Dodaj logo'}
+                            </button>
+                            <p className="text-xs text-muted mt-2">
+                              PNG, JPG do 2MB. Preporučeno: 200x200px
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
                       <div>
                         <label className="block text-sm text-muted mb-2">Naziv kompanije</label>
                         <input

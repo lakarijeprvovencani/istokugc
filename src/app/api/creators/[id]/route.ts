@@ -23,6 +23,12 @@ export async function GET(
       return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
     }
 
+    // Prebroj unikatne preglede iz creator_views tabele
+    const { count: viewCount } = await supabase
+      .from('creator_views')
+      .select('*', { count: 'exact', head: true })
+      .eq('creator_id', id);
+
     // Transformiši podatke u format koji frontend očekuje
     const formattedCreator = {
       id: creator.id,
@@ -36,7 +42,7 @@ export async function GET(
       priceFrom: creator.price_from || 0,
       rating: creator.average_rating || 0,
       totalReviews: creator.total_reviews || 0,
-      profileViews: creator.profile_views || 0,
+      profileViews: viewCount || creator.profile_views || 0,
       status: creator.status,
       approved: creator.status === 'approved',
       rejectionReason: creator.rejection_reason || null,

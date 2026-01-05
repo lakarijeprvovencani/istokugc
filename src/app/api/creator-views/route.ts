@@ -15,42 +15,78 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Dohvati preglede sa podacima o kreatorima
-    const { data: views, error } = await supabase
+    console.log('Fetching views for businessId:', businessId);
+    
+    // Step 1: Fetch views
+    const { data: views, error: viewsError } = await supabase
       .from('creator_views')
-      .select(`
-        id,
-        viewed_at,
-        creator_id,
-        creators (
-          id,
-          name,
-          photo,
-          location,
-          categories,
-          niches
-        )
-      `)
+      .select('id, viewed_at, creator_id, business_id')
       .eq('business_id', businessId)
       .order('viewed_at', { ascending: false })
       .limit(limit);
 
-    if (error) {
-      // If table doesn't exist or other error, just return empty array
-      console.error('Error fetching creator views:', error);
+    console.log('Views query result:', { views, error: viewsError });
+
+    if (viewsError) {
+      console.error('Error fetching creator views:', viewsError);
+      return NextResponse.json({ creators: [], error: viewsError.message });
+    }
+
+    if (!views || views.length === 0) {
+      console.log('No views found for business:', businessId);
+      
+      // Debug: Check if any views exist at all
+      const { data: allViews } = await supabase
+        .from('creator_views')
+        .select('*')
+        .limit(5);
+      console.log('All views in table (debug):', allViews);
+      
       return NextResponse.json({ creators: [] });
     }
 
-    // Transformiši podatke
-    const recentCreators = views?.map((view: any) => ({
-      id: view.creators?.id,
-      name: view.creators?.name,
-      photo: view.creators?.photo,
-      location: view.creators?.location,
-      categories: view.creators?.categories || [],
-      niches: view.creators?.niches || [],
-      viewedAt: view.viewed_at,
-    })).filter((c: any) => c.id) || [];
+    console.log('Found views:', views);
+
+    // Step 2: Get unique creator IDs
+    const creatorIds = [...new Set(views.map(v => v.creator_id).filter(Boolean))];
+    
+    if (creatorIds.length === 0) {
+      return NextResponse.json({ creators: [] });
+    }
+
+    // Step 3: Fetch creators data
+    const { data: creators, error: creatorsError } = await supabase
+      .from('creators')
+      .select('id, name, photo, location, categories')
+      .in('id', creatorIds);
+
+    if (creatorsError) {
+      console.error('Error fetching creators:', creatorsError);
+      return NextResponse.json({ creators: [] });
+    }
+
+    console.log('Found creators:', creators);
+
+    // Step 4: Create a map for quick lookup
+    const creatorMap = new Map(
+      (creators || []).map(c => [c.id, c])
+    );
+
+    // Step 5: Combine views with creator data
+    const recentCreators = views
+      .map((view) => {
+        const creator = creatorMap.get(view.creator_id);
+        if (!creator) return null;
+        return {
+          id: creator.id,
+          name: creator.name,
+          photo: creator.photo,
+          location: creator.location,
+          categories: creator.categories || [],
+          viewedAt: view.viewed_at,
+        };
+      })
+      .filter(Boolean);
 
     return NextResponse.json({ creators: recentCreators });
 
@@ -92,7 +128,9 @@ export async function POST(request: NextRequest) {
     const isNewView = !existingView;
 
     // Upsert - ako već postoji, ažuriraj viewed_at
-    const { error } = await supabase
+    console.log('Attempting to upsert view:', { businessId, creatorId });
+    
+    const { data: upsertData, error } = await supabase
       .from('creator_views')
       .upsert(
         {
@@ -103,13 +141,15 @@ export async function POST(request: NextRequest) {
         {
           onConflict: 'business_id,creator_id',
         }
-      );
+      )
+      .select();
 
     if (error) {
-      // If table doesn't exist, silently ignore
       console.error('Error recording view:', error);
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+    
+    console.log('Upsert result:', upsertData);
 
     // Increment profile_views only for new unique views
     if (isNewView) {

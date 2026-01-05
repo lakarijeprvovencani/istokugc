@@ -386,6 +386,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
       
       // Record view in Supabase for real data
       if (currentUser.businessId) {
+        console.log('Recording creator view:', { businessId: currentUser.businessId, creatorId: resolvedParams.id });
         fetch('/api/creator-views', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -393,7 +394,12 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
             businessId: currentUser.businessId,
             creatorId: resolvedParams.id,
           }),
-        }).catch(err => console.error('Error recording view:', err));
+        })
+        .then(res => res.json())
+        .then(data => console.log('Creator view recorded:', data))
+        .catch(err => console.error('Error recording view:', err));
+      } else {
+        console.log('No businessId found, skipping view recording');
       }
     }
   }, [isHydrated, currentUser.type, currentUser.businessId, resolvedParams.id, addToRecentlyViewed, incrementProfileViews]);

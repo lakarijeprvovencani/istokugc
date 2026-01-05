@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useDemo } from '@/context/DemoContext';
 import { platforms } from '@/lib/mockData';
 
@@ -22,6 +23,17 @@ interface Job {
   status: string;
   createdAt: string;
 }
+
+// Serbian pluralization helper for "posao/posla/poslova"
+const formatJobCount = (count: number): string => {
+  const lastDigit = count % 10;
+  const lastTwoDigits = count % 100;
+  
+  if (count === 1) return '1 posao';
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 19) return `${count} poslova`;
+  if (lastDigit >= 2 && lastDigit <= 4) return `${count} posla`;
+  return `${count} poslova`;
+};
 
 export default function PosloviPage() {
   const { currentUser, isLoggedIn, isHydrated } = useDemo();
@@ -357,7 +369,7 @@ export default function PosloviPage() {
                 {isLoading ? (
                   'Učitavanje...'
                 ) : (
-                  <>Pronađeno <span className="font-medium text-foreground">{filteredJobs.length}</span> poslova</>
+                  <>Pronađeno <span className="font-medium text-foreground">{formatJobCount(filteredJobs.length)}</span></>
                 )}
               </p>
               
@@ -399,38 +411,77 @@ export default function PosloviPage() {
                   <Link 
                     key={job.id}
                     href={`/poslovi/${job.id}`}
-                    className="block bg-white rounded-2xl border border-border p-6 hover:border-muted/50 hover:shadow-lg transition-all"
+                    className="block bg-white rounded-2xl border border-border p-5 sm:p-6 hover:border-primary/30 hover:shadow-md transition-all group"
                   >
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-lg mb-1 truncate">{job.title}</h3>
-                        <p className="text-sm text-muted">{job.businessName}</p>
+                    {/* Header: Company & Budget */}
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Company logo/avatar */}
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 overflow-hidden border border-border/50">
+                          {job.businessLogo ? (
+                            <Image src={job.businessLogo} alt="" width={40} height={40} className="object-cover" />
+                          ) : (
+                            <span className="text-sm font-semibold text-primary">
+                              {job.businessName?.charAt(0)?.toUpperCase() || 'B'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-base sm:text-lg group-hover:text-primary transition-colors truncate">{job.title}</h3>
+                          <p className="text-sm text-muted truncate">{job.businessName}</p>
+                        </div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <div className="font-medium text-lg">{formatBudget(job)}</div>
-                        <div className="text-xs text-muted">{job.budgetType === 'hourly' ? 'po satu' : 'fiksno'}</div>
+                        <div className="font-semibold text-base sm:text-lg text-primary">{formatBudget(job)}</div>
+                        <div className="text-[11px] text-muted uppercase tracking-wide">{job.budgetType === 'hourly' ? 'po satu' : 'fiksno'}</div>
                       </div>
                     </div>
                     
-                    <p className="text-sm text-muted mb-4 line-clamp-2">{job.description}</p>
+                    {/* Description */}
+                    <p className="text-sm text-muted mb-4 line-clamp-2 leading-relaxed">{job.description}</p>
                     
+                    {/* Tags */}
                     <div className="flex flex-wrap items-center gap-2 mb-4">
-                      <span className="text-xs px-3 py-1 bg-secondary rounded-full">{job.category}</span>
+                      <span className="text-xs px-3 py-1.5 bg-primary/5 text-primary font-medium rounded-lg border border-primary/10">{job.category}</span>
                       {job.platforms.slice(0, 3).map((platform) => (
-                        <span key={platform} className="text-xs px-3 py-1 bg-secondary rounded-full text-muted">
+                        <span key={platform} className="text-xs px-3 py-1.5 bg-secondary rounded-lg text-muted">
                           {platform}
                         </span>
                       ))}
+                      {job.platforms.length > 3 && (
+                        <span className="text-xs px-2 py-1.5 text-muted">+{job.platforms.length - 3}</span>
+                      )}
                       {job.experienceLevel && (
-                        <span className="text-xs px-3 py-1 bg-primary/10 text-primary rounded-full">
+                        <span className="text-xs px-3 py-1.5 bg-success/10 text-success font-medium rounded-lg">
                           {getExperienceLabel(job.experienceLevel)}
                         </span>
                       )}
                     </div>
                     
-                    <div className="flex items-center justify-between text-xs text-muted">
-                      <span>{formatDate(job.createdAt)}</span>
-                      {job.duration && <span>Trajanje: {job.duration}</span>}
+                    {/* Footer */}
+                    <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                      <div className="flex items-center gap-3 text-xs text-muted">
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {formatDate(job.createdAt)}
+                        </span>
+                        {job.duration && (
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {job.duration}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                        Pogledaj
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </span>
                     </div>
                   </Link>
                 ))}

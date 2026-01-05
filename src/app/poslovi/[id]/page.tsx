@@ -263,41 +263,65 @@ export default function JobDetailPage() {
         </Link>
         
         {/* Main content */}
-        <div className="bg-white rounded-2xl border border-border overflow-hidden">
+        <div className="bg-white rounded-2xl border border-border overflow-hidden shadow-sm">
           {/* Header */}
-          <div className="p-6 sm:p-8 border-b border-border">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-light mb-2">{job.title}</h1>
-                <div className="flex items-center gap-3 text-muted">
-                  <span>{job.businessName}</span>
-                  <span>•</span>
-                  <span>{formatDate(job.createdAt)}</span>
+          <div className="p-6 sm:p-8">
+            {/* Top row: Company info + Budget */}
+            <div className="flex items-start justify-between gap-4 mb-6">
+              {/* Company */}
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 overflow-hidden border border-border/50">
+                  {job.businessLogo ? (
+                    <Image src={job.businessLogo} alt="" width={56} height={56} className="object-cover" />
+                  ) : (
+                    <span className="text-xl font-semibold text-primary">
+                      {job.businessName?.charAt(0)?.toUpperCase() || 'B'}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium text-lg">{job.businessName}</p>
+                  <p className="text-sm text-muted flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Objavljeno {formatDate(job.createdAt)}
+                  </p>
                 </div>
               </div>
-              <div className="text-right flex-shrink-0">
-                <div className="text-2xl font-medium">{formatBudget(job)}</div>
-                <div className="text-sm text-muted">{job.budgetType === 'hourly' ? 'po satu' : 'fiksno'}</div>
+              
+              {/* Budget */}
+              <div className="text-right flex-shrink-0 bg-gradient-to-br from-primary/5 to-transparent p-4 rounded-xl border border-primary/10">
+                <div className="text-2xl font-semibold text-primary">{formatBudget(job)}</div>
+                <div className="text-xs text-muted uppercase tracking-wide mt-0.5">
+                  {job.budgetType === 'hourly' ? 'po satu' : 'fiksno'}
+                </div>
               </div>
             </div>
             
+            {/* Title */}
+            <h1 className="text-2xl sm:text-3xl font-semibold mb-4">{job.title}</h1>
+            
             {/* Tags */}
             <div className="flex flex-wrap gap-2">
-              <span className="px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium">
+              <span className="px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-medium border border-primary/20">
                 {job.category}
               </span>
               {job.platforms.map((platform) => (
-                <span key={platform} className="px-4 py-1.5 bg-secondary rounded-full text-sm">
+                <span key={platform} className="px-4 py-2 bg-secondary rounded-xl text-sm">
                   {platform}
                 </span>
               ))}
               {job.experienceLevel && (
-                <span className="px-4 py-1.5 bg-secondary rounded-full text-sm">
+                <span className="px-4 py-2 bg-success/10 text-success rounded-xl text-sm font-medium">
                   {getExperienceLabel(job.experienceLevel)}
                 </span>
               )}
               {job.duration && (
-                <span className="px-4 py-1.5 bg-secondary rounded-full text-sm">
+                <span className="px-4 py-2 bg-secondary rounded-xl text-sm flex items-center gap-1.5">
+                  <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                   {job.duration}
                 </span>
               )}
@@ -305,9 +329,38 @@ export default function JobDetailPage() {
           </div>
           
           {/* Description */}
-          <div className="p-6 sm:p-8">
-            <h2 className="font-medium mb-4">Opis posla</h2>
-            <p className="text-muted leading-relaxed whitespace-pre-wrap">{job.description}</p>
+          <div className="p-6 sm:p-8 border-t border-border">
+            <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Opis posla
+            </h2>
+            <div className="bg-secondary/30 rounded-xl p-5">
+              <p className="text-muted leading-relaxed whitespace-pre-wrap">{job.description}</p>
+            </div>
+          </div>
+          
+          {/* Job details summary */}
+          <div className="px-6 sm:px-8 pb-6 sm:pb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-secondary/50 rounded-xl p-4 text-center">
+                <p className="text-xs text-muted uppercase tracking-wide mb-1">Kategorija</p>
+                <p className="font-medium text-sm">{job.category}</p>
+              </div>
+              <div className="bg-secondary/50 rounded-xl p-4 text-center">
+                <p className="text-xs text-muted uppercase tracking-wide mb-1">Platforma</p>
+                <p className="font-medium text-sm">{job.platforms[0] || '-'}</p>
+              </div>
+              <div className="bg-secondary/50 rounded-xl p-4 text-center">
+                <p className="text-xs text-muted uppercase tracking-wide mb-1">Iskustvo</p>
+                <p className="font-medium text-sm">{getExperienceLabel(job.experienceLevel)}</p>
+              </div>
+              <div className="bg-secondary/50 rounded-xl p-4 text-center">
+                <p className="text-xs text-muted uppercase tracking-wide mb-1">Trajanje</p>
+                <p className="font-medium text-sm">{job.duration || 'Fleksibilno'}</p>
+              </div>
+            </div>
           </div>
           
           {/* Apply section - Only for creators */}

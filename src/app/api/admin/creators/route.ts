@@ -78,31 +78,56 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT /api/admin/creators - Ažuriraj status kreatora (approve/reject)
+// PUT /api/admin/creators - Ažuriraj kreatora (status ili profile)
 export async function PUT(request: NextRequest) {
   try {
-    const { creatorId, action, rejectionReason } = await request.json();
+    const body = await request.json();
+    const { creatorId, action, rejectionReason, ...profileUpdates } = body;
 
-    if (!creatorId || !action) {
-      return NextResponse.json({ error: 'Creator ID and action are required' }, { status: 400 });
+    if (!creatorId) {
+      return NextResponse.json({ error: 'Creator ID is required' }, { status: 400 });
     }
 
     const supabase = createAdminClient();
-
     let updateData: any = {};
 
-    if (action === 'approve') {
-      updateData = { status: 'approved', rejection_reason: null };
-    } else if (action === 'reject') {
-      updateData = { status: 'rejected', rejection_reason: rejectionReason || null };
-    } else if (action === 'deactivate') {
-      updateData = { status: 'deactivated' };
-    } else if (action === 'reactivate') {
-      updateData = { status: 'approved' };
-    } else if (action === 'set_pending') {
-      updateData = { status: 'pending', rejection_reason: null };
+    // Ako ima action, to je status update
+    if (action) {
+      if (action === 'approve') {
+        updateData = { status: 'approved', rejection_reason: null };
+      } else if (action === 'reject') {
+        updateData = { status: 'rejected', rejection_reason: rejectionReason || null };
+      } else if (action === 'deactivate') {
+        updateData = { status: 'deactivated' };
+      } else if (action === 'reactivate') {
+        updateData = { status: 'approved' };
+      } else if (action === 'set_pending') {
+        updateData = { status: 'pending', rejection_reason: null };
+      } else {
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+      }
     } else {
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+      // Profile update - mapiranje polja
+      if (profileUpdates.name !== undefined) updateData.name = profileUpdates.name;
+      if (profileUpdates.bio !== undefined) updateData.bio = profileUpdates.bio;
+      if (profileUpdates.location !== undefined) updateData.location = profileUpdates.location;
+      if (profileUpdates.phone !== undefined) updateData.phone = profileUpdates.phone;
+      if (profileUpdates.email !== undefined) updateData.email = profileUpdates.email;
+      if (profileUpdates.instagram !== undefined) updateData.instagram = profileUpdates.instagram;
+      if (profileUpdates.tiktok !== undefined) updateData.tiktok = profileUpdates.tiktok;
+      if (profileUpdates.youtube !== undefined) updateData.youtube = profileUpdates.youtube;
+      if (profileUpdates.price_from !== undefined) updateData.price_from = profileUpdates.price_from;
+      if (profileUpdates.priceFrom !== undefined) updateData.price_from = profileUpdates.priceFrom;
+      if (profileUpdates.categories !== undefined) updateData.categories = profileUpdates.categories;
+      if (profileUpdates.platforms !== undefined) updateData.platforms = profileUpdates.platforms;
+      if (profileUpdates.languages !== undefined) updateData.languages = profileUpdates.languages;
+      if (profileUpdates.portfolio !== undefined) updateData.portfolio = profileUpdates.portfolio;
+      if (profileUpdates.photo !== undefined) updateData.photo = profileUpdates.photo;
+      if (profileUpdates.status !== undefined) updateData.status = profileUpdates.status;
+      
+      if (Object.keys(updateData).length === 0) {
+        return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+      }
     }
 
     const { data, error } = await supabase
@@ -114,7 +139,7 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('Error updating creator:', error);
-      return NextResponse.json({ error: 'Failed to update creator' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to update creator', details: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, creator: data });
