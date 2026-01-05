@@ -1798,6 +1798,8 @@ function BusinessDashboard() {
   const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0);
   // NEW pending applications (created after last viewed) - for header notification
   const [newPendingApplicationsCount, setNewPendingApplicationsCount] = useState(0);
+  // Track NEW applications per job (for yellow border highlight)
+  const [jobsWithNewApplications, setJobsWithNewApplications] = useState<Set<string>>(new Set());
   
   // Unread messages count for badge
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
@@ -1875,9 +1877,22 @@ function BusinessDashboard() {
             const lastViewedDate = new Date(lastViewed);
             const newApps = pendingApps.filter((app: any) => new Date(app.createdAt) > lastViewedDate);
             setNewPendingApplicationsCount(newApps.length);
+            
+            // Track which jobs have NEW applications (for yellow border)
+            const jobsWithNew = new Set<string>();
+            newApps.forEach((app: any) => {
+              if (app.jobId) jobsWithNew.add(app.jobId);
+            });
+            setJobsWithNewApplications(jobsWithNew);
           } else {
             // First time - all pending are "new"
             setNewPendingApplicationsCount(pendingCount);
+            // All jobs with pending apps are "new"
+            const jobsWithNew = new Set<string>();
+            pendingApps.forEach((app: any) => {
+              if (app.jobId) jobsWithNew.add(app.jobId);
+            });
+            setJobsWithNewApplications(jobsWithNew);
           }
           
           // Only show accepted and engaged applications for messages
@@ -3352,65 +3367,90 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     fetchCategories();
   }, []);
   
-  // Fetch application counts and engaged creators for all jobs
+  // Fetch application counts and engaged creators for all jobs - OPTIMIZED (one API call)
   useEffect(() => {
     const fetchApplicationData = async () => {
-      if (!jobs || jobs.length === 0) return;
+      if (!jobs || jobs.length === 0 || !businessId) return;
       
-      const counts: {[key: string]: number} = {};
-      const engaged: {[key: string]: {id: string, name: string, applicationId: string} | null} = {};
-      
-      for (const job of jobs) {
-        try {
-          const response = await fetch(`/api/job-applications?jobId=${job.id}`);
-          if (response.ok) {
-            const data = await response.json();
-            const apps = data.applications || [];
-            counts[job.id] = apps.length;
-            
-            // Find engaged creator for this job
-            const engagedApp = apps.find((app: any) => app.status === 'engaged');
-            if (engagedApp) {
-              engaged[job.id] = {
-                id: engagedApp.creatorId,
-                name: engagedApp.creator?.name || 'Kreator',
-                applicationId: engagedApp.id
-              };
-            } else {
-              engaged[job.id] = null;
-            }
-          }
-        } catch (error) {
+      try {
+        // Fetch ALL applications for this business in ONE call
+        const response = await fetch(`/api/job-applications?businessId=${businessId}`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const allApps = data.applications || [];
+        
+        const counts: {[key: string]: number} = {};
+        const engaged: {[key: string]: {id: string, name: string, applicationId: string} | null} = {};
+        
+        // Initialize all jobs
+        for (const job of jobs) {
           counts[job.id] = 0;
           engaged[job.id] = null;
         }
+        
+        // Process all applications
+        for (const app of allApps) {
+          const jobId = app.jobId;
+          if (!jobId) continue;
+          
+          // Count pending applications for this job
+          if (app.status === 'pending') {
+            counts[jobId] = (counts[jobId] || 0) + 1;
+          }
+          
+          // Find engaged creator
+          if (app.status === 'engaged') {
+            engaged[jobId] = {
+              id: app.creatorId,
+              name: app.creator?.name || 'Kreator',
+              applicationId: app.id
+            };
+          }
+        }
+        
+        setApplicationCounts(counts);
+        setEngagedCreators(engaged);
+      } catch (error) {
+        console.error('Error fetching application data:', error);
       }
-      setApplicationCounts(counts);
-      setEngagedCreators(engaged);
     };
     
     fetchApplicationData();
-  }, [jobs]);
+  }, [jobs, businessId]);
   
-  // Fetch invitation counts for all jobs
+  // Fetch invitation counts for all jobs - OPTIMIZED (one API call)
   useEffect(() => {
     const fetchInvitationCounts = async () => {
       if (!jobs || jobs.length === 0 || !businessId) return;
       
-      const counts: {[key: string]: number} = {};
-      
-      for (const job of jobs) {
-        try {
-          const response = await fetch(`/api/job-invitations?jobId=${job.id}`);
-          if (response.ok) {
-            const data = await response.json();
-            counts[job.id] = (data.invitations || []).length;
-          }
-        } catch (error) {
+      try {
+        // Fetch ALL invitations for this business in ONE call
+        const response = await fetch(`/api/job-invitations?businessId=${businessId}`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const allInvitations = data.invitations || [];
+        
+        const counts: {[key: string]: number} = {};
+        
+        // Initialize all jobs
+        for (const job of jobs) {
           counts[job.id] = 0;
         }
+        
+        // Count invitations per job
+        for (const inv of allInvitations) {
+          const jobId = inv.jobId;
+          if (jobId) {
+            counts[jobId] = (counts[jobId] || 0) + 1;
+          }
+        }
+        
+        setInvitationCounts(counts);
+      } catch (error) {
+        console.error('Error fetching invitation counts:', error);
       }
-      setInvitationCounts(counts);
     };
     
     fetchInvitationCounts();
@@ -4004,11 +4044,18 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           filteredJobs = jobs.filter(j => j.status === 'completed' || (j.status === 'closed' && !engagedCreators[j.id]));
         }
         
+        // Sort by newest first (updatedAt or createdAt)
+        filteredJobs = filteredJobs.sort((a, b) => {
+          const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+          const dateB = new Date(b.updatedAt || b.createdAt).getTime();
+          return dateB - dateA; // Newest first
+        });
+        
         return filteredJobs.length > 0 ? (
         <div className="space-y-4">
           {filteredJobs.map((job) => (
             <div key={job.id} className={`bg-white rounded-2xl border p-4 sm:p-6 hover:shadow-md transition-shadow ${
-              applicationCounts[job.id] > 0 
+              jobsWithNewApplications.has(job.id)
                 ? 'border-amber-400 border-2 ring-2 ring-amber-100' 
                 : 'border-border'
             }`}>
