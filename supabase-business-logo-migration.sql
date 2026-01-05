@@ -17,3 +17,4 @@ ADD COLUMN IF NOT EXISTS phone TEXT;
 
 COMMENT ON COLUMN public.businesses.logo IS 'URL loga kompanije (uploadovan na Supabase Storage)';
 
+

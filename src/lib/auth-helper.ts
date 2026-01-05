@@ -139,3 +139,4 @@ export function isBusiness(user: AuthUser): boolean {
   return user.role === 'business';
 }
 
+

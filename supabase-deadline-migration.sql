@@ -14,3 +14,4 @@ SELECT column_name, data_type, is_nullable
 FROM information_schema.columns 
 WHERE table_name = 'jobs' AND column_name = 'application_deadline';
 
+

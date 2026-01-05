@@ -66,3 +66,4 @@ GRANT ALL ON public.job_invitations TO service_role;
 -- SELECT * FROM public.job_invitations LIMIT 1;
 
 
+
