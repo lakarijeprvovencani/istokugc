@@ -4703,7 +4703,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <Link 
-                              href={`/kreator/${inv.creator_id}`}
+                              href={`/kreator/${inv.creatorId}`}
                               className="font-medium hover:text-primary transition-colors"
                             >
                               {inv.creatorName || 'Kreator'}
@@ -4722,7 +4722,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                           </p>
                         </div>
                         <div className="text-right flex-shrink-0 text-xs text-muted">
-                          Poslato: {new Date(inv.created_at).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' })}
+                          Poslato: {inv.createdAt ? new Date(inv.createdAt).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' }) : ''}
                         </div>
                       </div>
                       
@@ -4737,7 +4737,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       {inv.status === 'pending' && (
                         <div className="flex gap-2 pt-3 border-t border-border">
                           <Link
-                            href={`/kreator/${inv.creator_id}`}
+                            href={`/kreator/${inv.creatorId}`}
                             className="flex-1 py-2.5 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-secondary transition-colors text-center"
                           >
                             Vidi profil
@@ -4761,7 +4761,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                           </span>
                           <div className="flex gap-2">
                             <Link
-                              href={`/kreator/${inv.creator_id}`}
+                              href={`/kreator/${inv.creatorId}`}
                               className="px-3 py-1.5 border border-border text-foreground rounded-lg text-xs font-medium hover:bg-secondary transition-colors"
                             >
                               Profil
@@ -4770,7 +4770,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                               onClick={async () => {
                                 // Find the engaged application for this invitation
                                 try {
-                                  const response = await fetch(`/api/job-applications?jobId=${inv.job_id}&creatorId=${inv.creator_id}`);
+                                  const response = await fetch(`/api/job-applications?jobId=${inv.jobId}&creatorId=${inv.creator_id}`);
                                   if (response.ok) {
                                     const data = await response.json();
                                     const app = (data.applications || []).find((a: any) => a.status === 'engaged');
@@ -5935,7 +5935,7 @@ function CreatorInvitationsTab({ invitations, setInvitations, setApplications, i
             
             // Find the newly created application and open chat
             const newApp = (appsData.applications || []).find(
-              (a: any) => a.jobId === invitation.job_id && a.status === 'engaged'
+              (a: any) => a.jobId === invitation.jobId && a.status === 'engaged'
             );
             if (newApp) {
               onOpenChat(newApp);
@@ -6054,7 +6054,7 @@ function CreatorInvitationsTab({ invitations, setInvitations, setApplications, i
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1 flex-wrap">
                     <Link 
-                      href={`/poslovi/${inv.job_id}`}
+                      href={`/poslovi/${inv.jobId}`}
                       className="font-medium hover:text-primary transition-colors truncate"
                     >
                       {inv.jobTitle || 'Posao'}
@@ -6083,7 +6083,7 @@ function CreatorInvitationsTab({ invitations, setInvitations, setApplications, i
               
               <div className="flex items-center justify-between pt-3 border-t border-border">
                 <div className="flex items-center gap-4 text-xs text-muted">
-                  <span>Primljeno: {formatDate(inv.created_at)}</span>
+                  <span>Primljeno: {formatDate(inv.createdAt)}</span>
                   {inv.job?.category && (
                     <span>• {inv.job.category}</span>
                   )}
@@ -6125,7 +6125,7 @@ function CreatorInvitationsTab({ invitations, setInvitations, setApplications, i
                       if (appsResponse.ok) {
                         const appsData = await appsResponse.json();
                         const app = (appsData.applications || []).find(
-                          (a: any) => a.jobId === inv.job_id && a.status === 'engaged'
+                          (a: any) => a.jobId === inv.jobId && a.status === 'engaged'
                         );
                         if (app) {
                           onOpenChat(app);
@@ -6143,7 +6143,7 @@ function CreatorInvitationsTab({ invitations, setInvitations, setApplications, i
                 
                 {inv.status === 'rejected' && (
                   <Link
-                    href={`/poslovi/${inv.job_id}`}
+                    href={`/poslovi/${inv.jobId}`}
                     className="px-4 py-2 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors"
                   >
                     Vidi posao →
