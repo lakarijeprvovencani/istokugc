@@ -48,18 +48,25 @@ function CreatorDashboard() {
   
   const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'poslovi' | 'poruke' | 'ponude'>('overview');
   
-  // Read tab from URL on mount
+  // Read tab from URL on mount and mark as seen
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');
       if (tab === 'reviews' || tab === 'poslovi' || tab === 'poruke' || tab === 'ponude') {
         setActiveTab(tab);
+        // Also mark as viewed if coming directly to this tab
+        const now = new Date().toISOString();
+        if (tab === 'reviews' && currentUser.creatorId) {
+          localStorage.setItem(`lastViewed_reviews_${currentUser.creatorId}`, now);
+        } else if (tab === 'poslovi' && currentUser.creatorId) {
+          localStorage.setItem(`lastViewed_applications_${currentUser.creatorId}`, now);
+        }
       }
     }
-  }, []);
+  }, [currentUser.creatorId]);
   
-  // Update URL when tab changes
+  // Update URL when tab changes and mark as "seen"
   const handleTabChange = (tab: 'overview' | 'reviews' | 'poslovi' | 'poruke' | 'ponude') => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
@@ -70,6 +77,16 @@ function CreatorDashboard() {
         url.searchParams.set('tab', tab);
       }
       window.history.replaceState({}, '', url.toString());
+      
+      // Mark tab as viewed - clear "new" badge
+      const now = new Date().toISOString();
+      if (tab === 'reviews' && currentUser.creatorId) {
+        localStorage.setItem(`lastViewed_reviews_${currentUser.creatorId}`, now);
+        setNewReviewsCount(0);
+      } else if (tab === 'poslovi' && currentUser.creatorId) {
+        localStorage.setItem(`lastViewed_applications_${currentUser.creatorId}`, now);
+        setNewApplicationsCount(0);
+      }
     }
   };
   
@@ -83,6 +100,11 @@ function CreatorDashboard() {
   
   // Messages/Chat state
   const [activeChat, setActiveChat] = useState<any | null>(null);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  
+  // "New items" tracking - counts items not yet seen
+  const [newReviewsCount, setNewReviewsCount] = useState(0);
+  const [newApplicationsCount, setNewApplicationsCount] = useState(0);
   
   // Inline editing states
   const [editingBio, setEditingBio] = useState(false);
@@ -138,9 +160,14 @@ function CreatorDashboard() {
   const availablePlatforms = ['Instagram', 'TikTok', 'YouTube'];
   const availableLanguages = ['Srpski', 'Engleski', 'Nemački', 'Francuski', 'Španski', 'Italijanski'];
   
-  // Fetch creator data from Supabase
+  // Fetch creator data from Supabase - wait for hydration first
   useEffect(() => {
     const fetchCreator = async () => {
+      // Wait for hydration before making decisions
+      if (!isHydrated) {
+        return;
+      }
+      
       if (!currentUser.creatorId) {
         setIsLoadingCreator(false);
         return;
@@ -160,7 +187,7 @@ function CreatorDashboard() {
     };
     
     fetchCreator();
-  }, [currentUser.creatorId]);
+  }, [isHydrated, currentUser.creatorId]);
   
   // Update form values when creator data is loaded
   useEffect(() => {
@@ -202,7 +229,20 @@ function CreatorDashboard() {
         const response = await fetch(`/api/reviews?creatorId=${currentUser.creatorId}`);
         if (response.ok) {
           const data = await response.json();
-          setReviews(data.reviews || []);
+          const fetchedReviews = data.reviews || [];
+          setReviews(fetchedReviews);
+          
+          // Calculate new reviews count (since last viewed)
+          const lastViewedKey = `lastViewed_reviews_${currentUser.creatorId}`;
+          const lastViewed = localStorage.getItem(lastViewedKey);
+          if (lastViewed) {
+            const lastViewedDate = new Date(lastViewed);
+            const newCount = fetchedReviews.filter((r: any) => new Date(r.createdAt) > lastViewedDate).length;
+            setNewReviewsCount(newCount);
+          } else {
+            // First time - show all as new if there are any
+            setNewReviewsCount(fetchedReviews.length > 0 ? fetchedReviews.length : 0);
+          }
         }
       } catch (error) {
         console.error('Error fetching reviews:', error);
@@ -240,7 +280,34 @@ function CreatorDashboard() {
         const response = await fetch(`/api/job-applications?creatorId=${currentUser.creatorId}`);
         if (response.ok) {
           const data = await response.json();
-          setMyApplications(data.applications || []);
+          const fetchedApps = data.applications || [];
+          setMyApplications(fetchedApps);
+          
+          // Calculate new applications count (status changes since last viewed)
+          const lastViewedKey = `lastViewed_applications_${currentUser.creatorId}`;
+          const lastViewed = localStorage.getItem(lastViewedKey);
+          if (lastViewed) {
+            const lastViewedDate = new Date(lastViewed);
+            // Count apps with status changes (accepted, rejected, engaged) since last viewed
+            const newCount = fetchedApps.filter((a: any) => 
+              a.updatedAt && new Date(a.updatedAt) > lastViewedDate && 
+              ['accepted', 'rejected', 'engaged', 'completed'].includes(a.status)
+            ).length;
+            setNewApplicationsCount(newCount);
+          } else {
+            // First time - show pending responses as "new"
+            const pendingResponses = fetchedApps.filter((a: any) => 
+              ['accepted', 'rejected', 'engaged'].includes(a.status)
+            ).length;
+            setNewApplicationsCount(pendingResponses > 0 ? pendingResponses : 0);
+          }
+        }
+        
+        // Fetch unread messages count
+        const unreadResponse = await fetch(`/api/job-messages?countUnread=true&recipientType=creator&recipientId=${currentUser.creatorId}`);
+        if (unreadResponse.ok) {
+          const unreadData = await unreadResponse.json();
+          setUnreadMessagesCount(unreadData.unreadCount || 0);
         }
       } catch (error) {
         console.error('Error fetching applications:', error);
@@ -542,10 +609,10 @@ function CreatorDashboard() {
   
   const tabs = [
     { id: 'overview' as const, label: 'Pregled', count: null },
-    { id: 'reviews' as const, label: 'Statistika', count: allReviews.length > 0 ? allReviews.length : null },
-    { id: 'poslovi' as const, label: 'Moje prijave', count: myApplications.length > 0 ? myApplications.length : null },
-    { id: 'ponude' as const, label: 'Ponude', count: pendingInvitationsCount > 0 ? pendingInvitationsCount : null },
-    { id: 'poruke' as const, label: 'Poruke', count: conversationsCount > 0 ? conversationsCount : null },
+    { id: 'reviews' as const, label: 'Statistika', count: newReviewsCount > 0 ? newReviewsCount : null }, // New reviews
+    { id: 'poslovi' as const, label: 'Moje prijave', count: newApplicationsCount > 0 ? newApplicationsCount : null }, // New status changes
+    { id: 'ponude' as const, label: 'Ponude', count: pendingInvitationsCount > 0 ? pendingInvitationsCount : null }, // Pending invitations
+    { id: 'poruke' as const, label: 'Poruke', count: null, unread: unreadMessagesCount }, // Unread messages
   ];
   
   // Handle opening chat from applications tab
@@ -560,7 +627,7 @@ function CreatorDashboard() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-3xl font-light mb-2">Dashboard</h1>
-            <p className="text-muted">Dobrodošla nazad, {creator.name}</p>
+            <p className="text-muted">Zdravo, {creator.name}</p>
           </div>
           <Link 
             href={`/kreator/${creator.id}`}
@@ -575,21 +642,26 @@ function CreatorDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-white rounded-xl p-1 border border-border w-fit">
+        <div className="flex gap-1 mb-6 bg-white rounded-xl p-1 border border-border w-fit overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-primary text-white'
                   : 'text-muted hover:text-foreground'
               }`}
             >
               {tab.label}
-              {tab.count !== null && (
-                <span className={`px-2 py-0.5 rounded-full text-xs ${
-                  activeTab === tab.id ? 'bg-white/20' : 'bg-secondary'
+              {/* Unread messages badge (red) */}
+              {'unread' in tab && tab.unread > 0 ? (
+                <span className="px-2 py-0.5 rounded-full text-xs bg-error text-white font-medium">
+                  {tab.unread}
+                </span>
+              ) : tab.count !== null && tab.count > 0 && (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-error text-white'
                 }`}>
                   {tab.count}
                 </span>
@@ -1641,7 +1713,7 @@ function CreatorDashboard() {
 // Note: All business users must have active subscription to access the app
 // Pricing/payment page will be shown during registration (via Stripe integration)
 function BusinessDashboard() {
-  const { currentUser } = useDemo();
+  const { currentUser, isHydrated } = useDemo();
   const [showPortalMessage, setShowPortalMessage] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const [visibleReviews, setVisibleReviews] = useState(3);
@@ -1671,6 +1743,9 @@ function BusinessDashboard() {
   
   // Pending applications count for badge
   const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0);
+  
+  // Unread messages count for badge
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   
   // Global toast state
   const [globalToast, setGlobalToast] = useState<string | null>(null);
@@ -1736,6 +1811,13 @@ function BusinessDashboard() {
           );
           setAllApplications(activeApps);
         }
+        
+        // Fetch unread messages count
+        const unreadResponse = await fetch(`/api/job-messages?countUnread=true&recipientType=business&recipientId=${currentUser.businessId}`);
+        if (unreadResponse.ok) {
+          const unreadData = await unreadResponse.json();
+          setUnreadMessagesCount(unreadData.unreadCount || 0);
+        }
       } catch (error) {
         console.error('Error fetching applications:', error);
       }
@@ -1744,9 +1826,14 @@ function BusinessDashboard() {
     fetchApplications();
   }, [currentUser.businessId]);
 
-  // Fetch real business data from Supabase
+  // Fetch real business data from Supabase - wait for hydration first
   useEffect(() => {
     const fetchBusinessData = async () => {
+      // Wait for hydration before making decisions
+      if (!isHydrated) {
+        return;
+      }
+      
       if (!currentUser.businessId) {
         setIsLoading(false);
         return;
@@ -1792,7 +1879,7 @@ function BusinessDashboard() {
     };
     
     fetchBusinessData();
-  }, [currentUser.businessId, currentUser.subscriptionStatus]);
+  }, [isHydrated, currentUser.businessId, currentUser.subscriptionStatus]);
 
   // Function to fetch jobs - can be called for refresh
   const refreshJobs = async () => {
@@ -1932,7 +2019,8 @@ function BusinessDashboard() {
   };
   
   // Loading state
-  if (isLoading) {
+  // Show loading while hydrating or fetching data
+  if (!isHydrated || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -1955,7 +2043,7 @@ function BusinessDashboard() {
     <div className="min-h-screen bg-secondary/30">
       <div className="max-w-6xl 2xl:max-w-7xl mx-auto px-6 lg:px-12 py-8 lg:py-12">
         <h1 className="text-3xl font-light mb-2">Dashboard</h1>
-        <p className="text-muted mb-6">Dobrodošao nazad, {businessData?.company_name || companyName || currentUser.companyName}</p>
+        <p className="text-muted mb-6">Zdravo, {businessData?.company_name || companyName || currentUser.companyName}</p>
 
         {/* Tab Navigation */}
         <div className="flex gap-1 mb-8 border-b border-border">
@@ -2004,9 +2092,9 @@ function BusinessDashboard() {
             }`}
           >
             Poruke
-            {allApplications.length > 0 && (
-              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
-                {allApplications.length}
+            {unreadMessagesCount > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-error text-white font-medium">
+                {unreadMessagesCount}
               </span>
             )}
             {activeTab === 'poruke' && (
@@ -2017,24 +2105,21 @@ function BusinessDashboard() {
 
         {/* Global Toast */}
         {globalToast && (
-          <div className="mb-6 bg-success/10 border border-success/30 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-            <div className="w-8 h-8 bg-success/20 rounded-full flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none p-4">
+            <div className="bg-success text-white px-6 sm:px-8 py-4 sm:py-5 rounded-2xl shadow-2xl flex items-center gap-3 animate-in zoom-in-95 fade-in duration-200 max-w-sm sm:max-w-md text-center pointer-events-auto">
+              <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
+              <span className="text-sm sm:text-base">{globalToast}</span>
+              <button 
+                onClick={() => setGlobalToast(null)}
+                className="ml-2 hover:bg-white/20 rounded-full p-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <div className="flex-1">
-              <p className="font-medium text-success">Uspešno!</p>
-              <p className="text-sm text-foreground">{globalToast}</p>
-            </div>
-            <button 
-              onClick={() => setGlobalToast(null)}
-              className="text-muted hover:text-foreground p-1"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
         )}
         
@@ -2360,8 +2445,8 @@ function BusinessDashboard() {
                       className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary transition-colors"
                     >
                       <div className="w-14 h-14 rounded-full overflow-hidden relative flex-shrink-0 bg-secondary">
-                        {creator.profileImage ? (
-                          <Image src={creator.profileImage} alt={creator.name || ''} fill className="object-cover" />
+                        {creator.photo ? (
+                          <Image src={creator.photo} alt={creator.name || ''} fill className="object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-xl">
                             {creator.name?.charAt(0) || '?'}
@@ -2375,7 +2460,7 @@ function BusinessDashboard() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-muted">{creator.city || 'Srbija'}</p>
+                        <p className="text-sm text-muted">{creator.location || 'Srbija'}</p>
                       </div>
                     </Link>
                   ))}
@@ -2589,9 +2674,9 @@ function BusinessDashboard() {
             showAddModal={showAddJobModal}
             setShowAddModal={setShowAddJobModal}
             onOpenChat={(app) => {
-              // Show toast first
-              setGlobalToast(`Prihvatili ste kreatora ${app.creator?.name || 'Kreator'}! Preusmereni ste u poruke.`);
-              setTimeout(() => setGlobalToast(null), 4000);
+              // Show toast first - centered on screen for 3 seconds
+              setGlobalToast(`Prihvatili ste kreatora ${app.creator?.name || 'Kreator'}! Bićete preusmereni u poruke.`);
+              setTimeout(() => setGlobalToast(null), 3000);
               
               // Then switch to messages tab
               setActiveChat(app);
@@ -3592,12 +3677,12 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           if (acceptedApp) {
             setSuccessMessage(`Prihvatili ste kreatora ${acceptedApp.creator?.name || 'Kreator'}! Bićete preusmereni u poruke.`);
             
-            // Navigate to Poruke tab after short delay
+            // Navigate to Poruke tab after 3 seconds (matching toast duration)
             if (onOpenChat) {
               setTimeout(() => {
                 onOpenChat(acceptedApp);
                 setSuccessMessage(null);
-              }, 1500);
+              }, 3000);
             }
           }
         }
@@ -3721,24 +3806,13 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     <div>
       {/* Success Toast */}
       {successMessage && (
-        <div className="mb-6 bg-success/10 border border-success/30 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-          <div className="w-8 h-8 bg-success/20 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none p-4">
+          <div className="bg-success text-white px-6 sm:px-8 py-4 sm:py-5 rounded-2xl shadow-2xl flex items-center gap-3 animate-in zoom-in-95 fade-in duration-200 max-w-sm sm:max-w-md text-center pointer-events-auto">
+            <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
+            <span className="text-sm sm:text-base">{successMessage}</span>
           </div>
-          <div className="flex-1">
-            <p className="font-medium text-success">Uspešno!</p>
-            <p className="text-sm text-foreground">{successMessage}</p>
-          </div>
-          <button 
-            onClick={() => setSuccessMessage(null)}
-            className="text-muted hover:text-foreground p-1"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
       )}
 
@@ -3825,35 +3899,48 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         return filteredJobs.length > 0 ? (
         <div className="space-y-4">
           {filteredJobs.map((job) => (
-            <div key={job.id} className="bg-white rounded-2xl border border-border p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between gap-4 mb-4">
+            <div key={job.id} className="bg-white rounded-2xl border border-border p-4 sm:p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-2 sm:gap-4 mb-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="font-medium text-lg truncate">{job.title}</h3>
+                  <div className="flex items-center gap-2 sm:gap-3 mb-1 flex-wrap">
+                    <h3 className="font-medium text-base sm:text-lg truncate">{job.title}</h3>
                     {getStatusBadge(job.status, job.id)}
                   </div>
-                  <p className="text-sm text-muted">{job.businessName} • {job.category}</p>
+                  <p className="text-xs sm:text-sm text-muted">{job.businessName} • {job.category}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <div className="font-medium">{formatBudget(job)}</div>
+                  <div className="font-medium text-sm sm:text-base">{formatBudget(job)}</div>
                   <div className="text-xs text-muted">{job.budgetType === 'hourly' ? 'po satu' : 'fiksno'}</div>
+                  {/* Application Deadline - shown on mobile in header */}
+                  {job.applicationDeadline && (
+                    <span className={`mt-1 text-[10px] sm:hidden px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                      job.isExpired 
+                        ? 'bg-error/10 text-error' 
+                        : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {job.isExpired ? 'Istekao' : new Date(job.applicationDeadline).toLocaleDateString('sr-RS')}
+                    </span>
+                  )}
                 </div>
               </div>
               
-              <p className="text-sm text-muted mb-4 line-clamp-2">{job.description}</p>
+              <p className="text-xs sm:text-sm text-muted mb-4 line-clamp-2">{job.description}</p>
               
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4">
                 {job.platforms?.map((platform: string) => (
-                  <span key={platform} className="text-xs px-3 py-1 bg-secondary rounded-full">{platform}</span>
+                  <span key={platform} className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 bg-secondary rounded-full">{platform}</span>
                 ))}
               </div>
               
-              <div className="flex items-center justify-between pt-4 border-t border-border">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-xs text-muted">Kreirano: {formatDate(job.createdAt)}</span>
-                  {/* Application Deadline */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-4 border-t border-border gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  <span className="text-[10px] sm:text-xs text-muted">Kreirano: {formatDate(job.createdAt)}</span>
+                  {/* Application Deadline - hidden on mobile, shown on desktop */}
                   {job.applicationDeadline && (
-                    <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
+                    <span className={`hidden sm:flex text-xs px-2 py-1 rounded-full items-center gap-1 ${
                       job.isExpired 
                         ? 'bg-error/10 text-error' 
                         : 'bg-amber-100 text-amber-700'
@@ -3893,7 +3980,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                     </button>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
                   {/* Extend deadline button for expired jobs */}
                   {job.isExpired && job.status === 'open' && (
                     <button
@@ -3905,18 +3992,19 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                         });
                         setNewDeadline('');
                       }}
-                      className="text-xs px-3 py-1.5 text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-lg transition-colors flex items-center gap-1.5"
+                      className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-lg transition-colors flex items-center gap-1"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      Produži rok
+                      <span className="hidden sm:inline">Produži rok</span>
+                      <span className="sm:hidden">Produži</span>
                     </button>
                   )}
                   {job.status === 'open' && (
                     <button
                       onClick={() => handleCloseJob(job.id)}
-                      className="text-xs px-3 py-1.5 text-muted hover:text-foreground border border-border rounded-lg hover:bg-secondary transition-colors"
+                      className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 text-muted hover:text-foreground border border-border rounded-lg hover:bg-secondary transition-colors"
                     >
                       Zatvori
                     </button>
@@ -3925,9 +4013,9 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                   {job.status === 'closed' && engagedCreators[job.id] && (
                     <button
                       onClick={() => handleCompleteJob(job.id, job.title)}
-                      className="text-xs px-3 py-1.5 text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition-colors flex items-center gap-1.5"
+                      className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition-colors flex items-center gap-1"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       Završi
@@ -4961,7 +5049,7 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
     isFirstLoadRef.current = true;
   }, [activeChat?.id]);
   
-  // Fetch messages
+  // Fetch messages and mark as read
   useEffect(() => {
     if (!activeChat) return;
     
@@ -4974,6 +5062,19 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
         if (response.ok) {
           const data = await response.json();
           setMessages(data.messages || []);
+          
+          // Mark messages as read (only on first load)
+          if (isFirstLoadRef.current && businessId) {
+            fetch('/api/job-messages', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                applicationId: activeChat.id,
+                recipientType: 'business',
+                recipientId: businessId,
+              }),
+            }).catch(err => console.error('Error marking messages as read:', err));
+          }
         }
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -4991,7 +5092,7 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
-  }, [activeChat?.id]);
+  }, [activeChat?.id, businessId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -5149,9 +5250,14 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
                             : 'bg-white text-foreground rounded-bl-md shadow-sm'
                         }`}>
                           <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                          <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-white/70' : 'text-muted'}`}>
-                            {formatTime(msg.createdAt)}
-                          </p>
+                          <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-white/70' : 'text-muted'}`}>
+                            <span className="text-[10px]">{formatTime(msg.createdAt)}</span>
+                            {isMe && (
+                              <span className="text-[10px]" title={msg.readAt ? 'Pročitano' : 'Dostavljeno'}>
+                                {msg.readAt ? '✓✓' : '✓'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -5386,6 +5492,13 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
         return <span className="px-3 py-1 text-xs bg-error/10 text-error rounded-full">Odbijeno</span>;
       case 'withdrawn':
         return <span className="px-3 py-1 text-xs bg-muted/20 text-muted rounded-full">Povučeno</span>;
+      case 'cancelled':
+        return <span className="px-3 py-1 text-xs bg-slate-100 text-slate-600 rounded-full flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+          Posao obrisan
+        </span>;
       default:
         return null;
     }
@@ -5404,6 +5517,7 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
     engaged: applications.filter(a => a.status === 'engaged').length,
     completed: applications.filter(a => a.status === 'completed').length,
     rejected: applications.filter(a => a.status === 'rejected').length,
+    cancelled: applications.filter(a => a.status === 'cancelled').length,
   };
 
   if (isLoading) {
@@ -5443,6 +5557,12 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
           <div className="text-lg font-medium text-error">{stats.rejected}</div>
           <div className="text-xs text-muted">Odbijeno</div>
         </div>
+        {stats.cancelled > 0 && (
+          <div className="bg-white rounded-lg px-3 py-2 border border-slate-200 text-center min-w-[70px]">
+            <div className="text-lg font-medium text-slate-500">{stats.cancelled}</div>
+            <div className="text-xs text-slate-500">Otkazano</div>
+          </div>
+        )}
       </div>
 
       {/* Filter */}
@@ -5459,6 +5579,7 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
           <option value="engaged">Angažovan ({stats.engaged})</option>
           <option value="completed">Uspešno završeno ({stats.completed})</option>
           <option value="rejected">Odbijeno ({stats.rejected})</option>
+          {stats.cancelled > 0 && <option value="cancelled">Posao obrisan ({stats.cancelled})</option>}
         </select>
       </div>
 
@@ -5641,9 +5762,9 @@ function CreatorInvitationsTab({ invitations, setInvitations, setApplications, i
         
         // If accepted, show toast, refresh applications and open chat
         if (status === 'accepted' && invitation) {
-          // Show toast notification
-          setToastMessage(`Prihvatili ste ponudu za "${invitation.jobTitle || 'posao'}"! Preusmereni ste u poruke.`);
-          setTimeout(() => setToastMessage(null), 4000);
+          // Show toast notification - centered on screen for 3 seconds
+          setToastMessage(`Prihvatili ste ponudu za "${invitation.jobTitle || 'posao'}"! Bićete preusmereni u poruke.`);
+          setTimeout(() => setToastMessage(null), 3000);
           
           // Refresh applications list
           const appsResponse = await fetch(`/api/job-applications?creatorId=${creatorId}`);
@@ -5680,6 +5801,13 @@ function CreatorInvitationsTab({ invitations, setInvitations, setApplications, i
         return <span className="px-3 py-1 text-xs bg-success/10 text-success rounded-full">Prihvaćeno</span>;
       case 'rejected':
         return <span className="px-3 py-1 text-xs bg-error/10 text-error rounded-full">Odbijeno</span>;
+      case 'cancelled':
+        return <span className="px-3 py-1 text-xs bg-slate-100 text-slate-600 rounded-full flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+          Posao obrisan
+        </span>;
       default:
         return null;
     }
@@ -5711,12 +5839,12 @@ function CreatorInvitationsTab({ invitations, setInvitations, setApplications, i
     <div>
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
-          <div className="bg-success text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3">
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none p-4">
+          <div className="bg-success text-white px-6 sm:px-8 py-4 sm:py-5 rounded-2xl shadow-2xl flex items-center gap-3 animate-in zoom-in-95 fade-in duration-200 max-w-sm sm:max-w-md text-center pointer-events-auto">
+            <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            <span>{toastMessage}</span>
+            <span className="text-sm sm:text-base">{toastMessage}</span>
           </div>
         </div>
       )}
@@ -6016,7 +6144,7 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
     isFirstLoadRef.current = true;
   }, [activeChat?.id]);
   
-  // Fetch messages for active chat
+  // Fetch messages for active chat and mark as read
   useEffect(() => {
     if (!activeChat) return;
     
@@ -6029,6 +6157,19 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
         if (response.ok) {
           const data = await response.json();
           setMessages(data.messages || []);
+          
+          // Mark messages as read (only on first load)
+          if (isFirstLoadRef.current && creatorId) {
+            fetch('/api/job-messages', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                applicationId: activeChat.id,
+                recipientType: 'creator',
+                recipientId: creatorId,
+              }),
+            }).catch(err => console.error('Error marking messages as read:', err));
+          }
         }
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -6206,9 +6347,14 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
                             : 'bg-white text-foreground rounded-bl-md shadow-sm'
                         }`}>
                           <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                          <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-white/70' : 'text-muted'}`}>
-                            {formatTime(msg.createdAt)}
-                          </p>
+                          <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-white/70' : 'text-muted'}`}>
+                            <span className="text-[10px]">{formatTime(msg.createdAt)}</span>
+                            {isMe && (
+                              <span className="text-[10px]" title={msg.readAt ? 'Pročitano' : 'Dostavljeno'}>
+                                {msg.readAt ? '✓✓' : '✓'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

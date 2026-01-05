@@ -248,10 +248,42 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
-
+    
+    // 1. First, update all job applications to 'cancelled' status
+    const { error: appsError } = await supabase
+      .from('job_applications')
+      .update({ 
+        status: 'cancelled',
+        updated_at: new Date().toISOString()
+      })
+      .eq('job_id', jobId);
+    
+    if (appsError) {
+      console.error('Error cancelling applications:', appsError);
+      // Continue anyway - some tables might not exist
+    }
+    
+    // 2. Update all job invitations to 'cancelled' status
+    const { error: invsError } = await supabase
+      .from('job_invitations')
+      .update({ 
+        status: 'cancelled',
+        responded_at: new Date().toISOString()
+      })
+      .eq('job_id', jobId);
+    
+    if (invsError) {
+      console.error('Error cancelling invitations:', invsError);
+      // Continue anyway - some tables might not exist
+    }
+    
+    // 3. Instead of hard delete, mark job as deleted (so creators can see what happened)
     const { error } = await supabase
       .from('jobs')
-      .delete()
+      .update({ 
+        status: 'deleted',
+        updated_at: new Date().toISOString()
+      })
       .eq('id', jobId);
 
     if (error) {

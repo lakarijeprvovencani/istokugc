@@ -1,17 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 
-// GET /api/job-messages - Dohvati poruke za prijavu
+// GET /api/job-messages - Dohvati poruke za prijavu ili broj nepročitanih
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const applicationId = searchParams.get('applicationId');
+    const countUnread = searchParams.get('countUnread');
+    const recipientType = searchParams.get('recipientType');
+    const recipientId = searchParams.get('recipientId');
 
+    const supabase = createAdminClient();
+
+    // Count unread messages across all conversations
+    if (countUnread === 'true' && recipientType && recipientId) {
+      // Get all applications for this user
+      let applicationsQuery;
+      
+      if (recipientType === 'business') {
+        // Business: get applications for their jobs
+        const { data: jobs } = await supabase
+          .from('jobs')
+          .select('id')
+          .eq('business_id', recipientId);
+        
+        const jobIds = jobs?.map(j => j.id) || [];
+        
+        if (jobIds.length === 0) {
+          return NextResponse.json({ unreadCount: 0 });
+        }
+        
+        const { count, error } = await supabase
+          .from('job_messages')
+          .select('*', { count: 'exact', head: true })
+          .in('application_id', 
+            supabase.from('job_applications').select('id').in('job_id', jobIds)
+          )
+          .eq('sender_type', 'creator')
+          .is('read_at', null);
+        
+        // Simpler approach - get all messages for all applications
+        const { data: applications } = await supabase
+          .from('job_applications')
+          .select('id')
+          .in('job_id', jobIds)
+          .in('status', ['accepted', 'engaged']);
+        
+        const appIds = applications?.map(a => a.id) || [];
+        
+        if (appIds.length === 0) {
+          return NextResponse.json({ unreadCount: 0 });
+        }
+        
+        const { data: unreadMessages } = await supabase
+          .from('job_messages')
+          .select('id')
+          .in('application_id', appIds)
+          .eq('sender_type', 'creator')
+          .is('read_at', null);
+        
+        return NextResponse.json({ unreadCount: unreadMessages?.length || 0 });
+        
+      } else {
+        // Creator: get their applications
+        const { data: applications } = await supabase
+          .from('job_applications')
+          .select('id')
+          .eq('creator_id', recipientId)
+          .in('status', ['accepted', 'engaged']);
+        
+        const appIds = applications?.map(a => a.id) || [];
+        
+        if (appIds.length === 0) {
+          return NextResponse.json({ unreadCount: 0 });
+        }
+        
+        const { data: unreadMessages } = await supabase
+          .from('job_messages')
+          .select('id')
+          .in('application_id', appIds)
+          .eq('sender_type', 'business')
+          .is('read_at', null);
+        
+        return NextResponse.json({ unreadCount: unreadMessages?.length || 0 });
+      }
+    }
+
+    // Regular message fetch for specific application
     if (!applicationId) {
       return NextResponse.json({ error: 'applicationId je obavezan' }, { status: 400 });
     }
-
-    const supabase = createAdminClient();
 
     // Fetch messages for this application
     const { data: messages, error } = await supabase

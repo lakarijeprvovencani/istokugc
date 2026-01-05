@@ -315,35 +315,79 @@ export default function JobDetailPage() {
             <div className="p-6 sm:p-8 border-t border-border bg-secondary/30">
               {hasApplied ? (
                 <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="font-medium">Već ste se prijavili na ovaj posao</span>
-                  </div>
-                  
-                  {myApplication && (
-                    <div className="bg-white rounded-xl p-4 mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted">Status prijave:</span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusLabel(myApplication.status).color}`}>
-                          {getStatusLabel(myApplication.status).text}
+                  {/* Different message for engaged (accepted invitation) vs regular application */}
+                  {myApplication?.status === 'engaged' || myApplication?.status === 'completed' ? (
+                    <>
+                      <div className="flex items-center gap-3 mb-4">
+                        <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="font-medium">
+                          {myApplication?.status === 'completed' 
+                            ? 'Uspešno ste završili ovaj projekat!' 
+                            : 'Već ste prihvatili poziv da radite na ovom projektu'}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted">Vaša ponuda:</span>
-                        <span className="font-medium">€{myApplication.proposedPrice}</span>
+                      <div className="bg-white rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-muted">Status:</span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            myApplication?.status === 'completed' 
+                              ? 'bg-success/10 text-success' 
+                              : 'bg-primary/10 text-primary'
+                          }`}>
+                            {myApplication?.status === 'completed' ? 'Završeno' : 'Angažovani ste'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted">
+                          {myApplication?.status === 'completed' 
+                            ? 'Čestitamo! Ovaj projekat je uspešno završen.'
+                            : 'Možete kontaktirati biznis putem poruka u dashboardu.'}
+                        </p>
+                        <Link 
+                          href="/dashboard?tab=poruke" 
+                          className="mt-3 inline-flex items-center gap-2 text-primary text-sm hover:underline"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          Idi na poruke
+                        </Link>
                       </div>
-                    </div>
-                  )}
-                  
-                  {myApplication?.status === 'pending' && (
-                    <button
-                      onClick={handleWithdraw}
-                      className="text-sm text-error hover:underline"
-                    >
-                      Povuci prijavu
-                    </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3 mb-4">
+                        <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="font-medium">Već ste se prijavili na ovaj posao</span>
+                      </div>
+                      
+                      {myApplication && (
+                        <div className="bg-white rounded-xl p-4 mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-muted">Status prijave:</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusLabel(myApplication.status).color}`}>
+                              {getStatusLabel(myApplication.status).text}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted">Vaša ponuda:</span>
+                            <span className="font-medium">€{myApplication.proposedPrice}</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {myApplication?.status === 'pending' && (
+                        <button
+                          onClick={handleWithdraw}
+                          className="text-sm text-error hover:underline"
+                        >
+                          Povuci prijavu
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               ) : job.isExpired ? (
