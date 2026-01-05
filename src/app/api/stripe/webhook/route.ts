@@ -151,9 +151,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Disable body parsing for webhooks (need raw body for signature verification)
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// Next.js App Router automatically handles raw body for route handlers
+// No config needed - request.text() gives us the raw body
