@@ -6380,9 +6380,14 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
         const data = await response.json();
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
+      } else {
+        const errorData = await response.json();
+        console.error('Error sending message:', errorData);
+        alert(`Greška: ${errorData.error || 'Nije moguće poslati poruku'}`);
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      alert('Greška pri slanju poruke');
     } finally {
       setIsSending(false);
     }

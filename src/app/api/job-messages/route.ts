@@ -13,27 +13,60 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Count unread messages across all conversations - OPTIMIZED
+    // Count unread messages across all conversations
     if (countUnread === 'true' && recipientType && recipientId) {
       if (recipientType === 'business') {
-        // Business: count unread messages from creators in ONE query using join
+        // Business: get jobs first, then applications, then count unread
+        const { data: jobs } = await supabase
+          .from('jobs')
+          .select('id')
+          .eq('business_id', recipientId);
+        
+        const jobIds = jobs?.map(j => j.id) || [];
+        
+        if (jobIds.length === 0) {
+          return NextResponse.json({ unreadCount: 0 });
+        }
+        
+        const { data: applications } = await supabase
+          .from('job_applications')
+          .select('id')
+          .in('job_id', jobIds)
+          .in('status', ['accepted', 'engaged']);
+        
+        const appIds = applications?.map(a => a.id) || [];
+        
+        if (appIds.length === 0) {
+          return NextResponse.json({ unreadCount: 0 });
+        }
+        
         const { count } = await supabase
           .from('job_messages')
-          .select('*, job_applications!inner(job_id, status, jobs!inner(business_id))', { count: 'exact', head: true })
-          .eq('job_applications.jobs.business_id', recipientId)
-          .in('job_applications.status', ['accepted', 'engaged'])
+          .select('id', { count: 'exact', head: true })
+          .in('application_id', appIds)
           .eq('sender_type', 'creator')
           .is('read_at', null);
         
         return NextResponse.json({ unreadCount: count || 0 });
         
       } else {
-        // Creator: count unread messages from businesses in ONE query
+        // Creator: get their applications, then count unread
+        const { data: applications } = await supabase
+          .from('job_applications')
+          .select('id')
+          .eq('creator_id', recipientId)
+          .in('status', ['accepted', 'engaged']);
+        
+        const appIds = applications?.map(a => a.id) || [];
+        
+        if (appIds.length === 0) {
+          return NextResponse.json({ unreadCount: 0 });
+        }
+        
         const { count } = await supabase
           .from('job_messages')
-          .select('*, job_applications!inner(creator_id, status)', { count: 'exact', head: true })
-          .eq('job_applications.creator_id', recipientId)
-          .in('job_applications.status', ['accepted', 'engaged'])
+          .select('id', { count: 'exact', head: true })
+          .in('application_id', appIds)
           .eq('sender_type', 'business')
           .is('read_at', null);
         
@@ -101,10 +134,18 @@ export async function POST(request: NextRequest) {
     
     // 🔒 BEZBEDNOSNA PROVERA: senderId mora odgovarati ulogovanom korisniku
     if (senderType === 'creator' && user?.creatorId !== senderId) {
-      return NextResponse.json({ error: 'Nemate dozvolu da šaljete poruke kao ovaj kreator' }, { status: 403 });
+      console.error('Creator auth mismatch:', { userCreatorId: user?.creatorId, senderId, userRole: user?.role });
+      return NextResponse.json({ 
+        error: 'Nemate dozvolu da šaljete poruke kao ovaj kreator',
+        debug: { userCreatorId: user?.creatorId, senderId }
+      }, { status: 403 });
     }
     if (senderType === 'business' && user?.businessId !== senderId) {
-      return NextResponse.json({ error: 'Nemate dozvolu da šaljete poruke kao ovaj biznis' }, { status: 403 });
+      console.error('Business auth mismatch:', { userBusinessId: user?.businessId, senderId, userRole: user?.role });
+      return NextResponse.json({ 
+        error: 'Nemate dozvolu da šaljete poruke kao ovaj biznis',
+        debug: { userBusinessId: user?.businessId, senderId }
+      }, { status: 403 });
     }
 
     const supabase = createAdminClient();
