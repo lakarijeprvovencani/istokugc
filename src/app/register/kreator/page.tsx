@@ -453,7 +453,7 @@ export default function RegisterCreatorPage() {
                   className="w-full px-5 py-4 border border-border rounded-xl focus:outline-none focus:border-muted"
                   required
                 />
-                <p className="text-xs text-muted mt-2">Poslat ćemo ti verifikacioni email</p>
+                <p className="text-xs text-muted mt-2">Koristi email na koji imaš pristup</p>
               </div>
 
               <div>
