@@ -3124,6 +3124,11 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   const [completeJobModal, setCompleteJobModal] = useState<{jobId: string, jobTitle: string, creatorName: string, applicationId: string} | null>(null);
   const [isCompletingJob, setIsCompletingJob] = useState(false);
   
+  // Extend deadline modal
+  const [extendDeadlineModal, setExtendDeadlineModal] = useState<{jobId: string, jobTitle: string, currentDeadline: string | null} | null>(null);
+  const [newDeadline, setNewDeadline] = useState('');
+  const [isExtendingDeadline, setIsExtendingDeadline] = useState(false);
+  
   // Form state
   const [formData, setFormData] = useState({
     title: '',
@@ -3131,6 +3136,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     category: '',
     platforms: [] as string[],
     budgetType: 'fixed',
+    applicationDeadline: '',
     budgetMin: '',
     budgetMax: '',
     duration: '',
@@ -3224,6 +3230,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       category: '',
       platforms: [],
       budgetType: 'fixed',
+      applicationDeadline: '',
       budgetMin: '',
       budgetMax: '',
       duration: '',
@@ -3244,6 +3251,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       category: job.category,
       platforms: job.platforms || [],
       budgetType: job.budgetType || 'fixed',
+      applicationDeadline: job.applicationDeadline || '',
       budgetMin: job.budgetMin?.toString() || '',
       budgetMax: job.budgetMax?.toString() || '',
       duration: job.duration || '',
@@ -3270,6 +3278,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         budgetMax: formData.budgetMax ? parseInt(formData.budgetMax) : null,
         duration: formData.duration || null,
         experienceLevel: formData.experienceLevel || null,
+        applicationDeadline: formData.applicationDeadline || null,
       };
       
       if (editingJob) {
@@ -3402,6 +3411,38 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       console.error('Error completing job:', error);
     }
     setIsCompletingJob(false);
+  };
+  
+  // Extend deadline
+  const handleExtendDeadline = async () => {
+    if (!extendDeadlineModal || !newDeadline) return;
+    
+    setIsExtendingDeadline(true);
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          jobId: extendDeadlineModal.jobId, 
+          applicationDeadline: newDeadline 
+        }),
+      });
+      
+      if (response.ok) {
+        // Update local state
+        setJobs(jobs.map(j => 
+          j.id === extendDeadlineModal.jobId 
+            ? { ...j, applicationDeadline: newDeadline, isExpired: false } 
+            : j
+        ));
+        setSuccessMessage(`Rok za prijave je produžen do ${new Date(newDeadline).toLocaleDateString('sr-RS')}!`);
+        setExtendDeadlineModal(null);
+        setNewDeadline('');
+      }
+    } catch (error) {
+      console.error('Error extending deadline:', error);
+    }
+    setIsExtendingDeadline(false);
   };
   
   // Submit review for engaged creator
@@ -3808,8 +3849,21 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
               </div>
               
               <div className="flex items-center justify-between pt-4 border-t border-border">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-xs text-muted">Kreirano: {formatDate(job.createdAt)}</span>
+                  {/* Application Deadline */}
+                  {job.applicationDeadline && (
+                    <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
+                      job.isExpired 
+                        ? 'bg-error/10 text-error' 
+                        : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {job.isExpired ? 'Rok istekao' : `Rok: ${new Date(job.applicationDeadline).toLocaleDateString('sr-RS')}`}
+                    </span>
+                  )}
                   {/* Prijave badge */}
                   <button
                     onClick={() => handleViewApplications(job.id)}
@@ -3840,6 +3894,25 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Extend deadline button for expired jobs */}
+                  {job.isExpired && job.status === 'open' && (
+                    <button
+                      onClick={() => {
+                        setExtendDeadlineModal({ 
+                          jobId: job.id, 
+                          jobTitle: job.title,
+                          currentDeadline: job.applicationDeadline 
+                        });
+                        setNewDeadline('');
+                      }}
+                      className="text-xs px-3 py-1.5 text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Produži rok
+                    </button>
+                  )}
                   {job.status === 'open' && (
                     <button
                       onClick={() => handleCloseJob(job.id)}
@@ -4123,6 +4196,24 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       <option value="expert">Ekspert</option>
                     </select>
                   </div>
+                </div>
+                
+                {/* Application Deadline */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Rok za prijave
+                    <span className="text-muted font-normal ml-1">(opciono)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.applicationDeadline}
+                    onChange={(e) => setFormData(prev => ({ ...prev, applicationDeadline: e.target.value }))}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                  />
+                  <p className="text-xs text-muted mt-1.5">
+                    Nakon ovog datuma prijave će biti zatvorene. Ostavite prazno ako nema roka.
+                  </p>
                 </div>
               </div>
               
@@ -4655,6 +4746,73 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       </svg>
                       Da, potvrđujem
                     </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Extend Deadline Modal */}
+      {extendDeadlineModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="p-6">
+              {/* Calendar icon */}
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              
+              <h3 className="text-lg font-medium text-center mb-2">Produži rok za prijave</h3>
+              <p className="text-center text-muted mb-6">
+                Posao: <strong className="text-foreground">"{extendDeadlineModal.jobTitle}"</strong>
+              </p>
+              
+              {extendDeadlineModal.currentDeadline && (
+                <div className="bg-error/10 border border-error/20 rounded-xl p-3 mb-4 text-center">
+                  <p className="text-sm text-error">
+                    Prethodni rok je istekao: {new Date(extendDeadlineModal.currentDeadline).toLocaleDateString('sr-RS')}
+                  </p>
+                </div>
+              )}
+              
+              <div className="mb-6">
+                <label className="block text-sm font-medium mb-2">Novi rok za prijave</label>
+                <input
+                  type="date"
+                  value={newDeadline}
+                  onChange={(e) => setNewDeadline(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setExtendDeadlineModal(null);
+                    setNewDeadline('');
+                  }}
+                  disabled={isExtendingDeadline}
+                  className="flex-1 px-4 py-3 border border-border rounded-xl hover:bg-secondary transition-colors"
+                >
+                  Otkaži
+                </button>
+                <button
+                  onClick={handleExtendDeadline}
+                  disabled={isExtendingDeadline || !newDeadline}
+                  className="flex-1 px-4 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isExtendingDeadline ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Čuvam...
+                    </>
+                  ) : (
+                    'Produži rok'
                   )}
                 </button>
               </div>

@@ -15,10 +15,14 @@ CREATE TABLE IF NOT EXISTS jobs (
   budget_max INTEGER, -- maksimalni budžet u EUR
   duration VARCHAR(50), -- npr. "1 nedelja", "2-4 nedelje", "1+ mesec"
   experience_level VARCHAR(50), -- 'beginner', 'intermediate', 'expert'
+  application_deadline DATE, -- rok za prijave (nullable - ako nije postavljeno, nema roka)
   status VARCHAR(20) NOT NULL DEFAULT 'open', -- 'open', 'in_progress', 'completed', 'closed'
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Dodaj kolonu ako tabela već postoji (za migraciju)
+-- ALTER TABLE jobs ADD COLUMN IF NOT EXISTS application_deadline DATE;
 
 -- Job applications table - prijave kreatora na poslove
 CREATE TABLE IF NOT EXISTS job_applications (

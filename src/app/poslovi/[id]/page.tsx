@@ -20,6 +20,8 @@ interface Job {
   budgetMax: number | null;
   duration: string | null;
   experienceLevel: string | null;
+  applicationDeadline: string | null;
+  isExpired: boolean;
   status: string;
   createdAt: string;
 }
@@ -49,14 +51,16 @@ export default function JobDetailPage() {
     window.scrollTo(0, 0);
   }, []);
   
-  // Fetch job details
+  // Fetch job details - includeAll to see expired jobs too
   useEffect(() => {
     const fetchJob = async () => {
       try {
-        const response = await fetch(`/api/jobs?status=open`);
+        // Use includeAll to also fetch expired jobs (so users can see job details if they've applied)
+        const response = await fetch(`/api/jobs?includeAll=true`);
         if (response.ok) {
           const data = await response.json();
-          const foundJob = data.jobs?.find((j: Job) => j.id === jobId);
+          // Find job that is open OR job where user has already applied
+          const foundJob = data.jobs?.find((j: Job) => j.id === jobId && (j.status === 'open' || j.status === 'closed'));
           if (foundJob) {
             setJob(foundJob);
           }
@@ -342,11 +346,31 @@ export default function JobDetailPage() {
                     </button>
                   )}
                 </div>
+              ) : job.isExpired ? (
+                <div className="text-center py-4">
+                  <div className="w-12 h-12 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-medium text-error mb-1">Prijave za ovaj oglas su istekle</h3>
+                  <p className="text-sm text-muted">
+                    Rok za prijave je bio {job.applicationDeadline ? new Date(job.applicationDeadline).toLocaleDateString('sr-RS') : ''}
+                  </p>
+                </div>
               ) : job.status === 'open' ? (
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <h3 className="font-medium mb-1">Zainteresovani ste za ovaj posao?</h3>
                     <p className="text-sm text-muted">Pošaljite prijavu i pokažite zašto ste vi pravi izbor</p>
+                    {job.applicationDeadline && (
+                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Rok za prijave: {new Date(job.applicationDeadline).toLocaleDateString('sr-RS')}
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => setShowApplyModal(true)}

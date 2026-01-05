@@ -83,25 +83,37 @@ export async function GET(request: NextRequest) {
     );
 
     // Format jobs
-    const formattedJobs = jobsWithBusiness.map(job => ({
-      id: job.id,
-      businessId: job.business_id,
-      businessName: job.companyName || '',
-      title: job.title,
-      description: job.description,
-      category: job.category,
-      platforms: job.platforms || [],
-      budgetType: job.budget_type,
-      budgetMin: job.budget_min,
-      budgetMax: job.budget_max,
-      duration: job.duration,
-      experienceLevel: job.experience_level,
-      status: job.status,
-      createdAt: job.created_at,
-      updatedAt: job.updated_at,
-    }));
+    const formattedJobs = jobsWithBusiness.map(job => {
+      // Check if job has expired deadline
+      const isExpired = job.application_deadline && new Date(job.application_deadline) < new Date();
+      
+      return {
+        id: job.id,
+        businessId: job.business_id,
+        businessName: job.companyName || '',
+        title: job.title,
+        description: job.description,
+        category: job.category,
+        platforms: job.platforms || [],
+        budgetType: job.budget_type,
+        budgetMin: job.budget_min,
+        budgetMax: job.budget_max,
+        duration: job.duration,
+        experienceLevel: job.experience_level,
+        applicationDeadline: job.application_deadline,
+        isExpired,
+        status: job.status,
+        createdAt: job.created_at,
+        updatedAt: job.updated_at,
+      };
+    });
+    
+    // For public view, filter out expired jobs (unless businessId is provided)
+    const filteredJobs = businessId || includeAll 
+      ? formattedJobs 
+      : formattedJobs.filter(job => !job.isExpired);
 
-    return NextResponse.json({ jobs: formattedJobs });
+    return NextResponse.json({ jobs: filteredJobs });
 
   } catch (error: any) {
     console.error('Jobs fetch error:', error);
@@ -124,6 +136,7 @@ export async function POST(request: NextRequest) {
       budgetMax,
       duration,
       experienceLevel,
+      applicationDeadline,
       isAdmin, // Flag to check if admin is creating the job
     } = body;
 
@@ -153,6 +166,7 @@ export async function POST(request: NextRequest) {
         budget_max: budgetMax || null,
         duration: duration || null,
         experience_level: experienceLevel || null,
+        application_deadline: applicationDeadline || null,
         status: initialStatus,
       })
       .select()
@@ -199,6 +213,7 @@ export async function PUT(request: NextRequest) {
     if (updates.budgetMax !== undefined) dbUpdates.budget_max = updates.budgetMax;
     if (updates.duration) dbUpdates.duration = updates.duration;
     if (updates.experienceLevel) dbUpdates.experience_level = updates.experienceLevel;
+    if (updates.applicationDeadline !== undefined) dbUpdates.application_deadline = updates.applicationDeadline;
     if (updates.status) dbUpdates.status = updates.status;
     dbUpdates.updated_at = new Date().toISOString();
 
