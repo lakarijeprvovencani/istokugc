@@ -23,12 +23,22 @@ export default function Header() {
         let hasNew = false;
         
         if (currentUser.type === 'creator' && currentUser.creatorId) {
-          // Check for pending invitations
+          // Get last viewed timestamp for invitations
+          const lastViewedInvitations = localStorage.getItem(`lastViewed_invitations_${currentUser.creatorId}`);
+          const lastViewedInvDate = lastViewedInvitations ? new Date(lastViewedInvitations) : null;
+          
+          // Check for NEW pending invitations (created after last view)
           const invRes = await fetch(`/api/job-invitations?creatorId=${currentUser.creatorId}`);
           if (invRes.ok) {
             const invData = await invRes.json();
             const pendingInvitations = (invData.invitations || []).filter((inv: any) => inv.status === 'pending');
-            if (pendingInvitations.length > 0) hasNew = true;
+            
+            // Only show notification for invitations created AFTER last viewed
+            const newInvitations = lastViewedInvDate 
+              ? pendingInvitations.filter((inv: any) => new Date(inv.createdAt) > lastViewedInvDate)
+              : pendingInvitations;
+            
+            if (newInvitations.length > 0) hasNew = true;
           }
           
           // Check for unread messages
@@ -40,12 +50,22 @@ export default function Header() {
             }
           }
         } else if (currentUser.type === 'business' && currentUser.businessId) {
-          // Check for pending applications
+          // Get last viewed timestamp for applications
+          const lastViewedApps = localStorage.getItem(`lastViewed_jobs_${currentUser.businessId}`);
+          const lastViewedAppsDate = lastViewedApps ? new Date(lastViewedApps) : null;
+          
+          // Check for NEW pending applications (created after last view)
           const appsRes = await fetch(`/api/job-applications?businessId=${currentUser.businessId}`);
           if (appsRes.ok) {
             const appsData = await appsRes.json();
             const pendingApps = (appsData.applications || []).filter((app: any) => app.status === 'pending');
-            if (pendingApps.length > 0) hasNew = true;
+            
+            // Only show notification for applications created AFTER last viewed
+            const newApps = lastViewedAppsDate 
+              ? pendingApps.filter((app: any) => new Date(app.createdAt) > lastViewedAppsDate)
+              : pendingApps;
+            
+            if (newApps.length > 0) hasNew = true;
           }
           
           // Check for unread messages

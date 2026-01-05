@@ -62,10 +62,15 @@ function CreatorDashboard() {
           localStorage.setItem(`lastViewed_reviews_${currentUser.creatorId}`, now);
         } else if (tab === 'poslovi' && currentUser.creatorId) {
           localStorage.setItem(`lastViewed_applications_${currentUser.creatorId}`, now);
+        } else if (tab === 'ponude' && currentUser.creatorId) {
+          localStorage.setItem(`lastViewed_invitations_${currentUser.creatorId}`, now);
         }
       }
     }
   }, [currentUser.creatorId]);
+  
+  // State to track pending invitations count for badge clearing
+  const [pendingInvitationsNewCount, setPendingInvitationsNewCount] = useState(0);
   
   // Update URL when tab changes and mark as "seen"
   const handleTabChange = (tab: 'overview' | 'reviews' | 'poslovi' | 'poruke' | 'ponude') => {
@@ -87,6 +92,9 @@ function CreatorDashboard() {
       } else if (tab === 'poslovi' && currentUser.creatorId) {
         localStorage.setItem(`lastViewed_applications_${currentUser.creatorId}`, now);
         setNewApplicationsCount(0);
+      } else if (tab === 'ponude' && currentUser.creatorId) {
+        localStorage.setItem(`lastViewed_invitations_${currentUser.creatorId}`, now);
+        setPendingInvitationsNewCount(0);
       }
     }
   };
@@ -330,7 +338,22 @@ function CreatorDashboard() {
         const response = await fetch(`/api/job-invitations?creatorId=${currentUser.creatorId}`);
         if (response.ok) {
           const data = await response.json();
-          setMyInvitations(data.invitations || []);
+          const invitations = data.invitations || [];
+          setMyInvitations(invitations);
+          
+          // Calculate NEW pending invitations (created after last viewed)
+          const lastViewedKey = `lastViewed_invitations_${currentUser.creatorId}`;
+          const lastViewed = localStorage.getItem(lastViewedKey);
+          const pendingInvs = invitations.filter((inv: any) => inv.status === 'pending');
+          
+          if (lastViewed) {
+            const lastViewedDate = new Date(lastViewed);
+            const newInvs = pendingInvs.filter((inv: any) => new Date(inv.createdAt) > lastViewedDate);
+            setPendingInvitationsNewCount(newInvs.length);
+          } else {
+            // First time - all pending are "new"
+            setPendingInvitationsNewCount(pendingInvs.length);
+          }
         }
       } catch (error) {
         console.error('Error fetching invitations:', error);
@@ -612,7 +635,7 @@ function CreatorDashboard() {
     { id: 'overview' as const, label: 'Pregled', count: null },
     { id: 'reviews' as const, label: 'Statistika', count: newReviewsCount > 0 ? newReviewsCount : null }, // New reviews
     { id: 'poslovi' as const, label: 'Moje prijave', count: newApplicationsCount > 0 ? newApplicationsCount : null }, // New status changes
-    { id: 'ponude' as const, label: 'Ponude', count: pendingInvitationsCount > 0 ? pendingInvitationsCount : null }, // Pending invitations
+    { id: 'ponude' as const, label: 'Ponude', count: pendingInvitationsNewCount > 0 ? pendingInvitationsNewCount : null }, // NEW pending invitations
     { id: 'poruke' as const, label: 'Poruke', count: null, unread: unreadMessagesCount }, // Unread messages
   ];
   
@@ -648,25 +671,29 @@ function CreatorDashboard() {
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative ${
                 activeTab === tab.id
                   ? 'bg-primary text-white'
                   : 'text-muted hover:text-foreground'
               }`}
             >
-              {tab.label}
-              {/* Unread messages badge (red) */}
-              {'unread' in tab && (tab.unread ?? 0) > 0 ? (
-                <span className="px-2 py-0.5 rounded-full text-xs bg-error text-white font-medium">
-                  {tab.unread}
-                </span>
-              ) : tab.count !== null && tab.count > 0 && (
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-error text-white'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
+              <span className="relative">
+                {tab.label}
+                {/* Unread messages badge (red) - superscript */}
+                {'unread' in tab && (tab.unread ?? 0) > 0 && (
+                  <span className="absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] bg-error text-white font-medium animate-pulse min-w-[18px] text-center">
+                    {tab.unread}
+                  </span>
+                )}
+                {/* New items badge - superscript */}
+                {!('unread' in tab && (tab.unread ?? 0) > 0) && tab.count !== null && tab.count > 0 && (
+                  <span className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-medium animate-pulse min-w-[18px] text-center ${
+                    activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-error text-white'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </span>
             </button>
           ))}
         </div>
@@ -1751,8 +1778,10 @@ function BusinessDashboard() {
   const [allApplications, setAllApplications] = useState<any[]>([]);
   const [activeChat, setActiveChat] = useState<any | null>(null);
   
-  // Pending applications count for badge
+  // Pending applications count for badge (total pending)
   const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0);
+  // NEW pending applications (created after last viewed) - for header notification
+  const [newPendingApplicationsCount, setNewPendingApplicationsCount] = useState(0);
   
   // Unread messages count for badge
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
@@ -1784,7 +1813,7 @@ function BusinessDashboard() {
     }
   }, []);
   
-  // Update URL when tab changes
+  // Update URL when tab changes and mark as viewed
   const handleTabChange = (tab: 'pregled' | 'poslovi' | 'poruke') => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
@@ -1797,6 +1826,13 @@ function BusinessDashboard() {
         url.searchParams.delete('action');
       }
       window.history.replaceState({}, '', url.toString());
+      
+      // Mark tab as viewed - clear header notification
+      if (tab === 'poslovi' && currentUser.businessId) {
+        const now = new Date().toISOString();
+        localStorage.setItem(`lastViewed_jobs_${currentUser.businessId}`, now);
+        setNewPendingApplicationsCount(0);
+      }
     }
   };
   
@@ -1811,9 +1847,22 @@ function BusinessDashboard() {
           const data = await response.json();
           const allApps = data.applications || [];
           
-          // Count pending applications for badge
-          const pendingCount = allApps.filter((app: any) => app.status === 'pending').length;
+          // Count ALL pending applications for badge (always show this)
+          const pendingApps = allApps.filter((app: any) => app.status === 'pending');
+          const pendingCount = pendingApps.length;
           setPendingApplicationsCount(pendingCount);
+          
+          // Count NEW pending applications (created after last viewed) - for header notification
+          const lastViewedKey = `lastViewed_jobs_${currentUser.businessId}`;
+          const lastViewed = localStorage.getItem(lastViewedKey);
+          if (lastViewed) {
+            const lastViewedDate = new Date(lastViewed);
+            const newApps = pendingApps.filter((app: any) => new Date(app.createdAt) > lastViewedDate);
+            setNewPendingApplicationsCount(newApps.length);
+          } else {
+            // First time - all pending are "new"
+            setNewPendingApplicationsCount(pendingCount);
+          }
           
           // Only show accepted and engaged applications for messages
           const activeApps = allApps.filter(
@@ -2078,17 +2127,19 @@ function BusinessDashboard() {
                 : 'text-muted hover:text-foreground'
             }`}
           >
-            Poslovi
-            {myJobs.length > 0 && (
-              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
-                {myJobs.length}
-              </span>
-            )}
-            {pendingApplicationsCount > 0 && (
-              <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-amber-500 text-white font-medium">
-                {pendingApplicationsCount} nova
-              </span>
-            )}
+            <span className="relative">
+              Poslovi
+              {myJobs.length > 0 && (
+                <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
+                  {myJobs.length}
+                </span>
+              )}
+              {pendingApplicationsCount > 0 && (
+                <span className="absolute -top-3 -right-4 px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500 text-white font-medium animate-pulse">
+                  {pendingApplicationsCount}
+                </span>
+              )}
+            </span>
             {activeTab === 'poslovi' && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
             )}
@@ -3909,7 +3960,11 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         return filteredJobs.length > 0 ? (
         <div className="space-y-4">
           {filteredJobs.map((job) => (
-            <div key={job.id} className="bg-white rounded-2xl border border-border p-4 sm:p-6 hover:shadow-md transition-shadow">
+            <div key={job.id} className={`bg-white rounded-2xl border p-4 sm:p-6 hover:shadow-md transition-shadow ${
+              applicationCounts[job.id] > 0 
+                ? 'border-amber-400 border-2 ring-2 ring-amber-100' 
+                : 'border-border'
+            }`}>
               <div className="flex items-start justify-between gap-2 sm:gap-4 mb-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 sm:gap-3 mb-1 flex-wrap">
