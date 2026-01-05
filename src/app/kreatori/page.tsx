@@ -207,7 +207,7 @@ export default function KreatoriPage() {
   
   // If current user is a pending/rejected creator, show special screen
   if (currentUser.type === 'creator' && creatorStatus && !isDemoCreator) {
-    if (creatorStatus === 'pending') {
+    if (creatorStatus.status === 'pending') {
       return (
         <div className="min-h-screen flex items-center justify-center bg-secondary/30">
           <div className="max-w-md mx-auto px-6 text-center">
@@ -229,7 +229,7 @@ export default function KreatoriPage() {
       );
     }
     
-    if (creatorStatus === 'rejected') {
+    if (creatorStatus.status === 'rejected') {
       return (
         <div className="min-h-screen flex items-center justify-center bg-secondary/30">
           <div className="max-w-md mx-auto px-6 text-center">
@@ -251,7 +251,7 @@ export default function KreatoriPage() {
       );
     }
     
-    if (creatorStatus === 'deactivated') {
+    if (creatorStatus.status === 'deactivated') {
       return (
         <div className="min-h-screen flex items-center justify-center bg-secondary/30">
           <div className="max-w-md mx-auto px-6 text-center">

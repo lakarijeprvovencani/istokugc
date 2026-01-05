@@ -658,7 +658,7 @@ export default function SettingsPage() {
                         body: JSON.stringify({
                           userType: currentUser.type,
                           id: currentUser.type === 'business' ? currentUser.businessId : currentUser.creatorId,
-                          userId: currentUser.id,
+                          userId: (currentUser as any).id || (currentUser as any).userId,
                         }),
                       });
                       

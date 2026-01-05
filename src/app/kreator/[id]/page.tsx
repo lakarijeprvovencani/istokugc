@@ -1208,15 +1208,19 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                     currentBusinessId={currentUser.businessId}
                     onReply={async (reviewId, reply) => {
                       await handleAddReply(reviewId, reply);
+                      return true;
                     }}
                     onEditReply={async (reviewId, reply) => {
                       await handleAddReply(reviewId, reply);
+                      return true;
                     }}
                     onDeleteReply={async (reviewId) => {
                       await handleDeleteReply(reviewId);
+                      return true;
                     }}
                     onDelete={async (reviewId) => {
                       await handleDeleteReview(reviewId);
+                      return true;
                     }}
                     emptyMessage="Još uvek nema recenzija za ovog kreatora."
                   />

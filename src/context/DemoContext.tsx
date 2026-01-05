@@ -361,6 +361,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               type: 'creator',
               name: creatorData.name,
               creatorId: creatorData.id,
+              email: creatorData.email || '',
             };
             setCurrentUser(creatorUser);
             setLoggedInCreatorId(creatorData.id);
@@ -382,6 +383,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               name: businessData.company_name,
               companyName: businessData.company_name,
               businessId: businessData.id,
+              email: businessData.email || '',
               subscriptionStatus: businessData.subscription_status,
               subscriptionPlan: businessData.subscription_type,
               subscriptionExpiresAt: businessData.expires_at,
@@ -452,8 +454,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       email: '',
       businessId: businessId,
       companyName: companyName,
-      subscriptionStatus: subscriptionStatus || 'active',
-      subscriptionPlan: subscriptionPlan || 'monthly',
+      subscriptionStatus: (subscriptionStatus || 'active') as 'active' | 'expired' | 'cancelled',
+      subscriptionPlan: (subscriptionPlan || 'monthly') as 'monthly' | 'yearly',
     };
     setCurrentUser(businessUser);
     setLoggedInBusiness({ id: businessId, companyName });

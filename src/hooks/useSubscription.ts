@@ -235,12 +235,15 @@ export function useSubscription(): UseSubscriptionReturn {
 
   // Open customer portal
   // Note: Dashboard koristi direktno /api/stripe/create-portal umesto ovog hook-a
-  const openCustomerPortal = useCallback(async (businessId: string) => {
+  const openCustomerPortal = useCallback(async () => {
+    if (currentUser.type !== 'business' || !currentUser.businessId) {
+      throw new Error('No business ID available');
+    }
     try {
       const response = await fetch('/api/stripe/create-portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessId }),
+        body: JSON.stringify({ businessId: currentUser.businessId }),
       });
       
       if (!response.ok) throw new Error('Failed to create portal session');
@@ -251,7 +254,7 @@ export function useSubscription(): UseSubscriptionReturn {
       setError(err instanceof Error ? err.message : 'Failed to open portal');
       throw err;
     }
-  }, []);
+  }, [currentUser]);
 
   // Computed values
   const isActive = subscription ? isSubscriptionActive(subscription.status) : false;

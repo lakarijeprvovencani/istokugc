@@ -26,8 +26,8 @@ export default function CreatorCard({ creator, priority = false }: CreatorCardPr
   const isAdmin = currentUser.type === 'admin';
   
   // Use rating directly from the creator object (from Supabase)
-  const averageRating = creator.rating || 0;
-  const totalReviews = creator.totalReviews || 0;
+  const averageRating = (creator as any).rating || 0;
+  const totalReviews = (creator as any).totalReviews || 0;
   
   // Determine status for display
   const status = creator.status || (creator.approved ? 'approved' : 'pending');

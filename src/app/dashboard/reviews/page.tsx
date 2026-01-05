@@ -226,7 +226,7 @@ export default function BusinessReviewsPage() {
             {sortedReviews.map((review) => (
               <ReviewCard
                 key={review.id}
-                review={review}
+                review={review as any}
                 showStatus={true}
                 canDelete={true}
                 onDelete={handleDeleteReview}
