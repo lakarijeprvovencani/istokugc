@@ -4610,29 +4610,32 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           </span>
         </button>
 
-        {/* Archive sub-filter - only show when in archive tab */}
-        {jobsFilter === 'archive' && (
+        {/* Right side controls */}
+        <div className="ml-auto flex items-center gap-3">
+          {/* Archive sub-filter - only show when in archive tab */}
+          {jobsFilter === 'archive' && (
+            <select
+              value={archiveFilter}
+              onChange={(e) => setArchiveFilter(e.target.value as 'all' | 'completed' | 'withdrawn' | 'closed')}
+              className="px-3 py-2 rounded-xl border border-border text-sm bg-white focus:outline-none focus:border-primary"
+            >
+              <option value="all">Sve</option>
+              <option value="withdrawn">Kreator odustao</option>
+              <option value="completed">Uspešno završeni</option>
+              <option value="closed">Zatvoreni</option>
+            </select>
+          )}
+
+          {/* Sorting dropdown */}
           <select
-            value={archiveFilter}
-            onChange={(e) => setArchiveFilter(e.target.value as 'all' | 'completed' | 'withdrawn' | 'closed')}
+            value={jobsSort}
+            onChange={(e) => setJobsSort(e.target.value as 'newest' | 'oldest')}
             className="px-3 py-2 rounded-xl border border-border text-sm bg-white focus:outline-none focus:border-primary"
           >
-            <option value="all">Sve</option>
-            <option value="withdrawn">⚠️ Kreator odustao</option>
-            <option value="completed">✓ Uspešno završeni</option>
-            <option value="closed">Zatvoreni</option>
+            <option value="newest">Najnoviji</option>
+            <option value="oldest">Najstariji</option>
           </select>
-        )}
-
-        {/* Sorting dropdown */}
-        <select
-          value={jobsSort}
-          onChange={(e) => setJobsSort(e.target.value as 'newest' | 'oldest')}
-          className="ml-auto px-3 py-2 rounded-xl border border-border text-sm bg-white focus:outline-none focus:border-primary"
-        >
-          <option value="newest">Najnoviji</option>
-          <option value="oldest">Najstariji</option>
-        </select>
+        </div>
       </div>
 
       {/* Jobs List */}
