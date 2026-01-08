@@ -1856,7 +1856,7 @@ function CreatorDashboard() {
                 <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
                   creatorJobsFilter === 'prijave' ? 'bg-white/20' : 'bg-secondary'
                 }`}>
-                  {myApplications.filter(a => a.status === 'pending').length}
+                  {myApplications.filter(a => a.status === 'pending' || a.status === 'accepted').length}
                 </span>
               </button>
               <button
@@ -1939,7 +1939,7 @@ function CreatorDashboard() {
             {/* Content based on filter */}
             {creatorJobsFilter === 'prijave' && (
               <CreatorApplicationsTab 
-                applications={myApplications.filter(a => a.status === 'pending')}
+                applications={myApplications.filter(a => a.status === 'pending' || a.status === 'accepted')}
                 setApplications={setMyApplications}
                 isLoading={isLoadingApplications}
                 creatorId={currentUser.creatorId || ''}
