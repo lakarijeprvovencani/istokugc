@@ -3073,27 +3073,46 @@ function BusinessDashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Logo display */}
-                  {companyLogo && (
-                    <div className="flex items-center gap-4 pb-4 border-b border-border">
-                      <div className="w-16 h-16 rounded-full overflow-hidden bg-secondary flex-shrink-0">
+                  {/* Logo section - always visible */}
+                  <div className="flex items-center gap-4 pb-4 border-b border-border">
+                    <div 
+                      onClick={() => logoInputRef.current?.click()}
+                      className={`w-16 h-16 rounded-full overflow-hidden flex-shrink-0 cursor-pointer transition-all ${
+                        companyLogo 
+                          ? 'bg-secondary hover:opacity-80' 
+                          : 'border-2 border-dashed border-border hover:border-primary bg-secondary/30'
+                      } flex items-center justify-center`}
+                    >
+                      {companyLogo ? (
                         <img src={companyLogo} alt="Logo" className="w-full h-full object-cover" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-lg">{companyName || currentUser.companyName}</p>
-                        {(industry || currentUser.industry) && (
-                          <p className="text-sm text-muted capitalize">{industry || currentUser.industry}</p>
-                        )}
-                      </div>
+                      ) : (
+                        <svg className="w-6 h-6 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                        </svg>
+                      )}
                     </div>
-                  )}
-                  
-                  {!companyLogo && (
-                    <div>
-                      <p className="text-sm text-muted">Ime kompanije</p>
-                      <p className="font-medium">{companyName || currentUser.companyName || 'Nije uneto'}</p>
+                    <div className="flex-1">
+                      <p className="font-medium text-lg">{companyName || currentUser.companyName}</p>
+                      {(industry || currentUser.industry) && (
+                        <p className="text-sm text-muted capitalize">{industry || currentUser.industry}</p>
+                      )}
+                      {!companyLogo && (
+                        <button
+                          onClick={() => logoInputRef.current?.click()}
+                          className="text-xs text-primary hover:underline mt-1"
+                        >
+                          Dodaj logo
+                        </button>
+                      )}
                     </div>
-                  )}
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoSelect}
+                      className="hidden"
+                    />
+                  </div>
                   
                   {(website || currentUser.website) && (
                     <div>
