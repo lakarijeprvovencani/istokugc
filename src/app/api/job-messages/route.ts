@@ -13,8 +13,24 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Count unread messages across all conversations
+    // Count unread messages
     if (countUnread === 'true' && recipientType && recipientId) {
+      
+      // If applicationId is provided, count only for that specific chat
+      if (applicationId) {
+        const senderType = recipientType === 'business' ? 'creator' : 'business';
+        
+        const { count } = await supabase
+          .from('job_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('application_id', applicationId)
+          .eq('sender_type', senderType)
+          .is('read_at', null);
+        
+        return NextResponse.json({ unreadCount: count || 0 });
+      }
+      
+      // No applicationId - count across all conversations
       if (recipientType === 'business') {
         // Business: get jobs first, then applications, then count unread
         const { data: jobs } = await supabase
