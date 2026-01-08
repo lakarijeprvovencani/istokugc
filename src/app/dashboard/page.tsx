@@ -137,9 +137,13 @@ function CreatorDashboard() {
         localStorage.setItem(`lastViewed_invitations_${currentUser.creatorId}`, now);
         setNewApplicationsCount(0);
         setPendingInvitationsNewCount(0);
+        // Notify Header to clear notification badge
+        window.dispatchEvent(new Event('notificationsCleared'));
       } else if (tab === 'poruke' && currentUser.creatorId) {
         localStorage.setItem(`lastViewed_messages_${currentUser.creatorId}`, now);
         setUnreadMessagesCount(0);
+        // Notify Header to clear notification badge
+        window.dispatchEvent(new Event('notificationsCleared'));
       }
     }
   };
@@ -2261,10 +2265,14 @@ function BusinessDashboard() {
         const now = new Date().toISOString();
         localStorage.setItem(`lastViewed_jobs_${currentUser.businessId}`, now);
         setNewPendingApplicationsCount(0);
+        // Notify Header to clear notification badge
+        window.dispatchEvent(new Event('notificationsCleared'));
       } else if (tab === 'poruke' && currentUser.businessId) {
         const now = new Date().toISOString();
         localStorage.setItem(`lastViewed_messages_${currentUser.businessId}`, now);
         setUnreadMessagesCount(0);
+        // Notify Header to clear notification badge
+        window.dispatchEvent(new Event('notificationsCleared'));
       }
     }
   };
@@ -6175,6 +6183,11 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
                 recipientType: 'business',
                 recipientId: businessId,
               }),
+            }).then(res => {
+              if (res.ok) {
+                // Notify Header to clear notification badge
+                window.dispatchEvent(new Event('notificationsCleared'));
+              }
             }).catch(err => console.error('Error marking messages as read:', err));
           }
         }
@@ -7545,6 +7558,11 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
                 recipientType: 'creator',
                 recipientId: creatorId,
               }),
+            }).then(res => {
+              if (res.ok) {
+                // Notify Header to clear notification badge
+                window.dispatchEvent(new Event('notificationsCleared'));
+              }
             }).catch(err => console.error('Error marking messages as read:', err));
           }
         }

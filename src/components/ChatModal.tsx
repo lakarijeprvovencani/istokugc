@@ -67,7 +67,7 @@ export default function ChatModal({
   // Mark messages as read
   const markAsRead = async () => {
     try {
-      await fetch('/api/job-messages', {
+      const response = await fetch('/api/job-messages', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -76,6 +76,10 @@ export default function ChatModal({
           recipientId: currentUserId,
         }),
       });
+      if (response.ok) {
+        // Notify Header to re-check notifications (clear the red dot)
+        window.dispatchEvent(new Event('notificationsCleared'));
+      }
     } catch (error) {
       console.error('Error marking as read:', error);
     }

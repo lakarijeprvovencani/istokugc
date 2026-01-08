@@ -93,13 +93,20 @@ export default function Header() {
       }
     };
     
+    // Listen for custom event when notifications are cleared (e.g. messages read)
+    const handleNotificationsCleared = () => {
+      checkNotifications();
+    };
+    
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('notificationsCleared', handleNotificationsCleared);
     
     // Also check every 60 seconds as backup (reduced from 30)
     const interval = setInterval(checkNotifications, 60000);
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('notificationsCleared', handleNotificationsCleared);
       clearInterval(interval);
     };
   }, [isHydrated, isLoggedIn, currentUser.type, currentUser.creatorId, currentUser.businessId]);
