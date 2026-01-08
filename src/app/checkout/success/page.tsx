@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useDemo } from '@/context/DemoContext';
+import { createClient } from '@/lib/supabase/client';
 import confetti from 'canvas-confetti';
 
 function SuccessContent() {
@@ -130,7 +131,19 @@ function SuccessContent() {
           throw new Error(data.error || 'Greška pri kreiranju naloga');
         }
 
-        // Success! Update local state
+        // Success! Log in to Supabase Auth
+        const supabase = createClient();
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: registrationData.email,
+          password: registrationData.password,
+        });
+        
+        if (loginError) {
+          console.error('Auto-login error:', loginError);
+          // Not critical - user can log in manually
+        }
+        
+        // Update local state
         loginAsNewBusiness(data.businessId, data.companyName, 'active', plan || 'monthly');
         
         // Clear registration data
