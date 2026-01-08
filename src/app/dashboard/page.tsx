@@ -6316,14 +6316,14 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
                 </div>
               )}
               
-              {/* Engaged status with reject option */}
+              {/* Engaged status with withdraw option */}
               {activeChat.status === 'engaged' && !engageSuccess && !rejectSuccess && (
                 <div className="px-4 py-2 border-t border-border flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs text-primary">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Angažovan
+                    Angažovali ste ovog kreatora
                   </div>
                   <button
                     onClick={handleRejectClick}
@@ -6337,7 +6337,7 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        Odbij
+                        Odustani
                       </>
                     )}
                   </button>
@@ -7259,6 +7259,8 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -7449,6 +7451,45 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
     return date.toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' });
   };
 
+  // Handle withdraw from engagement
+  const handleWithdraw = async () => {
+    if (!activeChat || isWithdrawing) return;
+    
+    if (!confirm('Da li ste sigurni da želite da odustanete od ovog posla?')) return;
+    
+    setIsWithdrawing(true);
+    try {
+      const response = await fetch('/api/job-applications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: activeChat.id,
+          status: 'withdrawn',
+        }),
+      });
+      
+      if (response.ok) {
+        setWithdrawSuccess(true);
+        // Update local state
+        if (activeChat) {
+          activeChat.status = 'withdrawn';
+        }
+        setTimeout(() => {
+          setWithdrawSuccess(false);
+          setActiveChat(null);
+        }, 2000);
+      } else {
+        const error = await response.json();
+        alert(`Greška: ${error.message || 'Nije moguće odustati'}`);
+      }
+    } catch (error) {
+      console.error('Error withdrawing:', error);
+      alert('Greška pri odustajanju');
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
   // No conversations
   if (applications.length === 0) {
     return (
@@ -7635,6 +7676,41 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
                   })
                 )}
               </div>
+
+              {/* Withdraw success message */}
+              {withdrawSuccess && (
+                <div className="px-4 py-1.5 bg-warning/10 text-warning text-xs text-center">
+                  ✓ Uspešno ste odustali od posla
+                </div>
+              )}
+              
+              {/* Engaged status with withdraw option */}
+              {activeChat.status === 'engaged' && !withdrawSuccess && (
+                <div className="px-4 py-2 border-t border-border flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs text-primary">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Angažovani ste za ovaj posao
+                  </div>
+                  <button
+                    onClick={handleWithdraw}
+                    disabled={isWithdrawing}
+                    className="px-3 py-1.5 text-error border border-error/30 rounded-lg text-xs font-medium hover:bg-error/5 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                  >
+                    {isWithdrawing ? (
+                      <div className="w-3 h-3 border-2 border-error border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Odustani
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               {/* Input */}
               <form onSubmit={handleSend} className="p-4 border-t border-border bg-white">
