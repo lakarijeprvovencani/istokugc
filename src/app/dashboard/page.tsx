@@ -3496,9 +3496,9 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
     fetchApplicationData();
   }, [jobs, businessId]);
   
-  // Fetch invitation counts for all jobs - OPTIMIZED (one API call)
+  // Fetch invitation counts and accepted invitations for all jobs - OPTIMIZED (one API call)
   useEffect(() => {
-    const fetchInvitationCounts = async () => {
+    const fetchInvitationData = async () => {
       if (!jobs || jobs.length === 0 || !businessId) return;
       
       try {
@@ -3516,11 +3516,28 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           counts[job.id] = 0;
         }
         
-        // Count invitations per job
+        // Count invitations per job AND track accepted invitations as engaged
         for (const inv of allInvitations) {
           const jobId = inv.jobId;
           if (jobId) {
             counts[jobId] = (counts[jobId] || 0) + 1;
+            
+            // If invitation is accepted, add to engagedCreators (if not already from applications)
+            if (inv.status === 'accepted') {
+              setEngagedCreators(prev => {
+                if (!prev[jobId]) {
+                  return {
+                    ...prev,
+                    [jobId]: {
+                      id: inv.creatorId,
+                      name: inv.creator?.name || inv.creatorName || 'Kreator',
+                      applicationId: '' // Will be filled from applications
+                    }
+                  };
+                }
+                return prev;
+              });
+            }
           }
         }
         
@@ -3530,7 +3547,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       }
     };
     
-    fetchInvitationCounts();
+    fetchInvitationData();
   }, [jobs, businessId]);
   
   const resetForm = () => {
@@ -4702,11 +4719,15 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                               app.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                               app.status === 'accepted' ? 'bg-success/10 text-success' :
                               app.status === 'engaged' ? 'bg-primary/10 text-primary' :
+                              app.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                              app.status === 'withdrawn' ? 'bg-orange-100 text-orange-700' :
                               'bg-error/10 text-error'
                             }`}>
                               {app.status === 'pending' ? 'Na čekanju' : 
                                app.status === 'accepted' ? 'Prihvaćeno' : 
-                               app.status === 'engaged' ? 'Angažovan' : 'Odbijeno'}
+                               app.status === 'engaged' ? 'Angažovan' :
+                               app.status === 'completed' ? 'Završeno' :
+                               app.status === 'withdrawn' ? '⚠️ Kreator odustao' : 'Odbijeno'}
                             </span>
                           </div>
                           <p className="text-sm text-muted">
@@ -4862,10 +4883,12 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               inv.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                               inv.status === 'accepted' ? 'bg-success/10 text-success' :
+                              inv.status === 'rejected' ? 'bg-error/10 text-error' :
                               'bg-error/10 text-error'
                             }`}>
                               {inv.status === 'pending' ? 'Na čekanju' : 
-                               inv.status === 'accepted' ? 'Prihvaćeno' : 'Odbijeno'}
+                               inv.status === 'accepted' ? 'Prihvaćeno' : 
+                               inv.status === 'rejected' ? 'Odbijeno' : 'Odbijeno'}
                             </span>
                           </div>
                           <p className="text-sm text-muted">
