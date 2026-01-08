@@ -656,13 +656,18 @@ function CreatorDashboard() {
   
   const pendingInvitationsCount = myInvitations.filter(inv => inv.status === 'pending').length;
   
+  // Combined count for Poslovi tab (new applications + new invitations)
+  const totalJobsCount = (newApplicationsCount > 0 ? newApplicationsCount : 0) + (pendingInvitationsNewCount > 0 ? pendingInvitationsNewCount : 0);
+  
   const tabs = [
     { id: 'overview' as const, label: 'Pregled', count: null },
     { id: 'reviews' as const, label: 'Statistika', count: newReviewsCount > 0 ? newReviewsCount : null }, // New reviews
-    { id: 'poslovi' as const, label: 'Moje prijave', count: newApplicationsCount > 0 ? newApplicationsCount : null }, // New status changes
-    { id: 'ponude' as const, label: 'Ponude', count: pendingInvitationsNewCount > 0 ? pendingInvitationsNewCount : null }, // NEW pending invitations
+    { id: 'poslovi' as const, label: 'Poslovi', count: totalJobsCount > 0 ? totalJobsCount : null }, // Combined jobs tab
     { id: 'poruke' as const, label: 'Poruke', count: null, unread: unreadMessagesCount }, // Unread messages
   ];
+  
+  // Sub-filter state for Poslovi tab
+  const [creatorJobsFilter, setCreatorJobsFilter] = useState<'prijave' | 'pozivi' | 'angazovan' | 'zavrseno' | 'odbijeno'>('prijave');
   
   // Handle opening chat from applications tab
   const handleOpenChat = (app: any) => {
@@ -1720,31 +1725,187 @@ function CreatorDashboard() {
           </div>
         )}
 
-        {/* Moje prijave tab */}
+        {/* Poslovi tab - Combined view with filters */}
         {activeTab === 'poslovi' && (
-          <CreatorApplicationsTab 
-            applications={myApplications}
-            setApplications={setMyApplications}
-            isLoading={isLoadingApplications}
-            creatorId={currentUser.creatorId || ''}
-            onOpenChat={handleOpenChat}
-          />
-        )}
-        
-        {/* Ponude tab */}
-        {activeTab === 'ponude' && (
-          <CreatorInvitationsTab
-            invitations={myInvitations}
-            setInvitations={setMyInvitations}
-            applications={myApplications}
-            setApplications={setMyApplications}
-            isLoading={isLoadingInvitations}
-            creatorId={currentUser.creatorId || ''}
-            onOpenChat={(app) => {
-              setActiveChat(app);
-              handleTabChange('poruke');
-            }}
-          />
+          <div>
+            {/* Sub-filter buttons */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              <button
+                onClick={() => setCreatorJobsFilter('prijave')}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                  creatorJobsFilter === 'prijave'
+                    ? 'bg-primary text-white'
+                    : 'bg-white border border-border text-muted hover:bg-secondary'
+                }`}
+              >
+                Prijave
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                  creatorJobsFilter === 'prijave' ? 'bg-white/20' : 'bg-secondary'
+                }`}>
+                  {myApplications.filter(a => a.status === 'pending').length}
+                </span>
+              </button>
+              <button
+                onClick={() => setCreatorJobsFilter('pozivi')}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                  creatorJobsFilter === 'pozivi'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white border border-border text-muted hover:bg-secondary'
+                }`}
+              >
+                Pozivi
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                  creatorJobsFilter === 'pozivi' ? 'bg-white/20' : 'bg-secondary'
+                }`}>
+                  {myInvitations.filter(inv => inv.status === 'pending').length}
+                </span>
+              </button>
+              <button
+                onClick={() => setCreatorJobsFilter('angazovan')}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                  creatorJobsFilter === 'angazovan'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white border border-border text-muted hover:bg-secondary'
+                }`}
+              >
+                Angažovan
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                  creatorJobsFilter === 'angazovan' ? 'bg-white/20' : 'bg-secondary'
+                }`}>
+                  {myApplications.filter(a => a.status === 'engaged').length}
+                </span>
+              </button>
+              <button
+                onClick={() => setCreatorJobsFilter('zavrseno')}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                  creatorJobsFilter === 'zavrseno'
+                    ? 'bg-success text-white'
+                    : 'bg-white border border-border text-muted hover:bg-secondary'
+                }`}
+              >
+                Završeno
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                  creatorJobsFilter === 'zavrseno' ? 'bg-white/20' : 'bg-secondary'
+                }`}>
+                  {myApplications.filter(a => a.status === 'completed').length}
+                </span>
+              </button>
+              <button
+                onClick={() => setCreatorJobsFilter('odbijeno')}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                  creatorJobsFilter === 'odbijeno'
+                    ? 'bg-slate-600 text-white'
+                    : 'bg-white border border-border text-muted hover:bg-secondary'
+                }`}
+              >
+                Odbijeno
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                  creatorJobsFilter === 'odbijeno' ? 'bg-white/20' : 'bg-secondary'
+                }`}>
+                  {myApplications.filter(a => a.status === 'rejected').length + myInvitations.filter(inv => inv.status === 'rejected').length}
+                </span>
+              </button>
+            </div>
+
+            {/* Content based on filter */}
+            {creatorJobsFilter === 'prijave' && (
+              <CreatorApplicationsTab 
+                applications={myApplications.filter(a => a.status === 'pending')}
+                setApplications={setMyApplications}
+                isLoading={isLoadingApplications}
+                creatorId={currentUser.creatorId || ''}
+                onOpenChat={handleOpenChat}
+                filterMode="prijave"
+              />
+            )}
+            
+            {creatorJobsFilter === 'pozivi' && (
+              <CreatorInvitationsTab
+                invitations={myInvitations.filter(inv => inv.status === 'pending')}
+                setInvitations={setMyInvitations}
+                applications={myApplications}
+                setApplications={setMyApplications}
+                isLoading={isLoadingInvitations}
+                creatorId={currentUser.creatorId || ''}
+                onOpenChat={(app) => {
+                  setActiveChat(app);
+                  handleTabChange('poruke');
+                }}
+              />
+            )}
+            
+            {creatorJobsFilter === 'angazovan' && (
+              <CreatorApplicationsTab 
+                applications={myApplications.filter(a => a.status === 'engaged')}
+                setApplications={setMyApplications}
+                isLoading={isLoadingApplications}
+                creatorId={currentUser.creatorId || ''}
+                onOpenChat={handleOpenChat}
+                filterMode="angazovan"
+              />
+            )}
+            
+            {creatorJobsFilter === 'zavrseno' && (
+              <CreatorApplicationsTab 
+                applications={myApplications.filter(a => a.status === 'completed')}
+                setApplications={setMyApplications}
+                isLoading={isLoadingApplications}
+                creatorId={currentUser.creatorId || ''}
+                onOpenChat={handleOpenChat}
+                filterMode="zavrseno"
+              />
+            )}
+            
+            {creatorJobsFilter === 'odbijeno' && (
+              <div>
+                {/* Rejected applications */}
+                {myApplications.filter(a => a.status === 'rejected').length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium text-muted mb-3">Odbijene prijave</h3>
+                    <CreatorApplicationsTab 
+                      applications={myApplications.filter(a => a.status === 'rejected')}
+                      setApplications={setMyApplications}
+                      isLoading={isLoadingApplications}
+                      creatorId={currentUser.creatorId || ''}
+                      onOpenChat={handleOpenChat}
+                      filterMode="odbijeno"
+                    />
+                  </div>
+                )}
+                {/* Rejected invitations */}
+                {myInvitations.filter(inv => inv.status === 'rejected').length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted mb-3">Odbijeni pozivi</h3>
+                    <CreatorInvitationsTab
+                      invitations={myInvitations.filter(inv => inv.status === 'rejected')}
+                      setInvitations={setMyInvitations}
+                      applications={myApplications}
+                      setApplications={setMyApplications}
+                      isLoading={isLoadingInvitations}
+                      creatorId={currentUser.creatorId || ''}
+                      onOpenChat={(app) => {
+                        setActiveChat(app);
+                        handleTabChange('poruke');
+                      }}
+                    />
+                  </div>
+                )}
+                {/* Empty state */}
+                {myApplications.filter(a => a.status === 'rejected').length === 0 && 
+                 myInvitations.filter(inv => inv.status === 'rejected').length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="font-medium mb-2">Nema odbijenih</h3>
+                    <p className="text-sm text-muted">Sve tvoje prijave i pozivi su još uvek aktivni.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
         
         {/* Poruke tab */}
@@ -6004,9 +6165,11 @@ interface CreatorApplicationsTabProps {
   isLoading: boolean;
   creatorId: string;
   onOpenChat: (app: any) => void;
+  filterMode?: 'prijave' | 'angazovan' | 'zavrseno' | 'odbijeno';
 }
 
-function CreatorApplicationsTab({ applications, setApplications, isLoading, creatorId, onOpenChat }: CreatorApplicationsTabProps) {
+function CreatorApplicationsTab({ applications, setApplications, isLoading, creatorId, onOpenChat, filterMode }: CreatorApplicationsTabProps) {
+  // Only show status filter if not in filterMode (old behavior)
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'engaged' | 'completed' | 'withdrawn'>('all');
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [cancelEngagementId, setCancelEngagementId] = useState<string | null>(null);
@@ -6094,13 +6257,17 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
     }
   };
   
-  const filteredApplications = applications.filter(app => {
-    if (statusFilter === 'all') return true;
-    return app.status === statusFilter;
-  });
+  // When filterMode is set, just use all passed applications (already filtered)
+  // When not in filterMode (old behavior), use statusFilter
+  const filteredApplications = filterMode 
+    ? applications 
+    : applications.filter(app => {
+        if (statusFilter === 'all') return true;
+        return app.status === statusFilter;
+      });
   
-  // Stats
-  const stats = {
+  // Stats - only needed when not in filterMode
+  const stats = !filterMode ? {
     total: applications.length,
     pending: applications.filter(a => a.status === 'pending').length,
     accepted: applications.filter(a => a.status === 'accepted').length,
@@ -6109,7 +6276,7 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
     rejected: applications.filter(a => a.status === 'rejected').length,
     withdrawn: applications.filter(a => a.status === 'withdrawn').length,
     cancelled: applications.filter(a => a.status === 'cancelled').length,
-  };
+  } : null;
 
   if (isLoading) {
     return (
@@ -6120,60 +6287,77 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
     );
   }
 
+  // Get title based on filterMode
+  const getTitle = () => {
+    switch (filterMode) {
+      case 'prijave': return 'Poslovi na koje si aplicirao';
+      case 'angazovan': return 'Trenutno si angažovan';
+      case 'zavrseno': return 'Uspešno završeni poslovi';
+      case 'odbijeno': return 'Odbijene prijave';
+      default: return 'Moje prijave';
+    }
+  };
+
   return (
     <div>
-      {/* Stats - compact */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
-          <div className="text-lg font-medium">{stats.total}</div>
-          <div className="text-xs text-muted">Ukupno</div>
-        </div>
-        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
-          <div className="text-lg font-medium text-amber-600">{stats.pending}</div>
-          <div className="text-xs text-muted">Čeka</div>
-        </div>
-        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
-          <div className="text-lg font-medium text-success">{stats.accepted}</div>
-          <div className="text-xs text-muted">Prihvaćeno</div>
-        </div>
-        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
-          <div className="text-lg font-medium text-primary">{stats.engaged}</div>
-          <div className="text-xs text-muted">Angažovan</div>
-        </div>
-        <div className="bg-white rounded-lg px-3 py-2 border border-emerald-200 text-center min-w-[70px] bg-emerald-50">
-          <div className="text-lg font-medium text-emerald-600">{stats.completed}</div>
-          <div className="text-xs text-emerald-600">Završeno</div>
-        </div>
-        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
-          <div className="text-lg font-medium text-error">{stats.rejected}</div>
-          <div className="text-xs text-muted">Odbijeno</div>
-        </div>
-        {stats.cancelled > 0 && (
-          <div className="bg-white rounded-lg px-3 py-2 border border-slate-200 text-center min-w-[70px]">
-            <div className="text-lg font-medium text-slate-500">{stats.cancelled}</div>
-            <div className="text-xs text-slate-500">Otkazano</div>
+      {/* Stats - only show when not in filterMode */}
+      {!filterMode && stats && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+            <div className="text-lg font-medium">{stats.total}</div>
+            <div className="text-xs text-muted">Ukupno</div>
           </div>
-        )}
-      </div>
+          <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+            <div className="text-lg font-medium text-amber-600">{stats.pending}</div>
+            <div className="text-xs text-muted">Čeka</div>
+          </div>
+          <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+            <div className="text-lg font-medium text-success">{stats.accepted}</div>
+            <div className="text-xs text-muted">Prihvaćeno</div>
+          </div>
+          <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+            <div className="text-lg font-medium text-primary">{stats.engaged}</div>
+            <div className="text-xs text-muted">Angažovan</div>
+          </div>
+          <div className="bg-white rounded-lg px-3 py-2 border border-emerald-200 text-center min-w-[70px] bg-emerald-50">
+            <div className="text-lg font-medium text-emerald-600">{stats.completed}</div>
+            <div className="text-xs text-emerald-600">Završeno</div>
+          </div>
+          <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+            <div className="text-lg font-medium text-error">{stats.rejected}</div>
+            <div className="text-xs text-muted">Odbijeno</div>
+          </div>
+          {stats.cancelled > 0 && (
+            <div className="bg-white rounded-lg px-3 py-2 border border-slate-200 text-center min-w-[70px]">
+              <div className="text-lg font-medium text-slate-500">{stats.cancelled}</div>
+              <div className="text-xs text-slate-500">Otkazano</div>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Filter */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-medium">Moje prijave</h2>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as any)}
-          className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-primary text-sm bg-white"
-        >
-          <option value="all">Sve prijave ({stats.total})</option>
-          <option value="pending">Na čekanju ({stats.pending})</option>
-          <option value="accepted">Prihvaćeno ({stats.accepted})</option>
-          <option value="engaged">Angažovan ({stats.engaged})</option>
-          <option value="completed">Uspešno završeno ({stats.completed})</option>
-          <option value="rejected">Odbijeno ({stats.rejected})</option>
-          {stats.withdrawn > 0 && <option value="withdrawn">Odustao ({stats.withdrawn})</option>}
-          {stats.cancelled > 0 && <option value="cancelled">Posao obrisan ({stats.cancelled})</option>}
-        </select>
-      </div>
+      {/* Filter - only show when not in filterMode */}
+      {!filterMode && stats ? (
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-medium">Moje prijave</h2>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-primary text-sm bg-white"
+          >
+            <option value="all">Sve prijave ({stats.total})</option>
+            <option value="pending">Na čekanju ({stats.pending})</option>
+            <option value="accepted">Prihvaćeno ({stats.accepted})</option>
+            <option value="engaged">Angažovan ({stats.engaged})</option>
+            <option value="completed">Uspešno završeno ({stats.completed})</option>
+            <option value="rejected">Odbijeno ({stats.rejected})</option>
+            {stats.withdrawn > 0 && <option value="withdrawn">Odustao ({stats.withdrawn})</option>}
+            {stats.cancelled > 0 && <option value="cancelled">Posao obrisan ({stats.cancelled})</option>}
+          </select>
+        </div>
+      ) : filterMode && (
+        <h2 className="text-lg font-medium mb-4">{getTitle()}</h2>
+      )}
 
       {/* Applications List */}
       {filteredApplications.length > 0 ? (
@@ -6331,16 +6515,29 @@ function CreatorApplicationsTab({ applications, setApplications, isLoading, crea
         </div>
       ) : (
         <div className="text-center py-16 bg-white rounded-2xl border border-border">
-          <div className="text-5xl mb-4">💼</div>
+          <div className="text-5xl mb-4">
+            {filterMode === 'prijave' ? '📝' : 
+             filterMode === 'angazovan' ? '🎯' :
+             filterMode === 'zavrseno' ? '✅' :
+             filterMode === 'odbijeno' ? '❌' : '💼'}
+          </div>
           <h3 className="text-lg font-medium mb-2">
-            {statusFilter === 'all' ? 'Nemate prijava' : 'Nema prijava sa ovim filterom'}
+            {filterMode === 'prijave' ? 'Nemaš aktivnih prijava' : 
+             filterMode === 'angazovan' ? 'Nisi trenutno angažovan' :
+             filterMode === 'zavrseno' ? 'Nemaš završenih poslova' :
+             filterMode === 'odbijeno' ? 'Nemaš odbijenih prijava' :
+             statusFilter === 'all' ? 'Nemate prijava' : 'Nema prijava sa ovim filterom'}
           </h3>
           <p className="text-muted mb-6">
-            {statusFilter === 'all' 
+            {filterMode === 'prijave' ? 'Pregledaj otvorene poslove i prijavi se' : 
+             filterMode === 'angazovan' ? 'Kada biznis te angažuje, posao će se pojaviti ovde' :
+             filterMode === 'zavrseno' ? 'Kada završiš posao, pojaviće se ovde' :
+             filterMode === 'odbijeno' ? 'Sve tvoje prijave su još uvek aktivne 🎉' :
+             statusFilter === 'all' 
               ? 'Pregledajte otvorene poslove i prijavite se'
               : 'Pokušajte sa drugim filterom'}
           </p>
-          {statusFilter === 'all' && (
+          {(filterMode === 'prijave' || (!filterMode && statusFilter === 'all')) && (
             <Link
               href="/poslovi"
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
