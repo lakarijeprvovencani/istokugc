@@ -5376,11 +5376,13 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                             </Link>
                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               inv.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                              inv.status === 'accepted' && withdrawnJobs.has(inv.jobId) ? 'bg-orange-100 text-orange-700' :
                               inv.status === 'accepted' ? 'bg-success/10 text-success' :
                               inv.status === 'rejected' ? 'bg-error/10 text-error' :
                               'bg-error/10 text-error'
                             }`}>
                               {inv.status === 'pending' ? 'Na čekanju' : 
+                               inv.status === 'accepted' && withdrawnJobs.has(inv.jobId) ? 'Odustao' :
                                inv.status === 'accepted' ? 'Prihvaćeno' : 
                                inv.status === 'rejected' ? 'Odbijeno' : 'Odbijeno'}
                             </span>
@@ -5421,12 +5423,21 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       
                       {inv.status === 'accepted' && (
                         <div className="pt-3 border-t border-border flex items-center justify-between">
-                          <span className="text-xs text-success font-medium flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Kreator je prihvatio poziv
-                          </span>
+                          {withdrawnJobs.has(inv.jobId) ? (
+                            <span className="text-xs text-orange-600 font-medium flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              Kreator je odustao od posla
+                            </span>
+                          ) : (
+                            <span className="text-xs text-success font-medium flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Kreator je prihvatio poziv
+                            </span>
+                          )}
                           <div className="flex gap-2">
                             <Link
                               href={`/kreator/${inv.creatorId}`}
@@ -5434,31 +5445,33 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                             >
                               Profil
                             </Link>
-                            <button
-                              onClick={async () => {
-                                // Find the engaged application for this invitation
-                                try {
-                                  const response = await fetch(`/api/job-applications?jobId=${inv.jobId}&creatorId=${inv.creator_id}`);
-                                  if (response.ok) {
-                                    const data = await response.json();
-                                    const app = (data.applications || []).find((a: any) => a.status === 'engaged');
-                                    if (app) {
-                                      setViewingJobInvitations(null);
-                                      setJobInvitations([]);
-                                      if (onOpenChat) onOpenChat(app);
+                            {!withdrawnJobs.has(inv.jobId) && (
+                              <button
+                                onClick={async () => {
+                                  // Find the engaged application for this invitation
+                                  try {
+                                    const response = await fetch(`/api/job-applications?jobId=${inv.jobId}&creatorId=${inv.creator_id}`);
+                                    if (response.ok) {
+                                      const data = await response.json();
+                                      const app = (data.applications || []).find((a: any) => a.status === 'engaged');
+                                      if (app) {
+                                        setViewingJobInvitations(null);
+                                        setJobInvitations([]);
+                                        if (onOpenChat) onOpenChat(app);
+                                      }
                                     }
+                                  } catch (error) {
+                                    console.error('Error finding application:', error);
                                   }
-                                } catch (error) {
-                                  console.error('Error finding application:', error);
-                                }
-                              }}
-                              className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1.5"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                              </svg>
-                              Poruke
-                            </button>
+                                }}
+                                className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                                Poruke
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
