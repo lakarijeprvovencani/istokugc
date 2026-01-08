@@ -1025,11 +1025,14 @@ export default function AdminPage() {
                                 ? 'bg-black text-white' 
                                 : creator.status === 'pending'
                                 ? 'bg-amber-100 text-amber-700'
-                                : 'bg-red-100 text-red-700'
+                                : creator.status === 'rejected'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-gray-100 text-gray-700'
                             }`}
                           >
                             <option value="approved">Aktivan</option>
                             <option value="pending">Na čekanju</option>
+                            <option value="rejected">Odbijen</option>
                             <option value="deactivated">Neaktivan</option>
                           </select>
                           
@@ -1118,11 +1121,14 @@ export default function AdminPage() {
                                     ? 'bg-black text-white' 
                                     : creator.status === 'pending'
                                     ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-red-100 text-red-700'
+                                    : creator.status === 'rejected'
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-gray-100 text-gray-700'
                                 }`}
                               >
                                 <option value="approved">Aktivan</option>
                                 <option value="pending">Na čekanju</option>
+                                <option value="rejected">Odbijen</option>
                                 <option value="deactivated">Neaktivan</option>
                               </select>
                             </td>
@@ -1805,11 +1811,14 @@ export default function AdminPage() {
                             ? 'bg-black text-white' 
                             : viewingCreator.status === 'pending'
                             ? 'bg-amber-100 text-amber-700'
-                            : 'bg-red-100 text-red-700'
+                            : viewingCreator.status === 'rejected'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-700'
                         }`}
                       >
                         <option value="approved">Aktivan</option>
                         <option value="pending">Na čekanju</option>
+                        <option value="rejected">Odbijen</option>
                         <option value="deactivated">Neaktivan</option>
                       </select>
                     </div>
