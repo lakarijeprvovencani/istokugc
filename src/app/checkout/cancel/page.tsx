@@ -13,27 +13,46 @@ export default function CheckoutCancelPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </div>
-          <h1 className="text-3xl font-light mb-4">Plaćanje otkazano</h1>
+          <h1 className="text-3xl font-light mb-4">Plaćanje nije završeno</h1>
           <p className="text-muted text-lg">
-            Niste dovršili proces plaćanja. Vaša kartica nije terećena.
+            Proces registracije nije dovršen. Vaša kartica nije terećena.
           </p>
+        </div>
+
+        {/* Important notice */}
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6 text-left">
+          <div className="flex gap-3">
+            <svg className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="font-medium text-amber-800 mb-1">Nalog nije kreiran</p>
+              <p className="text-sm text-amber-700">
+                Poslovni nalog se kreira tek nakon uspešne uplate. Ako želite da pokušate ponovo, potrebno je da prođete kroz proces registracije ispočetka.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Info box */}
         <div className="bg-white border border-border rounded-2xl p-6 mb-8 text-left">
-          <h2 className="font-medium mb-4">Zašto da se pretplatite?</h2>
+          <h2 className="font-medium mb-4">Šta dobijate sa pretplatom?</h2>
           <ul className="space-y-3">
             <li className="flex items-start gap-3 text-sm">
               <span className="w-5 h-5 rounded-full bg-success/10 text-success flex items-center justify-center text-xs mt-0.5">✓</span>
-              <span>Pristup preko 100 UGC kreatora iz regiona</span>
+              <span>Pristup bazi UGC kreatora iz regiona</span>
             </li>
             <li className="flex items-start gap-3 text-sm">
               <span className="w-5 h-5 rounded-full bg-success/10 text-success flex items-center justify-center text-xs mt-0.5">✓</span>
-              <span>Direktan kontakt sa kreatorima (email, telefon)</span>
+              <span>Postavljanje poslova i projekata</span>
             </li>
             <li className="flex items-start gap-3 text-sm">
               <span className="w-5 h-5 rounded-full bg-success/10 text-success flex items-center justify-center text-xs mt-0.5">✓</span>
-              <span>Neograničena pretraga i filtriranje</span>
+              <span>Direktna komunikacija sa kreatorima</span>
+            </li>
+            <li className="flex items-start gap-3 text-sm">
+              <span className="w-5 h-5 rounded-full bg-success/10 text-success flex items-center justify-center text-xs mt-0.5">✓</span>
+              <span>Slanje ponuda i pozivnica kreatorima</span>
             </li>
             <li className="flex items-start gap-3 text-sm">
               <span className="w-5 h-5 rounded-full bg-success/10 text-success flex items-center justify-center text-xs mt-0.5">✓</span>
@@ -48,7 +67,7 @@ export default function CheckoutCancelPage() {
             href="/register/biznis"
             className="px-8 py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
           >
-            Pokušaj ponovo
+            Registruj se ponovo
           </Link>
           <Link
             href="/"
@@ -69,7 +88,3 @@ export default function CheckoutCancelPage() {
     </div>
   );
 }
-
-
-
-
