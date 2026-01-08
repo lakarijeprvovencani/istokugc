@@ -22,7 +22,6 @@ export default function RegisterCreatorPage() {
   // API state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
   const [step, setStep] = useState(1);
@@ -388,8 +387,8 @@ export default function RegisterCreatorPage() {
         
         console.log('Registration successful:', data);
         
-        // Prikaži success modal
-        setShowSuccessModal(true);
+        // Redirect na stranicu čekanja
+        router.push('/register/kreator/cekanje');
         
       } catch (error) {
         console.error('Registration error:', error);
@@ -939,37 +938,6 @@ export default function RegisterCreatorPage() {
         />
       )}
 
-      {/* Success Modal */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center">
-            <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            
-            <h2 className="text-2xl font-light mb-4">Registracija uspešna!</h2>
-            
-            <p className="text-muted mb-6">
-              Tvoja prijava je primljena! Sada možeš da se prijaviš sa svojim nalogom.
-            </p>
-            
-            <div className="bg-secondary rounded-xl p-4 mb-6">
-              <p className="text-sm text-muted">
-                <strong>Sledeći korak:</strong> Naš tim će pregledati tvoj profil i obavestiti te kada bude odobren. To obično traje do 24 sata.
-              </p>
-            </div>
-            
-            <button
-              onClick={() => router.push('/login')}
-              className="w-full px-6 py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
-            >
-              Prijavi se
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
