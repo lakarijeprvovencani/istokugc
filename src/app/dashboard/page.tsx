@@ -3367,8 +3367,11 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   const [editingJob, setEditingJob] = useState<any | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
-  // Sub-tab state: 'active', 'in_progress', or 'completed'
-  const [jobsFilter, setJobsFilter] = useState<'active' | 'in_progress' | 'completed'>('active');
+  // Sub-tab state: 'active', 'in_progress', or 'archive'
+  const [jobsFilter, setJobsFilter] = useState<'active' | 'in_progress' | 'archive'>('active');
+  
+  // Archive sub-filter: all, completed, withdrawn, closed
+  const [archiveFilter, setArchiveFilter] = useState<'all' | 'completed' | 'withdrawn' | 'closed'>('all');
   
   // Sorting state
   const [jobsSort, setJobsSort] = useState<'newest' | 'oldest'>('newest');
@@ -3393,6 +3396,9 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   
   // Track engaged creators per job
   const [engagedCreators, setEngagedCreators] = useState<{[jobId: string]: {id: string, name: string, applicationId: string} | null}>({});
+  
+  // Track jobs where creator withdrew
+  const [withdrawnJobs, setWithdrawnJobs] = useState<Set<string>>(new Set());
   
   // Reopen job confirmation
   const [reopenConfirmJob, setReopenConfirmJob] = useState<any | null>(null);
@@ -3467,6 +3473,8 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         }
         
         // Process all applications
+        const withdrawn = new Set<string>();
+        
         for (const app of allApps) {
           const jobId = app.jobId;
           if (!jobId) continue;
@@ -3484,10 +3492,16 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
               applicationId: app.id
             };
           }
+          
+          // Track withdrawn applications
+          if (app.status === 'withdrawn') {
+            withdrawn.add(jobId);
+          }
         }
         
         setApplicationCounts(counts);
         setEngagedCreators(engaged);
+        setWithdrawnJobs(withdrawn);
       } catch (error) {
         console.error('Error fetching application data:', error);
       }
@@ -4174,20 +4188,34 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           </span>
         </button>
         <button
-          onClick={() => setJobsFilter('completed')}
+          onClick={() => setJobsFilter('archive')}
           className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
-            jobsFilter === 'completed'
+            jobsFilter === 'archive'
               ? 'bg-slate-600 text-white'
               : 'bg-white border border-border text-muted hover:bg-secondary'
           }`}
         >
-          Završeni
+          Arhiva
           <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-            jobsFilter === 'completed' ? 'bg-white/20' : 'bg-secondary'
+            jobsFilter === 'archive' ? 'bg-white/20' : 'bg-secondary'
           }`}>
             {jobs.filter(j => j.status === 'completed' || (j.status === 'closed' && !engagedCreators[j.id])).length}
           </span>
         </button>
+
+        {/* Archive sub-filter - only show when in archive tab */}
+        {jobsFilter === 'archive' && (
+          <select
+            value={archiveFilter}
+            onChange={(e) => setArchiveFilter(e.target.value as 'all' | 'completed' | 'withdrawn' | 'closed')}
+            className="px-3 py-2 rounded-xl border border-border text-sm bg-white focus:outline-none focus:border-primary"
+          >
+            <option value="all">Sve</option>
+            <option value="withdrawn">⚠️ Kreator odustao</option>
+            <option value="completed">✓ Uspešno završeni</option>
+            <option value="closed">Zatvoreni</option>
+          </select>
+        )}
 
         {/* Sorting dropdown */}
         <select
@@ -4210,12 +4238,31 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           // U toku = closed sa angažovanim kreatorom
           filteredJobs = jobs.filter(j => j.status === 'closed' && engagedCreators[j.id]);
         } else {
-          // Završeni = completed ili closed bez angažovanog kreatora
-          filteredJobs = jobs.filter(j => j.status === 'completed' || (j.status === 'closed' && !engagedCreators[j.id]));
+          // Arhiva = completed ili closed bez angažovanog kreatora
+          let archiveJobs = jobs.filter(j => j.status === 'completed' || (j.status === 'closed' && !engagedCreators[j.id]));
+          
+          // Apply archive sub-filter
+          if (archiveFilter === 'withdrawn') {
+            filteredJobs = archiveJobs.filter(j => withdrawnJobs.has(j.id));
+          } else if (archiveFilter === 'completed') {
+            filteredJobs = archiveJobs.filter(j => j.status === 'completed');
+          } else if (archiveFilter === 'closed') {
+            filteredJobs = archiveJobs.filter(j => j.status === 'closed' && !withdrawnJobs.has(j.id));
+          } else {
+            filteredJobs = archiveJobs;
+          }
         }
         
-        // Sort based on jobsSort state
+        // Sort based on jobsSort state, but put withdrawn jobs first in archive
         filteredJobs = filteredJobs.sort((a, b) => {
+          // In archive, withdrawn jobs come first
+          if (jobsFilter === 'archive' && archiveFilter === 'all') {
+            const aWithdrawn = withdrawnJobs.has(a.id);
+            const bWithdrawn = withdrawnJobs.has(b.id);
+            if (aWithdrawn && !bWithdrawn) return -1;
+            if (!aWithdrawn && bWithdrawn) return 1;
+          }
+          
           const dateA = new Date(a.updatedAt || a.createdAt).getTime();
           const dateB = new Date(b.updatedAt || b.createdAt).getTime();
           return jobsSort === 'newest' ? dateB - dateA : dateA - dateB;
@@ -4225,10 +4272,21 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         <div className="space-y-4">
           {filteredJobs.map((job) => (
             <div key={job.id} className={`bg-white rounded-2xl border p-4 sm:p-6 hover:shadow-md transition-shadow ${
-              jobsWithNewApplications.has(job.id)
+              withdrawnJobs.has(job.id)
+                ? 'border-orange-400 border-2 ring-2 ring-orange-100'
+                : jobsWithNewApplications.has(job.id)
                 ? 'border-amber-400 border-2 ring-2 ring-amber-100' 
                 : 'border-border'
             }`}>
+              {/* Warning banner for withdrawn */}
+              {withdrawnJobs.has(job.id) && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="text-sm text-orange-700 font-medium">Kreator je odustao od ovog posla</span>
+                </div>
+              )}
               <div className="flex items-start justify-between gap-2 sm:gap-4 mb-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 sm:gap-3 mb-1 flex-wrap">
