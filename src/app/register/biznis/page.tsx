@@ -51,8 +51,8 @@ export default function RegisterBusinessPage() {
 
   const handlePlanSelect = (plan: 'monthly' | 'yearly') => {
     setSelectedPlan(plan);
-    // Store form data in sessionStorage for checkout
-    sessionStorage.setItem('businessRegistration', JSON.stringify({
+    // Store form data in localStorage for checkout (survives redirect to Stripe)
+    localStorage.setItem('businessRegistration', JSON.stringify({
       ...formData,
       plan,
     }));

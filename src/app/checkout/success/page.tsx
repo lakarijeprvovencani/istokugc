@@ -81,9 +81,9 @@ function SuccessContent() {
         }
         
         // NOVA REGISTRACIJA
-        const savedData = sessionStorage.getItem('businessRegistration');
+        const savedData = localStorage.getItem('businessRegistration');
         if (!savedData) {
-          setError('Podaci za registraciju nisu pronađeni');
+          setError('Podaci za registraciju nisu pronađeni. Molimo registrujte se ponovo.');
           setIsCreating(false);
           return;
         }
@@ -134,7 +134,7 @@ function SuccessContent() {
         loginAsNewBusiness(data.businessId, data.companyName, 'active', plan || 'monthly');
         
         // Clear registration data
-        sessionStorage.removeItem('businessRegistration');
+        localStorage.removeItem('businessRegistration');
         
         setIsCreating(false);
         showConfetti();
