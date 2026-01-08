@@ -446,7 +446,10 @@ export default function PosloviPage() {
                     </div>
                     
                     {/* Description */}
-                    <p className="text-sm text-muted mb-4 line-clamp-2 leading-relaxed">{job.description}</p>
+                    <div className="mb-4 pb-4 border-b border-border/50">
+                      <span className="text-[10px] text-muted uppercase tracking-wide block mb-1">Opis projekta:</span>
+                      <p className="text-sm text-muted line-clamp-2 leading-relaxed">{job.description}</p>
+                    </div>
                     
                     {/* Tags with labels */}
                     <div className="flex flex-wrap items-center gap-3 mb-4">
