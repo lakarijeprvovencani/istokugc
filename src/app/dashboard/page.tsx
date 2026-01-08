@@ -47,14 +47,17 @@ function CreatorDashboard() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'poslovi' | 'poruke' | 'ponude'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'poslovi' | 'poruke'>('overview');
+  
+  // Sub-filter state for Poslovi tab (must be here with other hooks)
+  const [creatorJobsFilter, setCreatorJobsFilter] = useState<'prijave' | 'pozivi' | 'angazovan' | 'zavrseno' | 'odbijeno'>('prijave');
   
   // Read tab from URL on mount and mark as seen
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');
-      if (tab === 'reviews' || tab === 'poslovi' || tab === 'poruke' || tab === 'ponude') {
+      if (tab === 'reviews' || tab === 'poslovi' || tab === 'poruke') {
         setActiveTab(tab);
         // Also mark as viewed if coming directly to this tab
         const now = new Date().toISOString();
@@ -62,7 +65,6 @@ function CreatorDashboard() {
           localStorage.setItem(`lastViewed_reviews_${currentUser.creatorId}`, now);
         } else if (tab === 'poslovi' && currentUser.creatorId) {
           localStorage.setItem(`lastViewed_applications_${currentUser.creatorId}`, now);
-        } else if (tab === 'ponude' && currentUser.creatorId) {
           localStorage.setItem(`lastViewed_invitations_${currentUser.creatorId}`, now);
         }
       }
@@ -73,7 +75,7 @@ function CreatorDashboard() {
   const [pendingInvitationsNewCount, setPendingInvitationsNewCount] = useState(0);
   
   // Update URL when tab changes and mark as "seen"
-  const handleTabChange = (tab: 'overview' | 'reviews' | 'poslovi' | 'poruke' | 'ponude') => {
+  const handleTabChange = (tab: 'overview' | 'reviews' | 'poslovi' | 'poruke') => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -90,10 +92,10 @@ function CreatorDashboard() {
         localStorage.setItem(`lastViewed_reviews_${currentUser.creatorId}`, now);
         setNewReviewsCount(0);
       } else if (tab === 'poslovi' && currentUser.creatorId) {
+        // Mark both applications and invitations as viewed
         localStorage.setItem(`lastViewed_applications_${currentUser.creatorId}`, now);
-        setNewApplicationsCount(0);
-      } else if (tab === 'ponude' && currentUser.creatorId) {
         localStorage.setItem(`lastViewed_invitations_${currentUser.creatorId}`, now);
+        setNewApplicationsCount(0);
         setPendingInvitationsNewCount(0);
       } else if (tab === 'poruke' && currentUser.creatorId) {
         localStorage.setItem(`lastViewed_messages_${currentUser.creatorId}`, now);
@@ -665,9 +667,6 @@ function CreatorDashboard() {
     { id: 'poslovi' as const, label: 'Poslovi', count: totalJobsCount > 0 ? totalJobsCount : null }, // Combined jobs tab
     { id: 'poruke' as const, label: 'Poruke', count: null, unread: unreadMessagesCount }, // Unread messages
   ];
-  
-  // Sub-filter state for Poslovi tab
-  const [creatorJobsFilter, setCreatorJobsFilter] = useState<'prijave' | 'pozivi' | 'angazovan' | 'zavrseno' | 'odbijeno'>('prijave');
   
   // Handle opening chat from applications tab
   const handleOpenChat = (app: any) => {
