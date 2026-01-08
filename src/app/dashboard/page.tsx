@@ -50,7 +50,11 @@ function CreatorDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'poslovi' | 'poruke'>('overview');
   
   // Sub-filter state for Poslovi tab (must be here with other hooks)
-  const [creatorJobsFilter, setCreatorJobsFilter] = useState<'prijave' | 'pozivi' | 'angazovan' | 'zavrseno' | 'odbijeno'>('prijave');
+  const [creatorJobsFilter, setCreatorJobsFilter] = useState<'prijave' | 'pozivi' | 'angazovan' | 'zavrseno' | 'odbijeno' | 'sacuvano'>('prijave');
+  
+  // Saved jobs state
+  const [savedJobs, setSavedJobs] = useState<any[]>([]);
+  const [isLoadingSavedJobs, setIsLoadingSavedJobs] = useState(false);
   
   // Read tab from URL on mount and mark as seen
   useEffect(() => {
@@ -1615,7 +1619,7 @@ function CreatorDashboard() {
             
             {/* Jobs Statistics section */}
             <div className="bg-white rounded-2xl p-6 border border-border">
-              <h2 className="text-lg font-medium mb-6">Statistika poslova</h2>
+              <h2 className="text-lg font-medium mb-6">Pregled saradnji</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                   <div className="text-3xl font-light mb-1 text-emerald-600">
@@ -1658,7 +1662,7 @@ function CreatorDashboard() {
             
             {/* Invitations Statistics section */}
             <div className="bg-white rounded-2xl p-6 border border-border">
-              <h2 className="text-lg font-medium mb-6">Statistika poziva</h2>
+              <h2 className="text-lg font-medium mb-6">Pozivi za saradnju</h2>
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-purple-50 rounded-xl border border-purple-100">
                   <div className="text-3xl font-light mb-1 text-purple-600">
@@ -1882,6 +1886,37 @@ function CreatorDashboard() {
                   {myApplications.filter(a => a.status === 'rejected').length + myInvitations.filter(inv => inv.status === 'rejected').length}
                 </span>
               </button>
+              <button
+                onClick={() => {
+                  setCreatorJobsFilter('sacuvano');
+                  // Fetch saved jobs when tab is clicked
+                  if (currentUser.creatorId && savedJobs.length === 0) {
+                    setIsLoadingSavedJobs(true);
+                    fetch(`/api/saved-jobs?creatorId=${currentUser.creatorId}`)
+                      .then(res => res.json())
+                      .then(data => setSavedJobs(data.savedJobs || []))
+                      .catch(console.error)
+                      .finally(() => setIsLoadingSavedJobs(false));
+                  }
+                }}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                  creatorJobsFilter === 'sacuvano'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-white border border-border text-muted hover:bg-secondary'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill={creatorJobsFilter === 'sacuvano' ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                  Sačuvano
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                  creatorJobsFilter === 'sacuvano' ? 'bg-white/20' : 'bg-secondary'
+                }`}>
+                  {savedJobs.length}
+                </span>
+              </button>
             </div>
 
             {/* Content based on filter */}
@@ -1980,6 +2015,111 @@ function CreatorDashboard() {
                     </div>
                     <h3 className="font-medium mb-2">Nema odbijenih</h3>
                     <p className="text-sm text-muted">Sve tvoje prijave i pozivi su još uvek aktivni.</p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Saved jobs */}
+            {creatorJobsFilter === 'sacuvano' && (
+              <div>
+                <h2 className="text-lg font-medium mb-4">Sačuvani poslovi</h2>
+                
+                {isLoadingSavedJobs ? (
+                  <div className="text-center py-16">
+                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-muted">Učitavanje sačuvanih poslova...</p>
+                  </div>
+                ) : savedJobs.length > 0 ? (
+                  <div className="space-y-4">
+                    {savedJobs.map((saved) => (
+                      <div key={saved.id} className="bg-white rounded-2xl border border-border p-5 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-1 flex-wrap">
+                              <Link 
+                                href={`/poslovi/${saved.job?.id}`}
+                                className="font-medium hover:text-primary transition-colors truncate"
+                              >
+                                {saved.job?.title || 'Posao'}
+                              </Link>
+                              <span className={`px-3 py-1 text-xs rounded-full ${
+                                saved.job?.status === 'open' 
+                                  ? 'bg-success/10 text-success' 
+                                  : 'bg-muted/20 text-muted'
+                              }`}>
+                                {saved.job?.status === 'open' ? 'Otvoren' : 'Zatvoren'}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted">{saved.job?.businessName} • {saved.job?.category}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            {saved.job?.budgetMin || saved.job?.budgetMax ? (
+                              <div className="font-medium">
+                                {saved.job?.budgetMin && saved.job?.budgetMax 
+                                  ? `€${saved.job.budgetMin} - €${saved.job.budgetMax}`
+                                  : saved.job?.budgetMin 
+                                    ? `Od €${saved.job.budgetMin}`
+                                    : `Do €${saved.job.budgetMax}`
+                                }
+                              </div>
+                            ) : (
+                              <div className="font-medium">Po dogovoru</div>
+                            )}
+                            <div className="text-xs text-muted">
+                              {saved.job?.budgetType === 'hourly' ? 'po satu' : 'fiksno'}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <p className="text-sm text-muted line-clamp-2 mb-4">
+                          {saved.job?.description}
+                        </p>
+                        
+                        <div className="flex items-center justify-between pt-3 border-t border-border">
+                          <span className="text-xs text-muted">
+                            Sačuvano: {new Date(saved.savedAt).toLocaleDateString('sr-RS')}
+                          </span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await fetch(`/api/saved-jobs?creatorId=${currentUser.creatorId}&jobId=${saved.job?.id}`, {
+                                    method: 'DELETE',
+                                  });
+                                  setSavedJobs(savedJobs.filter(s => s.id !== saved.id));
+                                } catch (error) {
+                                  console.error('Error unsaving:', error);
+                                }
+                              }}
+                              className="px-3 py-1.5 text-xs text-error border border-error/30 rounded-lg hover:bg-error/10 transition-colors"
+                            >
+                              Ukloni
+                            </button>
+                            <Link
+                              href={`/poslovi/${saved.job?.id}`}
+                              className="px-3 py-1.5 text-xs bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                            >
+                              Pogledaj
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16 bg-white rounded-2xl border border-border">
+                    <div className="text-5xl mb-4">🔖</div>
+                    <h3 className="text-lg font-medium mb-2">Nemaš sačuvanih poslova</h3>
+                    <p className="text-sm text-muted mb-6">
+                      Sačuvaj poslove koji te interesuju da ih lako pronađeš kasnije
+                    </p>
+                    <Link
+                      href="/poslovi"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+                    >
+                      Pregledaj poslove
+                    </Link>
                   </div>
                 )}
               </div>

@@ -37,6 +37,10 @@ export default function JobDetailPage() {
   const [hasApplied, setHasApplied] = useState(false);
   const [myApplication, setMyApplication] = useState<any>(null);
   
+  // Saved job state
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  
   // Apply form
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [coverLetter, setCoverLetter] = useState('');
@@ -77,6 +81,54 @@ export default function JobDetailPage() {
     }
   }, [jobId]);
   
+  // Check if job is saved
+  useEffect(() => {
+    const checkSaved = async () => {
+      if (!currentUser.creatorId || !jobId) return;
+      
+      try {
+        const response = await fetch(`/api/saved-jobs?creatorId=${currentUser.creatorId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const saved = data.savedJobs?.some((sj: any) => sj.job?.id === jobId);
+          setIsSaved(saved);
+        }
+      } catch (error) {
+        console.error('Error checking saved status:', error);
+      }
+    };
+    
+    checkSaved();
+  }, [currentUser.creatorId, jobId]);
+  
+  // Handle save/unsave
+  const handleToggleSave = async () => {
+    if (!currentUser.creatorId || !jobId) return;
+    
+    setIsSaving(true);
+    try {
+      if (isSaved) {
+        // Unsave
+        await fetch(`/api/saved-jobs?creatorId=${currentUser.creatorId}&jobId=${jobId}`, {
+          method: 'DELETE',
+        });
+        setIsSaved(false);
+      } else {
+        // Save
+        await fetch('/api/saved-jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ creatorId: currentUser.creatorId, jobId }),
+        });
+        setIsSaved(true);
+      }
+    } catch (error) {
+      console.error('Error toggling save:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Check if creator already applied
   useEffect(() => {
     const checkApplication = async () => {
@@ -469,12 +521,32 @@ export default function JobDetailPage() {
                       </p>
                     )}
                   </div>
-                  <button
-                    onClick={() => setShowApplyModal(true)}
-                    className="px-8 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
-                  >
-                    Prijavi se
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleToggleSave}
+                      disabled={isSaving}
+                      className={`px-4 py-3 rounded-xl font-medium transition-colors flex items-center gap-2 ${
+                        isSaved 
+                          ? 'bg-amber-100 text-amber-700 border border-amber-300' 
+                          : 'bg-secondary text-foreground border border-border hover:bg-secondary/80'
+                      }`}
+                    >
+                      {isSaving ? (
+                        <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <svg className={`w-5 h-5 ${isSaved ? 'fill-amber-500' : ''}`} fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                      )}
+                      {isSaved ? 'Sačuvano' : 'Sačuvaj'}
+                    </button>
+                    <button
+                      onClick={() => setShowApplyModal(true)}
+                      className="px-8 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+                    >
+                      Prijavi se
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center text-muted">
