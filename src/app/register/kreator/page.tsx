@@ -862,13 +862,18 @@ export default function RegisterCreatorPage() {
                 </div>
               </div>
 
-              <label className="flex items-start gap-3 mt-6">
-                <input type="checkbox" required className="mt-1" />
+              <label className="flex items-start gap-3 mt-6 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  required 
+                  className="mt-1 w-4 h-4 rounded border-border accent-primary" 
+                />
                 <span className="text-sm text-muted">
                   Slažem se sa{' '}
-                  <Link href="#" className="underline">uslovima korišćenja</Link>
+                  <Link href="/uslovi" className="underline hover:text-foreground">uslovima korišćenja</Link>
                   {' '}i{' '}
-                  <Link href="#" className="underline">politikom privatnosti</Link>
+                  <Link href="/privatnost" className="underline hover:text-foreground">politikom privatnosti</Link>
+                  <span className="text-error ml-1">*</span>
                 </span>
               </label>
             </div>
