@@ -451,8 +451,8 @@ export default function PosloviPage() {
                       <p className="text-sm text-foreground/80 line-clamp-2 leading-relaxed">{job.description}</p>
                     </div>
                     
-                    {/* Tags Grid - Clean Layout */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                    {/* Tags - Responsive flex layout */}
+                    <div className="flex flex-wrap gap-x-6 gap-y-3 mb-4">
                       {/* Kategorija */}
                       <div className="space-y-1">
                         <span className="text-[10px] text-muted uppercase tracking-wider block">Kategorija</span>
@@ -489,43 +489,49 @@ export default function PosloviPage() {
                       )}
                     </div>
                     
-                    {/* Footer */}
-                    <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                      <div className="flex items-center gap-4 text-xs text-muted">
-                        {/* Objavljeno */}
-                        <div className="flex items-center gap-1.5">
-                          <svg className="w-3.5 h-3.5 text-muted/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>{formatDate(job.createdAt)}</span>
-                        </div>
-                        
-                        {/* Trajanje */}
-                        {job.duration && (
-                          <div className="flex items-center gap-1.5">
-                            <svg className="w-3.5 h-3.5 text-muted/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <span>{job.duration}</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Rok za prijave ili Pogledaj */}
-                      <div className="flex items-center gap-3">
-                        {job.applicationDeadline && !job.isExpired && (
-                          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs ${
-                            isDeadlineSoon(job.applicationDeadline) 
-                              ? 'bg-amber-50 text-amber-600 border border-amber-200' 
-                              : 'bg-secondary text-muted'
-                          }`}>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {/* Footer - Two rows on mobile, one row on desktop */}
+                    <div className="pt-3 border-t border-border/50 space-y-2 sm:space-y-0">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        {/* Left: Meta info with labels */}
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs">
+                          {/* Objavljeno */}
+                          <div className="flex items-center gap-1.5 text-muted">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            Rok: {new Date(job.applicationDeadline).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' })}
-                          </span>
-                        )}
-                        <span className="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                            <span className="hidden sm:inline text-muted/70">Objavljeno:</span>
+                            <span>{formatDate(job.createdAt)}</span>
+                          </div>
+                          
+                          {/* Trajanje */}
+                          {job.duration && (
+                            <div className="flex items-center gap-1.5 text-muted">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span className="hidden sm:inline text-muted/70">Trajanje:</span>
+                              <span>{job.duration}</span>
+                            </div>
+                          )}
+                          
+                          {/* Rok - inline on mobile */}
+                          {job.applicationDeadline && !job.isExpired && (
+                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${
+                              isDeadlineSoon(job.applicationDeadline) 
+                                ? 'bg-amber-50 text-amber-600 border border-amber-200' 
+                                : 'text-muted'
+                            }`}>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="hidden sm:inline text-muted/70">Rok:</span>
+                              <span>{new Date(job.applicationDeadline).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' })}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Right: Pogledaj */}
+                        <span className="text-xs font-medium text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center gap-1">
                           Pogledaj
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
