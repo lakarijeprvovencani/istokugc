@@ -13,15 +13,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { plan } = body;
 
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898').trim();
+    
     // Debug: log environment variables (without exposing secrets)
     console.log('Stripe checkout debug:', {
       plan,
       hasSecretKey: !!process.env.STRIPE_SECRET_KEY,
       monthlyPriceId: process.env.STRIPE_PRICE_MONTHLY ? 'SET' : 'NOT SET',
       yearlyPriceId: process.env.STRIPE_PRICE_YEARLY ? 'SET' : 'NOT SET',
-      // Also check alternative names
-      monthlyPriceIdAlt: process.env.STRIPE_PRICE_ID_MONTHLY ? 'SET' : 'NOT SET',
-      yearlyPriceIdAlt: process.env.STRIPE_PRICE_ID_YEARLY ? 'SET' : 'NOT SET',
+      baseUrl: baseUrl,
+      baseUrlLength: baseUrl.length,
+      successUrl: `${baseUrl}/checkout/success?plan=${plan}&session_id={CHECKOUT_SESSION_ID}`,
     });
 
     if (!plan || !['monthly', 'yearly'].includes(plan)) {
@@ -40,8 +42,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898';
 
     // Kreiraj Stripe Checkout Session sa pravim Price ID-em
     const session = await stripe.checkout.sessions.create({
