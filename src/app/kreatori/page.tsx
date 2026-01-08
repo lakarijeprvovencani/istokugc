@@ -31,6 +31,7 @@ export default function KreatoriPage() {
   const [sortBy, setSortBy] = useState<string>('');
   const [showFilters, setShowFilters] = useState<boolean>(true);
   const [liveSubscriptionStatus, setLiveSubscriptionStatus] = useState<string | null>(null);
+  const [liveExpiresAt, setLiveExpiresAt] = useState<string | null>(null);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
   const [allCreators, setAllCreators] = useState<any[]>([]);
   const [isLoadingCreators, setIsLoadingCreators] = useState(true);
@@ -68,29 +69,32 @@ export default function KreatoriPage() {
             
             let { data, error } = await supabase
               .from('businesses')
-              .select('subscription_status')
+              .select('subscription_status, expires_at')
               .eq('id', currentUser.businessId)
               .single();
             
             if (error || !data) {
               const result = await supabase
                 .from('businesses')
-                .select('subscription_status')
+                .select('subscription_status, expires_at')
                 .eq('user_id', currentUser.businessId)
                 .single();
               data = result.data;
             }
             
-            return data?.subscription_status || null;
+            return { 
+              status: data?.subscription_status || null,
+              expiresAt: data?.expires_at || null 
+            };
           } catch {
-            return null;
+            return { status: null, expiresAt: null };
           }
         }
-        return null;
+        return { status: null, expiresAt: null };
       })();
       
       // Execute ALL in parallel
-      const [categoriesData, creatorsData, subscriptionStatus] = await Promise.all([
+      const [categoriesData, creatorsData, subscriptionData] = await Promise.all([
         categoriesPromise,
         creatorsPromise,
         subscriptionPromise
@@ -100,10 +104,11 @@ export default function KreatoriPage() {
       setCategories(categoriesData.categories || []);
       setAllCreators(creatorsData.creators || []);
       
-      if (subscriptionStatus) {
-        setLiveSubscriptionStatus(subscriptionStatus);
-        if (subscriptionStatus !== currentUser.subscriptionStatus && updateCurrentUser) {
-          updateCurrentUser({ subscriptionStatus: subscriptionStatus });
+      if (subscriptionData.status) {
+        setLiveSubscriptionStatus(subscriptionData.status);
+        setLiveExpiresAt(subscriptionData.expiresAt);
+        if (subscriptionData.status !== currentUser.subscriptionStatus && updateCurrentUser) {
+          updateCurrentUser({ subscriptionStatus: subscriptionData.status });
         }
       }
       
@@ -115,15 +120,29 @@ export default function KreatoriPage() {
   }, [currentUser.type, currentUser.businessId, currentUser.subscriptionStatus, updateCurrentUser]);
   
   // Check if business user has active subscription - use live status if available
+  // IMPORTANT: User keeps access until expires_at, even if they cancelled!
   const hasActiveSubscription = useMemo(() => {
     if (currentUser.type === 'admin' || currentUser.type === 'creator') return true;
     if (currentUser.type === 'business') {
-      // Use live status if we have it, otherwise fall back to context value
       const statusToCheck = liveSubscriptionStatus || currentUser.subscriptionStatus;
-      return statusToCheck === 'active';
+      const expiresAt = liveExpiresAt || currentUser.subscriptionExpiresAt;
+      
+      // If status is active, they have access
+      if (statusToCheck === 'active') return true;
+      
+      // Even if cancelled/expired, check expires_at - they paid for this period!
+      if (expiresAt) {
+        const expiryDate = new Date(expiresAt);
+        const now = new Date();
+        if (expiryDate > now) {
+          return true; // Still has access until expiry
+        }
+      }
+      
+      return false;
     }
     return false; // guest
-  }, [currentUser, liveSubscriptionStatus]);
+  }, [currentUser, liveSubscriptionStatus, liveExpiresAt]);
   
   // Hide filters on mobile by default
   useEffect(() => {

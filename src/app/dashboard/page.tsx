@@ -2078,13 +2078,29 @@ function BusinessDashboard() {
   
   // Real subscription data from Supabase/Stripe
   // Prioritet: Supabase (businessData) jer se odmah ažurira pri obnovi
-  const subscription = {
-    plan: businessData?.subscription_type || subscriptionData?.plan || 'monthly',
-    status: businessData?.subscription_status || subscriptionData?.status || 'active',
-    expiresAt: businessData?.expires_at || subscriptionData?.currentPeriodEnd || new Date().toISOString(),
-    price: (businessData?.subscription_type || subscriptionData?.plan) === 'monthly' ? '€49/mesec' : '€490/godina',
-    cancelAtPeriodEnd: subscriptionData?.cancelAtPeriodEnd || false,
-  };
+  const subscription = useMemo(() => {
+    const status = businessData?.subscription_status || subscriptionData?.status || 'active';
+    const expiresAt = businessData?.expires_at || subscriptionData?.currentPeriodEnd || new Date().toISOString();
+    const plan = businessData?.subscription_type || subscriptionData?.plan || 'monthly';
+    
+    // Check if user still has access based on expires_at
+    const expiryDate = new Date(expiresAt);
+    const now = new Date();
+    const hasAccessUntilExpiry = expiryDate > now;
+    
+    // Effective status: if expired but still has access, show as "active until X"
+    const effectivelyActive = status === 'active' || (status === 'expired' && hasAccessUntilExpiry);
+    
+    return {
+      plan,
+      status,
+      expiresAt,
+      price: plan === 'monthly' ? '€49/mesec' : '€490/godina',
+      cancelAtPeriodEnd: subscriptionData?.cancelAtPeriodEnd || false,
+      hasAccessUntilExpiry,
+      effectivelyActive,
+    };
+  }, [businessData, subscriptionData]);
 
   const handleManageSubscription = async () => {
     if (!currentUser.businessId) {
@@ -2303,8 +2319,8 @@ function BusinessDashboard() {
                   )}
                 </div>
                 <span className={`px-4 py-1.5 rounded-full text-sm flex items-center gap-2 ${
-                  subscription.status === 'active' 
-                    ? subscription.cancelAtPeriodEnd
+                  subscription.effectivelyActive 
+                    ? subscription.cancelAtPeriodEnd || (subscription.status === 'expired' && subscription.hasAccessUntilExpiry)
                       ? 'bg-amber-100 text-amber-700'
                       : 'bg-success/10 text-success'
                     : subscription.status === 'none' || !subscription.plan
@@ -2312,14 +2328,20 @@ function BusinessDashboard() {
                     : 'bg-error/10 text-error'
                 }`}>
                   <span className={`w-2 h-2 rounded-full ${
-                    subscription.status === 'active' 
-                      ? subscription.cancelAtPeriodEnd ? 'bg-amber-500' : 'bg-success'
+                    subscription.effectivelyActive 
+                      ? subscription.cancelAtPeriodEnd || (subscription.status === 'expired' && subscription.hasAccessUntilExpiry)
+                        ? 'bg-amber-500' 
+                        : 'bg-success'
                       : subscription.status === 'none' || !subscription.plan
                       ? 'bg-gray-400'
                       : 'bg-error'
                   }`}></span>
-                  {subscription.status === 'active' 
-                    ? subscription.cancelAtPeriodEnd ? 'Otkazana' : 'Aktivna'
+                  {subscription.effectivelyActive 
+                    ? subscription.cancelAtPeriodEnd 
+                      ? 'Otkazana' 
+                      : subscription.status === 'expired' && subscription.hasAccessUntilExpiry
+                        ? 'Pristup do isteka'
+                        : 'Aktivna'
                     : subscription.status === 'none' || !subscription.plan
                     ? 'Neaktivna'
                     : 'Istekla'}
@@ -2352,8 +2374,34 @@ function BusinessDashboard() {
                 </div>
               )}
               
-              {/* Show warning for EXPIRED subscriptions */}
-              {subscription.status === 'expired' && subscription.plan && (
+              {/* Show info for expired but still accessible subscriptions */}
+              {subscription.status === 'expired' && subscription.hasAccessUntilExpiry && subscription.plan && (
+                <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-800">Pristup do {new Date(subscription.expiresAt).toLocaleDateString('sr-RS', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Vaša pretplata je otkazana, ali i dalje imate pristup do kraja plaćenog perioda.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/pricing"
+                    className="mt-4 w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Obnovi pretplatu
+                  </Link>
+                </div>
+              )}
+              
+              {/* Show warning for truly EXPIRED subscriptions (no access) */}
+              {subscription.status === 'expired' && !subscription.hasAccessUntilExpiry && subscription.plan && (
                 <div className="mt-4 p-4 bg-error/10 rounded-xl">
                   <div className="flex items-start gap-3">
                     <svg className="w-5 h-5 text-error flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

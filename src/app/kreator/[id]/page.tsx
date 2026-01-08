@@ -320,6 +320,8 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
   
   // Fetch live subscription status from Supabase for business users
+  const [liveExpiresAt, setLiveExpiresAt] = useState<string | null>(null);
+  
   useEffect(() => {
     const checkSubscription = async () => {
       if (currentUser.type === 'business' && currentUser.businessId) {
@@ -329,7 +331,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
           // Try to find business by id first, then by user_id if not found
           let { data, error } = await supabase
             .from('businesses')
-            .select('subscription_status')
+            .select('subscription_status, expires_at')
             .eq('id', currentUser.businessId)
             .single();
           
@@ -337,7 +339,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
           if (error || !data) {
             const result = await supabase
               .from('businesses')
-              .select('subscription_status')
+              .select('subscription_status, expires_at')
               .eq('user_id', currentUser.businessId)
               .single();
             data = result.data;
@@ -346,6 +348,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
           
           if (!error && data) {
             setLiveSubscriptionStatus(data.subscription_status);
+            setLiveExpiresAt(data.expires_at);
             if (data.subscription_status !== currentUser.subscriptionStatus && updateCurrentUser) {
               updateCurrentUser({ subscriptionStatus: data.subscription_status });
             }
@@ -361,14 +364,29 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   }, [currentUser.type, currentUser.businessId, currentUser.subscriptionStatus, updateCurrentUser]);
   
   // Check if business user has active subscription - use live status if available
+  // IMPORTANT: User keeps access until expires_at, even if they cancelled!
   const hasActiveSubscription = useMemo(() => {
     if (currentUser.type === 'admin' || currentUser.type === 'creator') return true;
     if (currentUser.type === 'business') {
       const statusToCheck = liveSubscriptionStatus || currentUser.subscriptionStatus;
-      return statusToCheck === 'active';
+      const expiresAt = liveExpiresAt || currentUser.subscriptionExpiresAt;
+      
+      // If status is active, they have access
+      if (statusToCheck === 'active') return true;
+      
+      // Even if cancelled/expired, check expires_at - they paid for this period!
+      if (expiresAt) {
+        const expiryDate = new Date(expiresAt);
+        const now = new Date();
+        if (expiryDate > now) {
+          return true; // Still has access until expiry
+        }
+      }
+      
+      return false;
     }
     return false; // guest
-  }, [currentUser, liveSubscriptionStatus]);
+  }, [currentUser, liveSubscriptionStatus, liveExpiresAt]);
   
   // Update editedCreator when fetchedCreator is loaded
   useEffect(() => {

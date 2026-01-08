@@ -100,8 +100,9 @@ function SuccessContent() {
             const stripeResponse = await fetch(`/api/stripe/session/${sessionId}`);
             if (stripeResponse.ok) {
               const stripeData = await stripeResponse.json();
-              stripeCustomerId = stripeData.customer;
-              stripeSubscriptionId = stripeData.subscription;
+              stripeCustomerId = stripeData.customerId;  // Fixed: was 'customer'
+              stripeSubscriptionId = stripeData.subscriptionId;  // Fixed: was 'subscription'
+              console.log('Stripe data:', { stripeCustomerId, stripeSubscriptionId });
             }
           } catch (stripeError) {
             console.error('Error fetching Stripe session:', stripeError);
