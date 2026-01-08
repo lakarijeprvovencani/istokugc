@@ -20,6 +20,8 @@ interface Job {
   budgetMax: number | null;
   duration: string | null;
   experienceLevel: string | null;
+  applicationDeadline: string | null;
+  isExpired: boolean;
   status: string;
   createdAt: string;
 }
@@ -49,6 +51,7 @@ export default function PosloviPage() {
   const [budgetRange, setBudgetRange] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showFilters, setShowFilters] = useState<boolean>(true);
+  const [deadlineFilter, setDeadlineFilter] = useState<'all' | 'soon'>('all'); // Filter for deadline
   
   // Sorting & Pagination
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
@@ -100,11 +103,28 @@ export default function PosloviPage() {
     handleResize();
   }, []);
   
+  // Helper to check if deadline is within 7 days
+  const isDeadlineSoon = (deadline: string | null): boolean => {
+    if (!deadline) return false;
+    const deadlineDate = new Date(deadline);
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return deadlineDate > now && deadlineDate <= sevenDaysFromNow;
+  };
+  
+  // Count jobs with deadline soon
+  const jobsWithDeadlineSoon = useMemo(() => {
+    return jobs.filter(job => isDeadlineSoon(job.applicationDeadline)).length;
+  }, [jobs]);
+
   // Filtered and sorted jobs
   const filteredJobs = useMemo(() => {
     let result = jobs.filter((job) => {
       if (selectedCategory && job.category !== selectedCategory) return false;
       if (selectedPlatform && !job.platforms.includes(selectedPlatform)) return false;
+      
+      // Deadline filter - show only jobs expiring soon
+      if (deadlineFilter === 'soon' && !isDeadlineSoon(job.applicationDeadline)) return false;
       
       if (budgetRange) {
         const [min, max] = budgetRange.split('-').map(Number);
@@ -138,7 +158,7 @@ export default function PosloviPage() {
     });
     
     return result;
-  }, [jobs, selectedCategory, selectedPlatform, budgetRange, searchQuery, sortOrder]);
+  }, [jobs, selectedCategory, selectedPlatform, budgetRange, searchQuery, sortOrder, deadlineFilter]);
   
   // Paginated jobs
   const totalPages = Math.ceil(filteredJobs.length / JOBS_PER_PAGE);
@@ -150,13 +170,14 @@ export default function PosloviPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory, selectedPlatform, budgetRange, searchQuery, sortOrder]);
+  }, [selectedCategory, selectedPlatform, budgetRange, searchQuery, sortOrder, deadlineFilter]);
   
   const clearFilters = () => {
     setSelectedCategory('');
     setSelectedPlatform('');
     setBudgetRange('');
     setSearchQuery('');
+    setDeadlineFilter('all');
   };
   
   // Format date
@@ -315,6 +336,33 @@ export default function PosloviPage() {
                     <option value="1000-">€1000+</option>
                   </select>
                 </div>
+
+                {/* Deadline filter */}
+                {jobsWithDeadlineSoon > 0 && (
+                  <div>
+                    <label className="block text-sm text-muted mb-2">Rok za prijave</label>
+                    <button
+                      onClick={() => setDeadlineFilter(deadlineFilter === 'soon' ? 'all' : 'soon')}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm text-left transition-colors flex items-center justify-between ${
+                        deadlineFilter === 'soon'
+                          ? 'bg-amber-50 border-amber-300 text-amber-700'
+                          : 'border-border hover:bg-secondary'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Uskoro ističu
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${
+                        deadlineFilter === 'soon' ? 'bg-amber-200' : 'bg-secondary'
+                      }`}>
+                        {jobsWithDeadlineSoon}
+                      </span>
+                    </button>
+                  </div>
+                )}
               </div>
             </aside>
           )}
@@ -433,7 +481,7 @@ export default function PosloviPage() {
                     
                     {/* Footer */}
                     <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                      <div className="flex items-center gap-3 text-xs text-muted">
+                      <div className="flex items-center gap-3 text-xs text-muted flex-wrap">
                         <span className="flex items-center gap-1">
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -445,7 +493,19 @@ export default function PosloviPage() {
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            {job.duration}
+                            <span className="text-[10px] uppercase tracking-wide">Trajanje:</span> {job.duration}
+                          </span>
+                        )}
+                        {job.applicationDeadline && !job.isExpired && (
+                          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${
+                            isDeadlineSoon(job.applicationDeadline) 
+                              ? 'bg-amber-100 text-amber-700 font-medium' 
+                              : 'bg-secondary'
+                          }`}>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span className="text-[10px] uppercase tracking-wide">Rok:</span> {new Date(job.applicationDeadline).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' })}
                           </span>
                         )}
                       </div>
@@ -576,11 +636,11 @@ export default function PosloviPage() {
                 <div className="text-6xl mb-6">💼</div>
                 <h3 className="text-xl font-medium mb-2">Nema poslova</h3>
                 <p className="text-muted mb-6">
-                  {searchQuery || selectedCategory || selectedPlatform || budgetRange
+                  {searchQuery || selectedCategory || selectedPlatform || budgetRange || deadlineFilter === 'soon'
                     ? 'Pokušaj sa drugim filterima'
                     : 'Trenutno nema otvorenih poslova'}
                 </p>
-                {(searchQuery || selectedCategory || selectedPlatform || budgetRange) && (
+                {(searchQuery || selectedCategory || selectedPlatform || budgetRange || deadlineFilter === 'soon') && (
                   <button
                     onClick={clearFilters}
                     className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
