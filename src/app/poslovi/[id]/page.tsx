@@ -376,7 +376,7 @@ export default function JobDetailPage() {
               )}
               {job.experienceLevel && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-muted uppercase tracking-wide">Ekspertiza:</span>
+                  <span className="text-[10px] text-muted uppercase tracking-wide">Iskustvo:</span>
                   <span className="px-4 py-2 bg-success/10 text-success rounded-xl text-sm font-medium">
                     {getExperienceLabel(job.experienceLevel)}
                   </span>

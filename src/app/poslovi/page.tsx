@@ -423,7 +423,7 @@ export default function PosloviPage() {
                       )}
                       {job.experienceLevel && (
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-muted uppercase tracking-wide">Ekspertiza:</span>
+                          <span className="text-[10px] text-muted uppercase tracking-wide">Iskustvo:</span>
                           <span className="text-xs px-3 py-1.5 bg-success/10 text-success font-medium rounded-lg">
                             {getExperienceLabel(job.experienceLevel)}
                           </span>
