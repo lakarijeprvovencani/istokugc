@@ -1830,6 +1830,7 @@ function CreatorDashboard() {
                   setActiveChat(app);
                   handleTabChange('poruke');
                 }}
+                hideStats={true}
               />
             )}
             
@@ -1886,6 +1887,7 @@ function CreatorDashboard() {
                         setActiveChat(app);
                         handleTabChange('poruke');
                       }}
+                      hideStats={true}
                     />
                   </div>
                 )}
@@ -6561,9 +6563,10 @@ interface CreatorInvitationsTabProps {
   isLoading: boolean;
   creatorId: string;
   onOpenChat: (app: any) => void;
+  hideStats?: boolean; // Hide stats when used in combined Poslovi tab
 }
 
-function CreatorInvitationsTab({ invitations, setInvitations, applications, setApplications, isLoading, creatorId, onOpenChat }: CreatorInvitationsTabProps) {
+function CreatorInvitationsTab({ invitations, setInvitations, applications, setApplications, isLoading, creatorId, onOpenChat, hideStats }: CreatorInvitationsTabProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [selectedInvitation, setSelectedInvitation] = useState<any | null>(null);
@@ -6693,40 +6696,49 @@ function CreatorInvitationsTab({ invitations, setInvitations, applications, setA
         </div>
       )}
       
-      {/* Stats - compact */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
-          <div className="text-lg font-medium">{stats.total}</div>
-          <div className="text-xs text-muted">Ukupno</div>
+      {/* Stats - only show when not hideStats */}
+      {!hideStats && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+            <div className="text-lg font-medium">{stats.total}</div>
+            <div className="text-xs text-muted">Ukupno</div>
+          </div>
+          <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+            <div className="text-lg font-medium text-amber-600">{stats.pending}</div>
+            <div className="text-xs text-muted">Čeka</div>
+          </div>
+          <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+            <div className="text-lg font-medium text-success">{stats.accepted}</div>
+            <div className="text-xs text-muted">Prihvaćeno</div>
+          </div>
+          <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
+            <div className="text-lg font-medium text-error">{stats.rejected}</div>
+            <div className="text-xs text-muted">Odbijeno</div>
+          </div>
         </div>
-        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
-          <div className="text-lg font-medium text-amber-600">{stats.pending}</div>
-          <div className="text-xs text-muted">Čeka</div>
-        </div>
-        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
-          <div className="text-lg font-medium text-success">{stats.accepted}</div>
-          <div className="text-xs text-muted">Prihvaćeno</div>
-        </div>
-        <div className="bg-white rounded-lg px-3 py-2 border border-border text-center min-w-[70px]">
-          <div className="text-lg font-medium text-error">{stats.rejected}</div>
-          <div className="text-xs text-muted">Odbijeno</div>
-        </div>
-      </div>
+      )}
 
-      {/* Filter */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-medium">Ponude za posao</h2>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as any)}
-          className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-primary text-sm bg-white"
-        >
-          <option value="all">Sve ponude ({stats.total})</option>
-          <option value="pending">Na čekanju ({stats.pending})</option>
-          <option value="accepted">Prihvaćeno ({stats.accepted})</option>
-          <option value="rejected">Odbijeno ({stats.rejected})</option>
-        </select>
-      </div>
+      {/* Filter - only show when not hideStats */}
+      {!hideStats && (
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-medium">Ponude za posao</h2>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-4 py-2 border border-border rounded-xl focus:outline-none focus:border-primary text-sm bg-white"
+          >
+            <option value="all">Sve ponude ({stats.total})</option>
+            <option value="pending">Na čekanju ({stats.pending})</option>
+            <option value="accepted">Prihvaćeno ({stats.accepted})</option>
+            <option value="rejected">Odbijeno ({stats.rejected})</option>
+          </select>
+        </div>
+      )}
+      
+      {/* Title when hideStats - simple header */}
+      {hideStats && (
+        <h2 className="text-lg font-medium mb-4">Pozivi koje si dobio</h2>
+      )}
 
       {/* Invitations List */}
       {filteredInvitations.length > 0 ? (
