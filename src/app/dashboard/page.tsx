@@ -1594,7 +1594,7 @@ function CreatorDashboard() {
 
         {activeTab === 'reviews' && (
           <div className="space-y-8">
-            {/* Statistics section */}
+            {/* Profile Statistics section */}
             <div className="bg-white rounded-2xl p-6 border border-border">
               <h2 className="text-lg font-medium mb-6">Statistika profila</h2>
               <div className="grid grid-cols-3 gap-4">
@@ -1611,6 +1611,84 @@ function CreatorDashboard() {
                   <div className="text-sm text-muted">Ukupno recenzija</div>
                 </div>
               </div>
+            </div>
+            
+            {/* Jobs Statistics section */}
+            <div className="bg-white rounded-2xl p-6 border border-border">
+              <h2 className="text-lg font-medium mb-6">Statistika poslova</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                  <div className="text-3xl font-light mb-1 text-emerald-600">
+                    {myApplications.filter(a => a.status === 'completed').length}
+                  </div>
+                  <div className="text-sm text-emerald-600">Završenih</div>
+                </div>
+                <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <div className="text-3xl font-light mb-1 text-blue-600">
+                    {myApplications.filter(a => a.status === 'engaged').length}
+                  </div>
+                  <div className="text-sm text-blue-600">U toku</div>
+                </div>
+                <div className="text-center p-4 bg-amber-50 rounded-xl border border-amber-100">
+                  <div className="text-3xl font-light mb-1 text-amber-600">
+                    {myApplications.filter(a => a.status === 'pending').length}
+                  </div>
+                  <div className="text-sm text-amber-600">Čeka odgovor</div>
+                </div>
+                <div className="text-center p-4 bg-secondary/30 rounded-xl">
+                  <div className="text-3xl font-light mb-1">
+                    {myApplications.length}
+                  </div>
+                  <div className="text-sm text-muted">Ukupno prijava</div>
+                </div>
+              </div>
+              
+              {/* Success rate */}
+              {myApplications.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Stopa prihvatanja:</span>
+                    <span className="font-medium text-success">
+                      {Math.round((myApplications.filter(a => ['accepted', 'engaged', 'completed'].includes(a.status)).length / myApplications.length) * 100)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Invitations Statistics section */}
+            <div className="bg-white rounded-2xl p-6 border border-border">
+              <h2 className="text-lg font-medium mb-6">Statistika poziva</h2>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-purple-50 rounded-xl border border-purple-100">
+                  <div className="text-3xl font-light mb-1 text-purple-600">
+                    {myInvitations.length}
+                  </div>
+                  <div className="text-sm text-purple-600">Primljeno poziva</div>
+                </div>
+                <div className="text-center p-4 bg-success/10 rounded-xl border border-success/20">
+                  <div className="text-3xl font-light mb-1 text-success">
+                    {myInvitations.filter(inv => inv.status === 'accepted').length}
+                  </div>
+                  <div className="text-sm text-success">Prihvaćeno</div>
+                </div>
+                <div className="text-center p-4 bg-error/10 rounded-xl border border-error/20">
+                  <div className="text-3xl font-light mb-1 text-error">
+                    {myInvitations.filter(inv => inv.status === 'rejected').length}
+                  </div>
+                  <div className="text-sm text-error">Odbijeno</div>
+                </div>
+              </div>
+              
+              {/* Pending invitations notice */}
+              {myInvitations.filter(inv => inv.status === 'pending').length > 0 && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex items-center gap-2 text-sm text-amber-600">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    {myInvitations.filter(inv => inv.status === 'pending').length} poziva čeka tvoj odgovor
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Reviews header */}
