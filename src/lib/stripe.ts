@@ -28,9 +28,10 @@ export const stripe = new Proxy({} as Stripe, {
 });
 
 // Price IDs iz Stripe Dashboard-a
+// Podržava oba formata imena: STRIPE_PRICE_MONTHLY i STRIPE_PRICE_ID_MONTHLY
 export const PRICE_IDS = {
-  monthly: process.env.STRIPE_PRICE_MONTHLY || '',
-  yearly: process.env.STRIPE_PRICE_YEARLY || '',
+  monthly: process.env.STRIPE_PRICE_MONTHLY || process.env.STRIPE_PRICE_ID_MONTHLY || '',
+  yearly: process.env.STRIPE_PRICE_YEARLY || process.env.STRIPE_PRICE_ID_YEARLY || '',
 };
 
 // Cene za prikaz u UI

@@ -13,6 +13,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { plan } = body;
 
+    // Debug: log environment variables (without exposing secrets)
+    console.log('Stripe checkout debug:', {
+      plan,
+      hasSecretKey: !!process.env.STRIPE_SECRET_KEY,
+      monthlyPriceId: process.env.STRIPE_PRICE_MONTHLY ? 'SET' : 'NOT SET',
+      yearlyPriceId: process.env.STRIPE_PRICE_YEARLY ? 'SET' : 'NOT SET',
+      // Also check alternative names
+      monthlyPriceIdAlt: process.env.STRIPE_PRICE_ID_MONTHLY ? 'SET' : 'NOT SET',
+      yearlyPriceIdAlt: process.env.STRIPE_PRICE_ID_YEARLY ? 'SET' : 'NOT SET',
+    });
+
     if (!plan || !['monthly', 'yearly'].includes(plan)) {
       return NextResponse.json(
         { error: 'Invalid plan selected' },
@@ -23,9 +34,9 @@ export async function POST(request: NextRequest) {
     const priceId = PRICE_IDS[plan as 'monthly' | 'yearly'];
     
     if (!priceId) {
-      console.error('Price ID not found for plan:', plan);
+      console.error('Price ID not found for plan:', plan, 'Available:', PRICE_IDS);
       return NextResponse.json(
-        { error: 'Price configuration error' },
+        { error: `Price not configured for ${plan} plan. Please check STRIPE_PRICE_MONTHLY/YEARLY env variables.` },
         { status: 500 }
       );
     }
