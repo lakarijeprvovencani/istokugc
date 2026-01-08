@@ -5047,48 +5047,42 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                 </div>
                 
                 {/* Budget */}
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Tip budžeta</label>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Budžet</label>
+                  <div className="grid grid-cols-3 gap-3">
                     <select
                       value={formData.budgetType}
                       onChange={(e) => setFormData(prev => ({ ...prev, budgetType: e.target.value }))}
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm"
                     >
                       <option value="fixed">Fiksno</option>
                       <option value="hourly">Po satu</option>
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Min (€)</label>
                     <input
                       type="number"
                       value={formData.budgetMin}
                       onChange={(e) => setFormData(prev => ({ ...prev, budgetMin: e.target.value }))}
-                      placeholder="100"
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                      placeholder="Min (€)"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary text-sm"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Max (€)</label>
                     <input
                       type="number"
                       value={formData.budgetMax}
                       onChange={(e) => setFormData(prev => ({ ...prev, budgetMax: e.target.value }))}
-                      placeholder="500"
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                      placeholder="Max (€)"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary text-sm"
                     />
                   </div>
                 </div>
                 
                 {/* Duration & Experience */}
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium mb-2">Trajanje</label>
                     <select
                       value={formData.duration}
                       onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm"
                     >
                       <option value="">Izaberi trajanje</option>
                       <option value="Manje od nedelju dana">Manje od nedelju dana</option>
@@ -5103,7 +5097,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                     <select
                       value={formData.experienceLevel}
                       onChange={(e) => setFormData(prev => ({ ...prev, experienceLevel: e.target.value }))}
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm"
                     >
                       <option value="">Bilo koji nivo</option>
                       <option value="beginner">Početnik</option>
@@ -5116,15 +5110,14 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                 {/* Application Deadline */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Rok za prijave
-                    <span className="text-muted font-normal ml-1">(opciono)</span>
+                    Rok za prijave <span className="text-muted font-normal">(opciono)</span>
                   </label>
                   <input
                     type="date"
                     value={formData.applicationDeadline}
                     onChange={(e) => setFormData(prev => ({ ...prev, applicationDeadline: e.target.value }))}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm"
                   />
                   <p className="text-xs text-muted mt-1.5">
                     Nakon ovog datuma prijave će biti zatvorene. Ostavite prazno ako nema roka.
@@ -7261,6 +7254,7 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
   const [isSending, setIsSending] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -7451,12 +7445,16 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
     return date.toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' });
   };
 
-  // Handle withdraw from engagement
-  const handleWithdraw = async () => {
+  // Handle withdraw from engagement - show modal first
+  const handleWithdrawClick = () => {
+    setShowWithdrawModal(true);
+  };
+  
+  // Confirm withdraw
+  const handleWithdrawConfirm = async () => {
     if (!activeChat || isWithdrawing) return;
     
-    if (!confirm('Da li ste sigurni da želite da odustanete od ovog posla?')) return;
-    
+    setShowWithdrawModal(false);
     setIsWithdrawing(true);
     try {
       const response = await fetch('/api/job-applications', {
@@ -7694,7 +7692,7 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
                     Angažovani ste za ovaj posao
                   </div>
                   <button
-                    onClick={handleWithdraw}
+                    onClick={handleWithdrawClick}
                     disabled={isWithdrawing}
                     className="px-3 py-1.5 text-error border border-error/30 rounded-lg text-xs font-medium hover:bg-error/5 disabled:opacity-50 transition-colors flex items-center gap-1.5"
                   >
@@ -7709,6 +7707,39 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
                       </>
                     )}
                   </button>
+                </div>
+              )}
+              
+              {/* Withdraw Confirmation Modal */}
+              {showWithdrawModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-2xl max-w-md w-full p-6">
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">Odustajanje od posla</h3>
+                      <p className="text-muted text-sm">
+                        Da li ste sigurni da želite da odustanete od ovog posla? Ova akcija se ne može poništiti.
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowWithdrawModal(false)}
+                        className="flex-1 px-4 py-3 border border-border rounded-xl font-medium hover:bg-secondary transition-colors"
+                      >
+                        Otkaži
+                      </button>
+                      <button
+                        onClick={handleWithdrawConfirm}
+                        className="flex-1 px-4 py-3 bg-error text-white rounded-xl font-medium hover:bg-error/90 transition-colors"
+                      >
+                        Da, odustajem
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
