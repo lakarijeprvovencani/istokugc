@@ -1,14 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import ImageCropper from '@/components/ImageCropper';
 
 export default function RegisterBusinessPage() {
   const router = useRouter();
   const [step, setStep] = useState<'info' | 'plan'>('info');
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly' | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Logo upload state
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [cropImage, setCropImage] = useState<string | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     companyName: '',
@@ -19,6 +26,30 @@ export default function RegisterBusinessPage() {
     industry: '',
     description: '',
   });
+  
+  // Handle logo file select
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Slika mora biti manja od 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setCropImage(e.target?.result as string);
+        setShowCropper(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  // Handle crop complete
+  const handleCropComplete = (croppedImage: string) => {
+    setLogoPreview(croppedImage);
+    setShowCropper(false);
+    setCropImage(null);
+  };
 
   const handleInfoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +86,7 @@ export default function RegisterBusinessPage() {
     localStorage.setItem('businessRegistration', JSON.stringify({
       ...formData,
       plan,
+      logo: logoPreview, // Include logo if uploaded
     }));
     router.push(`/checkout?plan=${plan}`);
   };
@@ -217,6 +249,54 @@ export default function RegisterBusinessPage() {
         </div>
 
         <form onSubmit={handleInfoSubmit} noValidate className="bg-white border border-border rounded-3xl p-8 space-y-6">
+          {/* Logo upload */}
+          <div>
+            <label className="text-sm text-muted mb-3 block">Logo kompanije <span className="text-muted font-normal">(opciono)</span></label>
+            <div className="flex items-center gap-4">
+              {/* Logo preview */}
+              <div 
+                onClick={() => logoInputRef.current?.click()}
+                className="w-20 h-20 rounded-full border-2 border-dashed border-border hover:border-primary cursor-pointer transition-colors flex items-center justify-center overflow-hidden bg-secondary/30 group"
+              >
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-center">
+                    <svg className="w-6 h-6 text-muted group-hover:text-primary transition-colors mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="text-sm text-primary hover:underline font-medium"
+                >
+                  {logoPreview ? 'Promeni logo' : 'Dodaj logo'}
+                </button>
+                <p className="text-xs text-muted mt-1">PNG, JPG do 5MB. Preporučeno: 200x200px</p>
+                {logoPreview && (
+                  <button
+                    type="button"
+                    onClick={() => setLogoPreview(null)}
+                    className="text-xs text-error hover:underline mt-1"
+                  >
+                    Ukloni logo
+                  </button>
+                )}
+              </div>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleLogoSelect}
+                className="hidden"
+              />
+            </div>
+          </div>
+          
           <div>
             <label className="text-sm text-muted mb-2 block">Ime kompanije *</label>
             <input
@@ -366,6 +446,20 @@ export default function RegisterBusinessPage() {
           </Link>
         </p>
       </div>
+      
+      {/* Image Cropper Modal */}
+      {showCropper && cropImage && (
+        <ImageCropper
+          image={cropImage}
+          onCropComplete={handleCropComplete}
+          onCancel={() => {
+            setShowCropper(false);
+            setCropImage(null);
+          }}
+          aspectRatio={1}
+          cropShape="round"
+        />
+      )}
     </div>
   );
 }

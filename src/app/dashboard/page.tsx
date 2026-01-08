@@ -59,7 +59,7 @@ function CreatorDashboard() {
   // Fetch saved jobs on mount
   useEffect(() => {
     const fetchSavedJobs = async () => {
-      if (!currentUser.creatorId) return;
+      if (!isHydrated || !currentUser.creatorId) return;
       
       try {
         const response = await fetch(`/api/saved-jobs?creatorId=${currentUser.creatorId}`);
@@ -73,7 +73,7 @@ function CreatorDashboard() {
     };
     
     fetchSavedJobs();
-  }, [currentUser.creatorId]);
+  }, [currentUser.creatorId, isHydrated]);
   
   // Read tab and subtab from URL on mount and mark as seen
   useEffect(() => {
@@ -348,7 +348,7 @@ function CreatorDashboard() {
   // Fetch job applications on mount for badge counts
   useEffect(() => {
     const fetchApplications = async () => {
-      if (!currentUser.creatorId) return;
+      if (!isHydrated || !currentUser.creatorId) return;
       
       setIsLoadingApplications(true);
       try {
@@ -392,12 +392,12 @@ function CreatorDashboard() {
     };
     
     fetchApplications();
-  }, [currentUser.creatorId]);
+  }, [currentUser.creatorId, isHydrated]);
   
   // Fetch job invitations (Ponude) on mount to show badge count
   useEffect(() => {
     const fetchInvitations = async () => {
-      if (!currentUser.creatorId) return;
+      if (!isHydrated || !currentUser.creatorId) return;
       
       setIsLoadingInvitations(true);
       try {
@@ -429,7 +429,7 @@ function CreatorDashboard() {
     };
     
     fetchInvitations();
-  }, [currentUser.creatorId]);
+  }, [currentUser.creatorId, isHydrated]);
   
   // Show loading state
   if (!isHydrated || isLoadingCreator) {
@@ -2220,6 +2220,10 @@ function BusinessDashboard() {
   const [website, setWebsite] = useState('');
   const [industry, setIndustry] = useState('');
   const [description, setDescription] = useState('');
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [logoCropImage, setLogoCropImage] = useState<string | null>(null);
+  const [showLogoCropper, setShowLogoCropper] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Check URL for tab parameter
   useEffect(() => {
@@ -2352,6 +2356,7 @@ function BusinessDashboard() {
             setWebsite(cachedData.profile.website || '');
             setIndustry(cachedData.profile.industry || '');
             setDescription(cachedData.profile.description || '');
+            setCompanyLogo(cachedData.profile.logo || null);
           }
           if (cachedData.subscription) setSubscriptionData(cachedData.subscription);
           if (cachedData.recentCreators) setRecentCreators(cachedData.recentCreators);
@@ -2380,6 +2385,7 @@ function BusinessDashboard() {
           setWebsite(profile.website || '');
           setIndustry(profile.industry || '');
           setDescription(profile.description || '');
+          setCompanyLogo(profile.logo || null);
           cacheData.profile = profile;
         }
         
@@ -2541,6 +2547,51 @@ function BusinessDashboard() {
     </button>
   );
 
+  // Handle logo file select for business
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Slika mora biti manja od 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        setLogoCropImage(evt.target?.result as string);
+        setShowLogoCropper(true);
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset input
+    if (e.target) e.target.value = '';
+  };
+  
+  // Handle logo crop complete
+  const handleLogoCropComplete = async (croppedImage: string) => {
+    setShowLogoCropper(false);
+    setLogoCropImage(null);
+    
+    if (!currentUser.businessId) return;
+    
+    // Upload immediately
+    try {
+      const response = await fetch(`/api/business/${currentUser.businessId}/logo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logo: croppedImage }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCompanyLogo(data.data?.logoUrl || croppedImage);
+      }
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      // Still show preview locally
+      setCompanyLogo(croppedImage);
+    }
+  };
+  
   // Handle save company info - saves to Supabase
   const handleSaveCompanyInfo = async () => {
     if (!currentUser.businessId) {
@@ -2892,6 +2943,53 @@ function BusinessDashboard() {
               
               {editingCompany ? (
                 <div className="space-y-4">
+                  {/* Logo upload */}
+                  <div>
+                    <label className="text-sm text-muted mb-3 block">Logo kompanije</label>
+                    <div className="flex items-center gap-4">
+                      <div 
+                        onClick={() => logoInputRef.current?.click()}
+                        className="w-20 h-20 rounded-full border-2 border-dashed border-border hover:border-primary cursor-pointer transition-colors flex items-center justify-center overflow-hidden bg-secondary/30 group"
+                      >
+                        {companyLogo ? (
+                          <img src={companyLogo} alt="Logo" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-center">
+                            <svg className="w-6 h-6 text-muted group-hover:text-primary transition-colors mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <button
+                          type="button"
+                          onClick={() => logoInputRef.current?.click()}
+                          className="text-sm text-primary hover:underline font-medium"
+                        >
+                          {companyLogo ? 'Promeni logo' : 'Dodaj logo'}
+                        </button>
+                        <p className="text-xs text-muted mt-1">PNG, JPG do 5MB</p>
+                        {companyLogo && (
+                          <button
+                            type="button"
+                            onClick={() => setCompanyLogo(null)}
+                            className="text-xs text-error hover:underline mt-1"
+                          >
+                            Ukloni logo
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoSelect}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                  
                   <div>
                     <label className="text-sm text-muted mb-2 block">Ime kompanije</label>
                     <input
@@ -2975,10 +3073,27 @@ function BusinessDashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted">Ime kompanije</p>
-                    <p className="font-medium">{companyName || currentUser.companyName || 'Nije uneto'}</p>
-                  </div>
+                  {/* Logo display */}
+                  {companyLogo && (
+                    <div className="flex items-center gap-4 pb-4 border-b border-border">
+                      <div className="w-16 h-16 rounded-full overflow-hidden bg-secondary flex-shrink-0">
+                        <img src={companyLogo} alt="Logo" className="w-full h-full object-cover" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-lg">{companyName || currentUser.companyName}</p>
+                        {(industry || currentUser.industry) && (
+                          <p className="text-sm text-muted capitalize">{industry || currentUser.industry}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!companyLogo && (
+                    <div>
+                      <p className="text-sm text-muted">Ime kompanije</p>
+                      <p className="font-medium">{companyName || currentUser.companyName || 'Nije uneto'}</p>
+                    </div>
+                  )}
                   
                   {(website || currentUser.website) && (
                     <div>
@@ -3425,6 +3540,20 @@ function BusinessDashboard() {
             </div>
           </div>
         </div>
+      )}
+      
+      {/* Logo Cropper Modal */}
+      {showLogoCropper && logoCropImage && (
+        <ImageCropper
+          image={logoCropImage}
+          onCropComplete={handleLogoCropComplete}
+          onCancel={() => {
+            setShowLogoCropper(false);
+            setLogoCropImage(null);
+          }}
+          aspectRatio={1}
+          cropShape="round"
+        />
       )}
 
     </div>

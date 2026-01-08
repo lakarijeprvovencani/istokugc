@@ -9,6 +9,7 @@ interface ImageCropperProps {
   onCropComplete: (croppedImage: string) => void;
   onCancel: () => void;
   aspectRatio?: number;
+  cropShape?: 'rect' | 'round';
 }
 
 // Create image element from URL
@@ -55,7 +56,8 @@ export default function ImageCropper({
   image, 
   onCropComplete, 
   onCancel,
-  aspectRatio = 3/4 // Portrait by default (good for cards)
+  aspectRatio = 3/4, // Portrait by default (good for cards)
+  cropShape = 'rect'
 }: ImageCropperProps) {
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -106,8 +108,8 @@ export default function ImageCropper({
             onCropChange={onCropChange}
             onZoomChange={onZoomChange}
             onCropComplete={onCropCompleteCallback}
-            cropShape="rect"
-            showGrid={true}
+            cropShape={cropShape}
+            showGrid={cropShape === 'rect'}
           />
         </div>
 
@@ -137,32 +139,62 @@ export default function ImageCropper({
           <div className="flex items-start gap-3 sm:gap-4">
             {/* Example photo */}
             <div className="flex-shrink-0">
-              <div className="w-16 h-22 sm:w-20 sm:h-28 rounded-lg overflow-hidden border-2 border-primary/30 shadow-md">
-                <img 
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=280&fit=crop&crop=face"
-                  alt="Primer fotografije"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span className="text-xs text-primary mt-1 block text-center">Primer ✓</span>
+              {cropShape === 'round' ? (
+                <>
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-primary/30 shadow-md bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                    <span className="text-2xl sm:text-3xl font-light text-primary">M</span>
+                  </div>
+                  <span className="text-xs text-primary mt-1 block text-center">Primer ✓</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-22 sm:w-20 sm:h-28 rounded-lg overflow-hidden border-2 border-primary/30 shadow-md">
+                    <img 
+                      src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=280&fit=crop&crop=face"
+                      alt="Primer fotografije"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <span className="text-xs text-primary mt-1 block text-center">Primer ✓</span>
+                </>
+              )}
             </div>
             
             {/* Recommendations */}
             <div className="flex-1">
               <p className="text-xs sm:text-sm font-medium mb-2">Preporučeni izgled:</p>
               <ul className="text-xs text-muted space-y-0.5 sm:space-y-1">
-                <li className="flex items-center gap-1.5">
-                  <span className="text-success">✓</span>
-                  Portrait orijentacija
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <span className="text-success">✓</span>
-                  Lice u gornjoj polovini
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <span className="text-success">✓</span>
-                  Dobro osvetljenje
-                </li>
+                {cropShape === 'round' ? (
+                  <>
+                    <li className="flex items-center gap-1.5">
+                      <span className="text-success">✓</span>
+                      Kvadratna slika (1:1)
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <span className="text-success">✓</span>
+                      Logo centriran
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <span className="text-success">✓</span>
+                      Čista pozadina
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li className="flex items-center gap-1.5">
+                      <span className="text-success">✓</span>
+                      Portrait orijentacija
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <span className="text-success">✓</span>
+                      Lice u gornjoj polovini
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <span className="text-success">✓</span>
+                      Dobro osvetljenje
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
           </div>

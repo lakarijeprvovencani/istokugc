@@ -144,6 +144,20 @@ function SuccessContent() {
           // Not critical - user can log in manually
         }
         
+        // Upload logo if provided
+        if (registrationData.logo && data.businessId) {
+          try {
+            await fetch(`/api/business/${data.businessId}/logo`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ logo: registrationData.logo }),
+            });
+          } catch (logoError) {
+            console.error('Error uploading logo:', logoError);
+            // Not critical - user can add logo later
+          }
+        }
+        
         // Update local state
         loginAsNewBusiness(data.businessId, data.companyName, 'active', plan || 'monthly');
         
