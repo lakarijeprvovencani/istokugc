@@ -400,21 +400,34 @@ export default function PosloviPage() {
                     {/* Description */}
                     <p className="text-sm text-muted mb-4 line-clamp-2 leading-relaxed">{job.description}</p>
                     
-                    {/* Tags */}
-                    <div className="flex flex-wrap items-center gap-2 mb-4">
-                      <span className="text-xs px-3 py-1.5 bg-primary/5 text-primary font-medium rounded-lg border border-primary/10">{job.category}</span>
-                      {job.platforms.slice(0, 3).map((platform) => (
-                        <span key={platform} className="text-xs px-3 py-1.5 bg-secondary rounded-lg text-muted">
-                          {platform}
-                        </span>
-                      ))}
-                      {job.platforms.length > 3 && (
-                        <span className="text-xs px-2 py-1.5 text-muted">+{job.platforms.length - 3}</span>
+                    {/* Tags with labels */}
+                    <div className="flex flex-wrap items-center gap-3 mb-4">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted uppercase tracking-wide">Kategorija:</span>
+                        <span className="text-xs px-3 py-1.5 bg-primary/5 text-primary font-medium rounded-lg border border-primary/10">{job.category}</span>
+                      </div>
+                      {job.platforms.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-muted uppercase tracking-wide">Platforma:</span>
+                          <div className="flex gap-1">
+                            {job.platforms.slice(0, 2).map((platform) => (
+                              <span key={platform} className="text-xs px-3 py-1.5 bg-secondary rounded-lg text-muted">
+                                {platform}
+                              </span>
+                            ))}
+                            {job.platforms.length > 2 && (
+                              <span className="text-xs px-2 py-1.5 text-muted">+{job.platforms.length - 2}</span>
+                            )}
+                          </div>
+                        </div>
                       )}
                       {job.experienceLevel && (
-                        <span className="text-xs px-3 py-1.5 bg-success/10 text-success font-medium rounded-lg">
-                          {getExperienceLabel(job.experienceLevel)}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-muted uppercase tracking-wide">Ekspertiza:</span>
+                          <span className="text-xs px-3 py-1.5 bg-success/10 text-success font-medium rounded-lg">
+                            {getExperienceLabel(job.experienceLevel)}
+                          </span>
+                        </div>
                       )}
                     </div>
                     

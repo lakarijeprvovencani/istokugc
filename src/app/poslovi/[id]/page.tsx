@@ -354,20 +354,33 @@ export default function JobDetailPage() {
             {/* Title */}
             <h1 className="text-2xl sm:text-3xl font-semibold mb-4">{job.title}</h1>
             
-            {/* Tags */}
-            <div className="flex flex-wrap gap-2">
-              <span className="px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-medium border border-primary/20">
-                {job.category}
-              </span>
-              {job.platforms.map((platform) => (
-                <span key={platform} className="px-4 py-2 bg-secondary rounded-xl text-sm">
-                  {platform}
+            {/* Tags with labels */}
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted uppercase tracking-wide">Kategorija:</span>
+                <span className="px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-medium border border-primary/20">
+                  {job.category}
                 </span>
-              ))}
+              </div>
+              {job.platforms.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted uppercase tracking-wide">Platforma:</span>
+                  <div className="flex gap-1">
+                    {job.platforms.map((platform) => (
+                      <span key={platform} className="px-4 py-2 bg-secondary rounded-xl text-sm">
+                        {platform}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {job.experienceLevel && (
-                <span className="px-4 py-2 bg-success/10 text-success rounded-xl text-sm font-medium">
-                  {getExperienceLabel(job.experienceLevel)}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted uppercase tracking-wide">Ekspertiza:</span>
+                  <span className="px-4 py-2 bg-success/10 text-success rounded-xl text-sm font-medium">
+                    {getExperienceLabel(job.experienceLevel)}
+                  </span>
+                </div>
               )}
               {job.duration && (
                 <span className="px-4 py-2 bg-secondary rounded-xl text-sm flex items-center gap-1.5">

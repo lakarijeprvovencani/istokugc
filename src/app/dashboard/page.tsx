@@ -75,11 +75,13 @@ function CreatorDashboard() {
     fetchSavedJobs();
   }, [currentUser.creatorId]);
   
-  // Read tab from URL on mount and mark as seen
+  // Read tab and subtab from URL on mount and mark as seen
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');
+      const subtab = urlParams.get('subtab');
+      
       if (tab === 'reviews' || tab === 'poslovi' || tab === 'poruke') {
         setActiveTab(tab);
         // Also mark as viewed if coming directly to this tab
@@ -89,10 +91,25 @@ function CreatorDashboard() {
         } else if (tab === 'poslovi' && currentUser.creatorId) {
           localStorage.setItem(`lastViewed_applications_${currentUser.creatorId}`, now);
           localStorage.setItem(`lastViewed_invitations_${currentUser.creatorId}`, now);
+          
+          // Restore subtab
+          if (subtab && ['prijave', 'pozivi', 'angazovan', 'zavrseno', 'odbijeno', 'sacuvano'].includes(subtab)) {
+            setCreatorJobsFilter(subtab as any);
+          }
         }
       }
     }
   }, [currentUser.creatorId]);
+  
+  // Wrapper to update URL when subtab changes
+  const handleCreatorJobsFilterChange = (filter: 'prijave' | 'pozivi' | 'angazovan' | 'zavrseno' | 'odbijeno' | 'sacuvano') => {
+    setCreatorJobsFilter(filter);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('subtab', filter);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
   
   // State to track pending invitations count for badge clearing
   const [pendingInvitationsNewCount, setPendingInvitationsNewCount] = useState(0);
@@ -1669,12 +1686,9 @@ function CreatorDashboard() {
               {/* Success rate */}
               {myApplications.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-border">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Stopa prihvatanja:</span>
-                    <span className="font-medium text-success">
-                      {Math.round((myApplications.filter(a => ['accepted', 'engaged', 'completed'].includes(a.status)).length / myApplications.length) * 100)}%
-                    </span>
-                  </div>
+                  <p className="text-sm text-muted">
+                    Stopa prihvatanja: <span className="font-medium text-success">{Math.round((myApplications.filter(a => ['accepted', 'engaged', 'completed'].includes(a.status)).length / myApplications.length) * 100)}%</span>
+                  </p>
                 </div>
               )}
             </div>
@@ -1831,7 +1845,7 @@ function CreatorDashboard() {
             {/* Sub-filter buttons */}
             <div className="flex flex-wrap gap-2 mb-6">
               <button
-                onClick={() => setCreatorJobsFilter('prijave')}
+                onClick={() => handleCreatorJobsFilterChange('prijave')}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                   creatorJobsFilter === 'prijave'
                     ? 'bg-primary text-white'
@@ -1846,7 +1860,7 @@ function CreatorDashboard() {
                 </span>
               </button>
               <button
-                onClick={() => setCreatorJobsFilter('pozivi')}
+                onClick={() => handleCreatorJobsFilterChange('pozivi')}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                   creatorJobsFilter === 'pozivi'
                     ? 'bg-purple-600 text-white'
@@ -1861,7 +1875,7 @@ function CreatorDashboard() {
                 </span>
               </button>
               <button
-                onClick={() => setCreatorJobsFilter('angazovan')}
+                onClick={() => handleCreatorJobsFilterChange('angazovan')}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                   creatorJobsFilter === 'angazovan'
                     ? 'bg-blue-600 text-white'
@@ -1876,7 +1890,7 @@ function CreatorDashboard() {
                 </span>
               </button>
               <button
-                onClick={() => setCreatorJobsFilter('zavrseno')}
+                onClick={() => handleCreatorJobsFilterChange('zavrseno')}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                   creatorJobsFilter === 'zavrseno'
                     ? 'bg-success text-white'
@@ -1891,7 +1905,7 @@ function CreatorDashboard() {
                 </span>
               </button>
               <button
-                onClick={() => setCreatorJobsFilter('odbijeno')}
+                onClick={() => handleCreatorJobsFilterChange('odbijeno')}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                   creatorJobsFilter === 'odbijeno'
                     ? 'bg-slate-600 text-white'
@@ -1906,7 +1920,7 @@ function CreatorDashboard() {
                 </span>
               </button>
               <button
-                onClick={() => setCreatorJobsFilter('sacuvano')}
+                onClick={() => handleCreatorJobsFilterChange('sacuvano')}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                   creatorJobsFilter === 'sacuvano'
                     ? 'bg-amber-500 text-white'
@@ -2054,7 +2068,7 @@ function CreatorDashboard() {
                                 {saved.job?.status === 'open' ? 'Otvoren' : 'Zatvoren'}
                               </span>
                             </div>
-                            <p className="text-sm text-muted">{saved.job?.businessName} • {saved.job?.category}</p>
+                            <p className="text-sm text-muted">{saved.job?.businessName} • <span className="text-[10px] uppercase tracking-wide">Kategorija:</span> {saved.job?.category}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
                             {saved.job?.budgetMin || saved.job?.budgetMax ? (
