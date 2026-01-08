@@ -195,57 +195,13 @@ export default function PosloviPage() {
     }
   };
 
-  // Show login prompt to guests
-  if (isHydrated && !isLoggedIn) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-secondary/30">
-        <div className="max-w-md mx-auto px-6 text-center">
-          <div className="bg-white rounded-3xl p-10 border border-border shadow-sm">
-            <div className="text-5xl mb-6">💼</div>
-            <h1 className="text-2xl font-light mb-3">Prijavi se</h1>
-            <p className="text-muted mb-8">
-              Moraš biti prijavljen da bi pregledao poslove.
-            </p>
-            <Link 
-              href="/login"
-              className="block w-full py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors mb-4"
-            >
-              Prijavi se
-            </Link>
-            <Link 
-              href="/register"
-              className="block w-full py-4 border border-border rounded-xl font-medium hover:bg-secondary transition-colors"
-            >
-              Registruj se
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Only business, creator and admin can see jobs
-  if (isHydrated && currentUser.type !== 'business' && currentUser.type !== 'creator' && currentUser.type !== 'admin') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-secondary/30">
-        <div className="max-w-md mx-auto px-6 text-center">
-          <div className="bg-white rounded-3xl p-10 border border-border shadow-sm">
-            <div className="text-5xl mb-6">🔒</div>
-            <h1 className="text-2xl font-light mb-3">Pristup ograničen</h1>
-            <p className="text-muted mb-8">
-              Poslovi su dostupni samo za kreatore i biznise.
-            </p>
-            <Link 
-              href="/"
-              className="block w-full py-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
-            >
-              Nazad na početnu
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Guest mode - show preview of 3 jobs
+  const isGuest = isHydrated && !isLoggedIn;
+  const GUEST_PREVIEW_COUNT = 3;
+  
+  // Jobs to display (limited for guests)
+  const displayJobs = isGuest ? filteredJobs.slice(0, GUEST_PREVIEW_COUNT) : paginatedJobs;
+  const remainingJobsCount = isGuest ? Math.max(0, filteredJobs.length - GUEST_PREVIEW_COUNT) : 0;
 
   return (
     <div className="min-h-screen">
@@ -257,7 +213,7 @@ export default function PosloviPage() {
               <h1 className="text-4xl lg:text-5xl font-light mb-4">Poslovi</h1>
               <p className="text-muted text-lg">Pronađi savršen projekat za sebe</p>
             </div>
-            {currentUser.type === 'business' && (
+            {!isGuest && currentUser.type === 'business' && (
               <Link
                 href="/dashboard?tab=poslovi&action=new"
                 className="hidden sm:flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
@@ -385,7 +341,7 @@ export default function PosloviPage() {
                 </select>
                 
                 {/* Mobile add job button */}
-                {currentUser.type === 'business' && (
+                {!isGuest && currentUser.type === 'business' && (
                   <Link
                     href="/dashboard?tab=poslovi&action=new"
                     className="sm:hidden flex items-center justify-center gap-2 py-3 px-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
@@ -407,7 +363,7 @@ export default function PosloviPage() {
               </div>
             ) : filteredJobs.length > 0 ? (
               <div className="space-y-4">
-                {paginatedJobs.map((job) => (
+                {displayJobs.map((job) => (
                   <Link 
                     key={job.id}
                     href={`/poslovi/${job.id}`}
@@ -486,8 +442,67 @@ export default function PosloviPage() {
                   </Link>
                 ))}
                 
-                {/* Pagination */}
-                {totalPages > 1 && (
+                {/* Guest CTA - Show blurred preview and call to action */}
+                {isGuest && remainingJobsCount > 0 && (
+                  <div className="relative mt-6">
+                    {/* Blurred preview of more jobs */}
+                    <div className="space-y-4 blur-sm pointer-events-none select-none" aria-hidden="true">
+                      {filteredJobs.slice(GUEST_PREVIEW_COUNT, GUEST_PREVIEW_COUNT + 2).map((job) => (
+                        <div 
+                          key={job.id}
+                          className="bg-white rounded-2xl border border-border p-5 sm:p-6"
+                        >
+                          <div className="flex items-start justify-between gap-4 mb-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5"></div>
+                              <div>
+                                <div className="h-5 w-48 bg-gray-200 rounded mb-1"></div>
+                                <div className="h-4 w-32 bg-gray-100 rounded"></div>
+                              </div>
+                            </div>
+                            <div className="h-5 w-20 bg-gray-200 rounded"></div>
+                          </div>
+                          <div className="h-4 w-full bg-gray-100 rounded mb-2"></div>
+                          <div className="h-4 w-3/4 bg-gray-100 rounded"></div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* CTA overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-white via-white/95 to-transparent">
+                      <div className="text-center px-6 py-8 max-w-md">
+                        <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-xl font-semibold mb-2">
+                          Još {remainingJobsCount} {remainingJobsCount === 1 ? 'posao' : remainingJobsCount < 5 ? 'posla' : 'poslova'} čeka
+                        </h3>
+                        <p className="text-muted mb-6">
+                          Registruj se kao kreator da vidiš sve poslove i počneš da zarađuješ
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                          <Link 
+                            href="/register/kreator"
+                            className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
+                          >
+                            Registruj se kao kreator
+                          </Link>
+                          <Link 
+                            href="/login"
+                            className="px-6 py-3 border border-border rounded-xl font-medium hover:bg-secondary transition-colors"
+                          >
+                            Prijavi se
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pagination - only for logged in users */}
+                {!isGuest && totalPages > 1 && (
                   <div className="flex items-center justify-center gap-2 pt-8">
                     <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}

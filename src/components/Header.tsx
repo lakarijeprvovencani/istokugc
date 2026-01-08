@@ -140,15 +140,13 @@ export default function Header() {
               Kreatori
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
             </Link>
-            {isLoggedIn && (currentUser.type === 'business' || currentUser.type === 'creator' || currentUser.type === 'admin') && (
-              <Link 
-                href="/poslovi" 
-                className="relative text-muted hover:text-foreground transition-colors text-sm font-medium group"
-              >
-                Poslovi
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
-              </Link>
-            )}
+            <Link 
+              href="/poslovi" 
+              className="relative text-muted hover:text-foreground transition-colors text-sm font-medium group"
+            >
+              Poslovi
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
+            </Link>
           </nav>
 
           {/* Desktop Auth buttons */}
@@ -260,20 +258,18 @@ export default function Header() {
                 </span>
                 <span className="font-medium">Kreatori</span>
               </Link>
-              {isLoggedIn && (currentUser.type === 'business' || currentUser.type === 'creator' || currentUser.type === 'admin') && (
-                <Link 
-                  href="/poslovi"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-3 py-3 text-foreground hover:bg-secondary rounded-xl transition-colors"
-                >
-                  <span className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                  </span>
-                  <span className="font-medium">Poslovi</span>
-                </Link>
-              )}
+              <Link 
+                href="/poslovi"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-3 text-foreground hover:bg-secondary rounded-xl transition-colors"
+              >
+                <span className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </span>
+                <span className="font-medium">Poslovi</span>
+              </Link>
             </div>
             
             {/* Divider */}
