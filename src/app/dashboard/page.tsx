@@ -56,6 +56,25 @@ function CreatorDashboard() {
   const [savedJobs, setSavedJobs] = useState<any[]>([]);
   const [isLoadingSavedJobs, setIsLoadingSavedJobs] = useState(false);
   
+  // Fetch saved jobs on mount
+  useEffect(() => {
+    const fetchSavedJobs = async () => {
+      if (!currentUser.creatorId) return;
+      
+      try {
+        const response = await fetch(`/api/saved-jobs?creatorId=${currentUser.creatorId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSavedJobs(data.savedJobs || []);
+        }
+      } catch (error) {
+        console.error('Error fetching saved jobs:', error);
+      }
+    };
+    
+    fetchSavedJobs();
+  }, [currentUser.creatorId]);
+  
   // Read tab from URL on mount and mark as seen
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1887,30 +1906,14 @@ function CreatorDashboard() {
                 </span>
               </button>
               <button
-                onClick={() => {
-                  setCreatorJobsFilter('sacuvano');
-                  // Fetch saved jobs when tab is clicked
-                  if (currentUser.creatorId && savedJobs.length === 0) {
-                    setIsLoadingSavedJobs(true);
-                    fetch(`/api/saved-jobs?creatorId=${currentUser.creatorId}`)
-                      .then(res => res.json())
-                      .then(data => setSavedJobs(data.savedJobs || []))
-                      .catch(console.error)
-                      .finally(() => setIsLoadingSavedJobs(false));
-                  }
-                }}
+                onClick={() => setCreatorJobsFilter('sacuvano')}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                   creatorJobsFilter === 'sacuvano'
                     ? 'bg-amber-500 text-white'
                     : 'bg-white border border-border text-muted hover:bg-secondary'
                 }`}
               >
-                <span className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4" fill={creatorJobsFilter === 'sacuvano' ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                  </svg>
-                  Sačuvano
-                </span>
+                Sačuvano
                 <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
                   creatorJobsFilter === 'sacuvano' ? 'bg-white/20' : 'bg-secondary'
                 }`}>
