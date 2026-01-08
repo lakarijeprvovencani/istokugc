@@ -15,17 +15,11 @@ const supabase = createClient(
 );
 
 export async function POST(request: NextRequest) {
-  console.log('🔔 Webhook received!');
-  
   try {
     const body = await request.text();
     const signature = request.headers.get('stripe-signature');
 
-    console.log('Webhook signature present:', !!signature);
-    console.log('Webhook secret configured:', !!webhookSecret);
-
     if (!signature) {
-      console.error('❌ No signature provided');
       return NextResponse.json(
         { error: 'No signature provided' },
         { status: 400 }
@@ -36,17 +30,13 @@ export async function POST(request: NextRequest) {
 
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-      console.log('✅ Webhook signature verified');
     } catch (err: any) {
-      console.error('❌ Webhook signature verification failed:', err.message);
+      console.error('Webhook signature verification failed:', err.message);
       return NextResponse.json(
-        { error: 'Invalid signature', details: err.message },
+        { error: 'Invalid signature' },
         { status: 400 }
       );
     }
-
-    console.log('📨 Event type:', event.type);
-    console.log('📨 Event ID:', event.id);
 
     // Handle different event types
     switch (event.type) {
@@ -97,20 +87,16 @@ export async function POST(request: NextRequest) {
       // Pretplata otkazana
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
-        console.log('🗑️ Processing subscription.deleted for:', subscription.id);
         
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('businesses')
           .update({
             subscription_status: 'expired',
           })
-          .eq('stripe_subscription_id', subscription.id)
-          .select();
+          .eq('stripe_subscription_id', subscription.id);
 
         if (error) {
-          console.error('❌ Error updating cancelled subscription:', error);
-        } else {
-          console.log(`✅ Subscription cancelled: ${subscription.id}`, data);
+          console.error('Error updating cancelled subscription:', error);
         }
         break;
       }
@@ -118,42 +104,31 @@ export async function POST(request: NextRequest) {
       // Pretplata ažurirana
       case 'customer.subscription.updated': {
         const subscription = event.data.object as any;
-        console.log('🔄 Processing subscription.updated for:', subscription.id);
-        console.log('🔄 Subscription status:', subscription.status);
-        console.log('🔄 Cancel at period end:', subscription.cancel_at_period_end);
         
         if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
-          console.log('🔄 Setting status to expired');
-          const { data, error } = await supabase
+          const { error } = await supabase
             .from('businesses')
             .update({
               subscription_status: 'expired',
             })
-            .eq('stripe_subscription_id', subscription.id)
-            .select();
+            .eq('stripe_subscription_id', subscription.id);
 
           if (error) {
-            console.error('❌ Error updating subscription status:', error);
-          } else {
-            console.log('✅ Updated to expired:', data);
+            console.error('Error updating subscription status:', error);
           }
         } else if (subscription.status === 'active') {
           const expiresAt = new Date(subscription.current_period_end * 1000);
-          console.log('🔄 Subscription still active, expires:', expiresAt);
           
-          const { data, error } = await supabase
+          const { error } = await supabase
             .from('businesses')
             .update({
               subscription_status: 'active',
               expires_at: expiresAt.toISOString(),
             })
-            .eq('stripe_subscription_id', subscription.id)
-            .select();
+            .eq('stripe_subscription_id', subscription.id);
 
           if (error) {
-            console.error('❌ Error updating subscription:', error);
-          } else {
-            console.log('✅ Updated subscription:', data);
+            console.error('Error updating subscription:', error);
           }
         }
         break;

@@ -51,16 +51,11 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898').trim();
 
-    console.log('Creating portal session for customer:', business.stripe_customer_id);
-    console.log('Return URL:', `${baseUrl}/dashboard`);
-
     // Kreiraj Customer Portal sesiju
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: business.stripe_customer_id,
       return_url: `${baseUrl}/dashboard`,
     });
-
-    console.log('Portal session created:', portalSession.url);
 
     return NextResponse.json({
       url: portalSession.url,
