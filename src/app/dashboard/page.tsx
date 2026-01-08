@@ -4982,7 +4982,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                 </div>
               </div>
               
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-5">
                 {/* Title */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Naziv posla *</label>
@@ -4992,7 +4992,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                     value={formData.title}
                     onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                     placeholder="npr. UGC video za lansiranje novog proizvoda"
-                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary"
+                    className="w-full h-12 px-4 border border-border rounded-xl focus:outline-none focus:border-primary text-sm"
                   />
                 </div>
                 
@@ -5005,44 +5005,44 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                     value={formData.description}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="Opišite detaljno šta tražite od kreatora..."
-                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary resize-none"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary resize-none text-sm"
                   />
                 </div>
                 
-                {/* Category */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Kategorija *</label>
-                  <select
-                    required
-                    value={formData.category}
-                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white"
-                  >
-                    <option value="">Izaberi kategoriju</option>
-                    {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                {/* Platforms */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Platforme</label>
-                  <div className="flex flex-wrap gap-2">
-                    {['Instagram', 'TikTok', 'YouTube'].map(platform => (
-                      <button
-                        key={platform}
-                        type="button"
-                        onClick={() => handleTogglePlatform(platform)}
-                        className={`px-4 py-2 rounded-xl text-sm transition-colors ${
-                          formData.platforms.includes(platform)
-                            ? 'bg-primary text-white'
-                            : 'bg-secondary hover:bg-accent'
-                        }`}
-                      >
-                        {platform}
-                      </button>
-                    ))}
+                {/* Category & Platforms in one row */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Kategorija *</label>
+                    <select
+                      required
+                      value={formData.category}
+                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full h-12 px-4 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm appearance-none"
+                    >
+                      <option value="">Izaberi kategoriju</option>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Platforme</label>
+                    <div className="flex gap-2 h-12 items-center">
+                      {['Instagram', 'TikTok', 'YouTube'].map(platform => (
+                        <button
+                          key={platform}
+                          type="button"
+                          onClick={() => handleTogglePlatform(platform)}
+                          className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                            formData.platforms.includes(platform)
+                              ? 'bg-primary text-white'
+                              : 'bg-secondary hover:bg-accent'
+                          }`}
+                        >
+                          {platform}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 
@@ -5053,7 +5053,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                     <select
                       value={formData.budgetType}
                       onChange={(e) => setFormData(prev => ({ ...prev, budgetType: e.target.value }))}
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm"
+                      className="w-full h-12 px-4 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm appearance-none"
                     >
                       <option value="fixed">Fiksno</option>
                       <option value="hourly">Po satu</option>
@@ -5063,26 +5063,26 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       value={formData.budgetMin}
                       onChange={(e) => setFormData(prev => ({ ...prev, budgetMin: e.target.value }))}
                       placeholder="Min (€)"
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary text-sm"
+                      className="w-full h-12 px-4 border border-border rounded-xl focus:outline-none focus:border-primary text-sm"
                     />
                     <input
                       type="number"
                       value={formData.budgetMax}
                       onChange={(e) => setFormData(prev => ({ ...prev, budgetMax: e.target.value }))}
                       placeholder="Max (€)"
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary text-sm"
+                      className="w-full h-12 px-4 border border-border rounded-xl focus:outline-none focus:border-primary text-sm"
                     />
                   </div>
                 </div>
                 
                 {/* Duration & Experience */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Trajanje</label>
                     <select
                       value={formData.duration}
                       onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm"
+                      className="w-full h-12 px-4 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm appearance-none"
                     >
                       <option value="">Izaberi trajanje</option>
                       <option value="Manje od nedelju dana">Manje od nedelju dana</option>
@@ -5097,7 +5097,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                     <select
                       value={formData.experienceLevel}
                       onChange={(e) => setFormData(prev => ({ ...prev, experienceLevel: e.target.value }))}
-                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm"
+                      className="w-full h-12 px-4 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm appearance-none"
                     >
                       <option value="">Bilo koji nivo</option>
                       <option value="beginner">Početnik</option>
@@ -5117,7 +5117,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                     value={formData.applicationDeadline}
                     onChange={(e) => setFormData(prev => ({ ...prev, applicationDeadline: e.target.value }))}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm"
+                    className="w-full h-12 px-4 border border-border rounded-xl focus:outline-none focus:border-primary bg-white text-sm"
                   />
                   <p className="text-xs text-muted mt-1.5">
                     Nakon ovog datuma prijave će biti zatvorene. Ostavite prazno ako nema roka.
