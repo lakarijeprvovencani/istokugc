@@ -23,11 +23,6 @@ function SuccessContent() {
     hasProcessed.current = true;
     
     const processPayment = async () => {
-      // Debug: check localStorage
-      const debugData = localStorage.getItem('businessRegistration');
-      console.log('Success page - localStorage data:', debugData ? 'EXISTS' : 'NOT FOUND');
-      console.log('Success page - localStorage content:', debugData);
-      
       try {
         // Proveri da li je obnova pretplate (postojeći korisnik)
         const renewBusinessId = sessionStorage.getItem('renewBusinessId');

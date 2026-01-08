@@ -14,17 +14,6 @@ export async function POST(request: NextRequest) {
     const { plan } = body;
 
     const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898').trim();
-    
-    // Debug: log environment variables (without exposing secrets)
-    console.log('Stripe checkout debug:', {
-      plan,
-      hasSecretKey: !!process.env.STRIPE_SECRET_KEY,
-      monthlyPriceId: process.env.STRIPE_PRICE_MONTHLY ? 'SET' : 'NOT SET',
-      yearlyPriceId: process.env.STRIPE_PRICE_YEARLY ? 'SET' : 'NOT SET',
-      baseUrl: baseUrl,
-      baseUrlLength: baseUrl.length,
-      successUrl: `${baseUrl}/checkout/success?plan=${plan}&session_id={CHECKOUT_SESSION_ID}`,
-    });
 
     if (!plan || !['monthly', 'yearly'].includes(plan)) {
       return NextResponse.json(

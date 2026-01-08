@@ -14,11 +14,6 @@ function CheckoutContent() {
 
   useEffect(() => {
     const redirectToStripe = async () => {
-      // Debug: check if registration data exists
-      const savedData = localStorage.getItem('businessRegistration');
-      console.log('Checkout page - localStorage data:', savedData ? 'EXISTS' : 'NOT FOUND');
-      console.log('Checkout page - localStorage content:', savedData);
-      
       if (!plan || !['monthly', 'yearly'].includes(plan)) {
         setError('Neispravan plan');
         setIsLoading(false);
