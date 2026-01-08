@@ -203,7 +203,7 @@ export async function PUT(request: Request) {
     // 🔒 BEZBEDNOSNA PROVERA: Dohvati poziv i proveri vlasništvo
     const { data: existingInvitation } = await supabase
       .from('job_invitations')
-      .select('creator_id')
+      .select('creator_id, job_id, business_id')
       .eq('id', invitationId)
       .single();
     
@@ -229,6 +229,9 @@ export async function PUT(request: Request) {
       .eq('id', invitationId)
       .select()
       .single();
+    
+    // Merge with existing data to ensure we have job_id
+    const fullInvitation = { ...existingInvitation, ...invitation };
 
     if (error) {
       console.error('Error updating invitation:', error);
@@ -236,20 +239,22 @@ export async function PUT(request: Request) {
     }
 
     // If accepted, create a job application with 'engaged' status and close the job
-    if (status === 'accepted' && invitation) {
+    if (status === 'accepted' && fullInvitation.job_id) {
+      console.log('Accepting invitation for job:', fullInvitation.job_id);
+      
       // Get job details for the application
       const { data: job } = await supabase
         .from('jobs')
         .select('budget_min, budget_max')
-        .eq('id', invitation.job_id)
+        .eq('id', fullInvitation.job_id)
         .single();
       
       // Create application with 'engaged' status (directly engaged, skipping accepted)
       const { data: newApp, error: appError } = await supabase
         .from('job_applications')
         .insert({
-          job_id: invitation.job_id,
-          creator_id: invitation.creator_id,
+          job_id: fullInvitation.job_id,
+          creator_id: fullInvitation.creator_id,
           status: 'engaged',
           cover_letter: `Prihvaćen poziv na posao`,
           proposed_price: job?.budget_min || job?.budget_max || 0,
@@ -259,26 +264,30 @@ export async function PUT(request: Request) {
 
       if (appError) {
         console.error('Error creating application from invitation:', appError);
+      } else {
+        console.log('Created engaged application:', newApp?.id);
       }
       
       // Close the job (move to "U toku")
       const { error: jobError } = await supabase
         .from('jobs')
         .update({ status: 'closed' })
-        .eq('id', invitation.job_id);
+        .eq('id', fullInvitation.job_id);
         
       if (jobError) {
         console.error('Error closing job:', jobError);
+      } else {
+        console.log('Job closed successfully:', fullInvitation.job_id);
       }
       
       // Return the application ID so frontend can use it for chat
       return NextResponse.json({ 
-        invitation,
+        invitation: fullInvitation,
         applicationId: newApp?.id || null 
       });
     }
 
-    return NextResponse.json({ invitation });
+    return NextResponse.json({ invitation: fullInvitation });
   } catch (error) {
     console.error('Error in PUT job-invitations:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
