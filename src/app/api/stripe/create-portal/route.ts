@@ -49,7 +49,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898';
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898').trim();
+
+    console.log('Creating portal session for customer:', business.stripe_customer_id);
+    console.log('Return URL:', `${baseUrl}/dashboard`);
 
     // Kreiraj Customer Portal sesiju
     const portalSession = await stripe.billingPortal.sessions.create({
@@ -57,14 +60,25 @@ export async function POST(request: NextRequest) {
       return_url: `${baseUrl}/dashboard`,
     });
 
+    console.log('Portal session created:', portalSession.url);
+
     return NextResponse.json({
       url: portalSession.url,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating portal session:', error);
+    console.error('Stripe error details:', {
+      message: error.message,
+      type: error.type,
+      code: error.code,
+      param: error.param,
+    });
+    
+    // Return more specific error message
+    const errorMessage = error.message || 'Failed to create portal session';
     return NextResponse.json(
-      { error: 'Failed to create portal session' },
+      { error: errorMessage, details: error.code || error.type },
       { status: 500 }
     );
   }
