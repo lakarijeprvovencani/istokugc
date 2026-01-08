@@ -477,10 +477,10 @@ export default function PosloviPage() {
                           </svg>
                         </div>
                         <h3 className="text-xl font-semibold mb-2">
-                          Još {remainingJobsCount} {remainingJobsCount === 1 ? 'posao' : remainingJobsCount < 5 ? 'posla' : 'poslova'} čeka
+                          Još poslova čeka na tebe
                         </h3>
                         <p className="text-muted mb-6">
-                          Registruj se kao kreator da vidiš sve poslove i počneš da zarađuješ
+                          Registruj se kao kreator da vidiš sve dostupne poslove i počneš da zarađuješ
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 justify-center">
                           <Link 
