@@ -4399,12 +4399,22 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
         <button
           onClick={() => setJobsFilter('active')}
-          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap relative ${
             jobsFilter === 'active'
               ? 'bg-primary text-white'
               : 'bg-white border border-border text-muted hover:bg-secondary'
           }`}
         >
+          {/* Pulsing dot when there are new applications */}
+          {Array.from(jobsWithNewApplications).some(jobId => {
+            const job = jobs.find(j => j.id === jobId);
+            return job && (job.status === 'open' || job.status === 'pending');
+          }) && (
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+            </span>
+          )}
           Aktivni
           <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
             jobsFilter === 'active' ? 'bg-white/20' : 'bg-secondary'
@@ -4493,8 +4503,20 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
           }
         }
         
-        // Sort based on jobsSort state, but put withdrawn jobs first in archive
+        // Sort based on jobsSort state, with priority for jobs with activity
         filteredJobs = filteredJobs.sort((a, b) => {
+          // In active filter, jobs with new applications come FIRST
+          if (jobsFilter === 'active') {
+            const aHasNew = jobsWithNewApplications.has(a.id);
+            const bHasNew = jobsWithNewApplications.has(b.id);
+            if (aHasNew && !bHasNew) return -1;
+            if (!aHasNew && bHasNew) return 1;
+            // If both have or both don't have, sort by number of pending applications
+            const aCount = applicationCounts[a.id] || 0;
+            const bCount = applicationCounts[b.id] || 0;
+            if (aCount !== bCount) return bCount - aCount;
+          }
+          
           // In archive, withdrawn jobs come first
           if (jobsFilter === 'archive' && archiveFilter === 'all') {
             const aWithdrawn = withdrawnJobs.has(a.id);
@@ -4518,6 +4540,27 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                 ? 'border-amber-400 border-2 ring-2 ring-amber-100' 
                 : 'border-border'
             }`}>
+              {/* Banner for new applications */}
+              {jobsWithNewApplications.has(job.id) && jobsFilter === 'active' && (applicationCounts[job.id] || 0) > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4 flex items-center gap-2 animate-pulse">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                  </span>
+                  <span className="text-sm text-amber-700 font-medium">
+                    {applicationCounts[job.id] === 1 
+                      ? '1 nova prijava čeka tvoj odgovor!' 
+                      : `${applicationCounts[job.id]} nove prijave čekaju tvoj odgovor!`}
+                  </span>
+                  <button 
+                    onClick={() => setViewingJobApplications(job.id)}
+                    className="ml-auto text-xs font-medium text-amber-700 hover:text-amber-900 underline"
+                  >
+                    Pogledaj →
+                  </button>
+                </div>
+              )}
+              
               {/* Warning banner for withdrawn */}
               {withdrawnJobs.has(job.id) && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
