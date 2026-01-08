@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/jobs - Kreiraj novi posao
-// ZAŠTIĆENO: Samo ulogovani biznisi mogu kreirati poslove
+// ZAŠTIĆENO: Samo ulogovani biznisi SA AKTIVNOM PRETPLATOM mogu kreirati poslove
 export async function POST(request: NextRequest) {
   try {
     // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
@@ -173,6 +173,25 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    
+    // 🔒 BEZBEDNOSNA PROVERA: Biznis mora imati aktivnu pretplatu
+    if (user?.role === 'business' && !isAdmin) {
+      const { data: business } = await supabase
+        .from('businesses')
+        .select('subscription_status, expires_at')
+        .eq('id', businessId)
+        .single();
+      
+      const hasAccess = business?.subscription_status === 'active' || 
+        (business?.expires_at && new Date(business.expires_at) > new Date());
+      
+      if (!hasAccess) {
+        return NextResponse.json(
+          { error: 'Potrebna je aktivna pretplata za kreiranje poslova' },
+          { status: 403 }
+        );
+      }
+    }
 
     // If admin creates job, it's automatically approved ('open')
     // If business creates job, it needs approval ('pending')
