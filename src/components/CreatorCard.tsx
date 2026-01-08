@@ -3,16 +3,31 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useRef, useEffect } from 'react';
-import { Creator } from '@/lib/mockData';
-import { useDemo } from '@/context/DemoContext';
+
+interface Creator {
+  id: string;
+  name: string;
+  photo: string | null;
+  categories: string[];
+  platforms: string[];
+  languages: string[];
+  location: string;
+  bio: string;
+  priceFrom: number;
+  rating?: number;
+  totalReviews?: number;
+  status?: string;
+  email?: string;
+  approved?: boolean;
+}
 
 interface CreatorCardProps {
   creator: Creator;
-  priority?: boolean; // For above-the-fold images
+  priority?: boolean;
+  userType?: 'creator' | 'business' | 'admin' | null;
 }
 
-export default function CreatorCard({ creator, priority = false }: CreatorCardProps) {
-  const { currentUser } = useDemo();
+export default function CreatorCard({ creator, priority = false, userType }: CreatorCardProps) {
   const [showCategoriesTooltip, setShowCategoriesTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const [hoveredPlatform, setHoveredPlatform] = useState<string | null>(null);
@@ -20,14 +35,14 @@ export default function CreatorCard({ creator, priority = false }: CreatorCardPr
   const badgeRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const platformRefs = useRef<{ [key: string]: HTMLSpanElement | null }>({});
-  // Admin and paid business can see contact info
-  // Admin and business users can see contact info (all business users have active subscription)
-  const canSeeContact = currentUser.type === 'admin' || currentUser.type === 'business';
-  const isAdmin = currentUser.type === 'admin';
+  
+  // Admin and business can see contact info
+  const canSeeContact = userType === 'admin' || userType === 'business';
+  const isAdmin = userType === 'admin';
   
   // Use rating directly from the creator object (from Supabase)
-  const averageRating = (creator as any).rating || 0;
-  const totalReviews = (creator as any).totalReviews || 0;
+  const averageRating = creator.rating || 0;
+  const totalReviews = creator.totalReviews || 0;
   
   // Determine status for display
   const status = creator.status || (creator.approved ? 'approved' : 'pending');
@@ -37,7 +52,7 @@ export default function CreatorCard({ creator, priority = false }: CreatorCardPr
     if (showCategoriesTooltip && badgeRef.current) {
       const rect = badgeRef.current.getBoundingClientRect();
       setTooltipPosition({
-        top: rect.top - 10, // Position above the badge
+        top: rect.top - 10,
         left: rect.left,
       });
     }
@@ -48,8 +63,8 @@ export default function CreatorCard({ creator, priority = false }: CreatorCardPr
     if (hoveredPlatform && platformRefs.current[hoveredPlatform]) {
       const rect = platformRefs.current[hoveredPlatform]!.getBoundingClientRect();
       setPlatformTooltipPosition({
-        top: rect.top - 35, // Position above the icon
-        left: rect.left + rect.width / 2, // Center horizontally
+        top: rect.top - 35,
+        left: rect.left + rect.width / 2,
       });
     }
   }, [hoveredPlatform]);
@@ -237,8 +252,8 @@ export default function CreatorCard({ creator, priority = false }: CreatorCardPr
             })}
           </div>
 
-          {/* Contact info (only for admin and paid businesses) */}
-          {canSeeContact && (
+          {/* Contact info (only for admin and businesses) */}
+          {canSeeContact && creator.email && (
             <div className="hidden sm:block mt-4 pt-4 border-t border-border">
               <p className="text-xs text-muted truncate">
                 📧 {creator.email}

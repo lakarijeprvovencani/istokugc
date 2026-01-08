@@ -4,17 +4,48 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { categories, platforms, languages } from '@/lib/mockData';
 import CreatorCard from '@/components/CreatorCard';
-import { useDemo } from '@/context/DemoContext';
-import { generateReviewStats } from '@/types/review';
+import { useSupabaseUser } from '@/hooks/useSupabaseUser';
+
+interface Creator {
+  id: string;
+  name: string;
+  photo: string | null;
+  categories: string[];
+  platforms: string[];
+  languages: string[];
+  location: string;
+  bio: string;
+  priceFrom: number;
+  rating: number;
+  totalReviews: number;
+  profileViews: number;
+  status: string;
+  email: string;
+  phone: string | null;
+  instagram: string | null;
+  tiktok: string | null;
+  youtube: string | null;
+  website: string | null;
+  niches: string[];
+  portfolio: any[];
+  createdAt: string;
+  approved?: boolean;
+}
 
 export default function KreatoriPage() {
-  const { currentUser, isLoggedIn, getCreators, getReviewsForCreator, getOwnCreatorStatus } = useDemo();
+  const { user, userData, creatorProfile, isLoading: authLoading } = useSupabaseUser();
   
-  // Get creator status for pending check
-  const creatorStatus = getOwnCreatorStatus();
+  // State for creators from API
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [isLoadingCreators, setIsLoadingCreators] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // Get creators from context (filtered by status for non-admins)
-  const allCreators = getCreators(currentUser.type === 'admin');
+  // Determine user type
+  const userType = userData?.role || null;
+  const isLoggedIn = !!user;
+  const isAdmin = userType === 'admin';
+  
+  // Filter states
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedPlatform, setSelectedPlatform] = useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
@@ -22,7 +53,43 @@ export default function KreatoriPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [minRating, setMinRating] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('');
-  const [showFilters, setShowFilters] = useState<boolean>(true); // Visible by default on desktop
+  const [showFilters, setShowFilters] = useState<boolean>(true);
+  
+  // Fetch creators from API
+  useEffect(() => {
+    const fetchCreators = async () => {
+      try {
+        setIsLoadingCreators(true);
+        setError(null);
+        
+        // Include all creators for admin
+        const params = new URLSearchParams();
+        if (isAdmin) {
+          params.set('includeAll', 'true');
+        }
+        params.set('limit', '100'); // Get more creators
+        
+        const response = await fetch(`/api/creators?${params.toString()}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch creators');
+        }
+        
+        const data = await response.json();
+        setCreators(data.creators || []);
+      } catch (err) {
+        console.error('Error fetching creators:', err);
+        setError('Greška pri učitavanju kreatora');
+      } finally {
+        setIsLoadingCreators(false);
+      }
+    };
+    
+    // Only fetch if logged in and auth is loaded
+    if (!authLoading && isLoggedIn) {
+      fetchCreators();
+    }
+  }, [authLoading, isLoggedIn, isAdmin]);
   
   // Hide filters on mobile by default
   useEffect(() => {
@@ -31,27 +98,13 @@ export default function KreatoriPage() {
         setShowFilters(false);
       }
     };
-    // Check on mount
     handleResize();
   }, []);
-  
-  // Helper to get creator rating
-  const getCreatorRating = (creatorId: string): number => {
-    const reviews = getReviewsForCreator(creatorId, true);
-    const stats = generateReviewStats(reviews);
-    return stats.averageRating;
-  };
-  
-  const getCreatorReviewCount = (creatorId: string): number => {
-    const reviews = getReviewsForCreator(creatorId, true);
-    return reviews.length;
-  };
 
   const filteredCreators = useMemo(() => {
-    let results = allCreators.filter((creator) => {
-      // For admins, show all (already filtered in getCreators)
-      // For others, only show approved (already handled in getCreators)
-      if (currentUser.type !== 'admin' && !creator.approved) return false;
+    let results = creators.filter((creator) => {
+      // For non-admins, only show approved
+      if (!isAdmin && creator.status !== 'approved') return false;
       
       if (selectedCategory && !creator.categories.includes(selectedCategory)) return false;
       if (selectedPlatform && !creator.platforms.includes(selectedPlatform)) return false;
@@ -79,9 +132,8 @@ export default function KreatoriPage() {
       
       // Filter by minimum rating
       if (minRating) {
-        const creatorRating = getCreatorRating(creator.id);
         const minRatingNum = parseFloat(minRating);
-        if (creatorRating < minRatingNum) return false;
+        if ((creator.rating || 0) < minRatingNum) return false;
       }
 
       return true;
@@ -89,11 +141,11 @@ export default function KreatoriPage() {
     
     // Sort results
     if (sortBy === 'rating-desc') {
-      results.sort((a, b) => getCreatorRating(b.id) - getCreatorRating(a.id));
+      results.sort((a, b) => (b.rating || 0) - (a.rating || 0));
     } else if (sortBy === 'rating-asc') {
-      results.sort((a, b) => getCreatorRating(a.id) - getCreatorRating(b.id));
+      results.sort((a, b) => (a.rating || 0) - (b.rating || 0));
     } else if (sortBy === 'reviews') {
-      results.sort((a, b) => getCreatorReviewCount(b.id) - getCreatorReviewCount(a.id));
+      results.sort((a, b) => (b.totalReviews || 0) - (a.totalReviews || 0));
     } else if (sortBy === 'price-asc') {
       results.sort((a, b) => a.priceFrom - b.priceFrom);
     } else if (sortBy === 'price-desc') {
@@ -101,7 +153,7 @@ export default function KreatoriPage() {
     }
     
     return results;
-  }, [allCreators, currentUser.type, selectedCategory, selectedPlatform, selectedLanguage, priceRange, searchQuery, minRating, sortBy, getCreatorRating, getCreatorReviewCount]);
+  }, [creators, isAdmin, selectedCategory, selectedPlatform, selectedLanguage, priceRange, searchQuery, minRating, sortBy]);
 
   const clearFilters = () => {
     setSelectedCategory('');
@@ -112,6 +164,18 @@ export default function KreatoriPage() {
     setMinRating('');
     setSortBy('');
   };
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-secondary/30">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted">Učitavanje...</p>
+        </div>
+      </div>
+    );
+  }
 
   // If not logged in, show login prompt
   if (!isLoggedIn) {
@@ -150,14 +214,9 @@ export default function KreatoriPage() {
     );
   }
 
-  // Check if this is demo creator (ID "1" - Marija Petrović)
-  // Demo creators bypass pending/rejected checks for client presentations
-  const isDemoCreator = currentUser.creatorId === '1';
-
-  // If creator is pending or rejected, redirect to dashboard (they'll see proper screen there)
-  // Skip this check for demo creators
-  if (currentUser.type === 'creator' && creatorStatus && !isDemoCreator) {
-    if (creatorStatus.status === 'pending' || creatorStatus.status === 'rejected') {
+  // If creator is pending or rejected, redirect to dashboard
+  if (userType === 'creator' && creatorProfile) {
+    if (creatorProfile.status === 'pending' || creatorProfile.status === 'rejected') {
       return (
         <div className="min-h-screen flex items-center justify-center bg-secondary/30">
           <div className="max-w-md mx-auto px-6 text-center">
@@ -391,14 +450,40 @@ export default function KreatoriPage() {
               </select>
             </div>
 
+            {/* Loading state */}
+            {isLoadingCreators && (
+              <div className="text-center py-20">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-muted">Učitavanje kreatora...</p>
+              </div>
+            )}
+
+            {/* Error state */}
+            {error && !isLoadingCreators && (
+              <div className="text-center py-20">
+                <div className="text-4xl mb-4">⚠️</div>
+                <h3 className="text-xl font-medium mb-2">Greška</h3>
+                <p className="text-muted mb-6">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-3 bg-primary text-white rounded-full text-sm hover:bg-primary/90 transition-colors"
+                >
+                  Pokušaj ponovo
+                </button>
+              </div>
+            )}
+
             {/* Grid */}
-            {filteredCreators.length > 0 ? (
+            {!isLoadingCreators && !error && filteredCreators.length > 0 && (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                 {filteredCreators.map((creator) => (
-                  <CreatorCard key={creator.id} creator={creator} />
+                  <CreatorCard key={creator.id} creator={creator as any} userType={userType} />
                 ))}
               </div>
-            ) : (
+            )}
+
+            {/* Empty state */}
+            {!isLoadingCreators && !error && filteredCreators.length === 0 && (
               <div className="text-center py-20">
                 <div className="text-4xl mb-4">🔍</div>
                 <h3 className="text-xl font-medium mb-2">Nema rezultata</h3>

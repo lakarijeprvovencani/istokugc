@@ -264,9 +264,9 @@ export default function PosloviPage() {
             </button>
           )}
 
-          {/* Filters sidebar - hidden for guests */}
-          {!isGuest && showFilters && (
-            <aside className="lg:w-64 flex-shrink-0 mb-8 lg:mb-0">
+          {/* Filters sidebar - hidden for guests, always visible on desktop */}
+          {!isGuest && (
+            <aside className={`lg:w-64 flex-shrink-0 mb-8 lg:mb-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
               <div className="bg-white rounded-2xl border border-border p-6 space-y-6 sticky top-24">
                 <div className="flex items-center justify-between">
                   <h2 className="font-medium">Filteri</h2>
@@ -489,55 +489,20 @@ export default function PosloviPage() {
                       )}
                     </div>
                     
-                    {/* Footer - Two rows on mobile, one row on desktop */}
-                    <div className="pt-3 border-t border-border/50 space-y-2 sm:space-y-0">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        {/* Left: Meta info with labels */}
-                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs">
-                          {/* Objavljeno */}
-                          <div className="flex items-center gap-1.5 text-muted">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="hidden sm:inline text-muted/70">Objavljeno:</span>
-                            <span>{formatDate(job.createdAt)}</span>
-                          </div>
-                          
-                          {/* Trajanje */}
-                          {job.duration && (
-                            <div className="flex items-center gap-1.5 text-muted">
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              <span className="hidden sm:inline text-muted/70">Trajanje:</span>
-                              <span>{job.duration}</span>
-                            </div>
-                          )}
-                          
-                          {/* Rok - inline on mobile */}
-                          {job.applicationDeadline && !job.isExpired && (
-                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${
-                              isDeadlineSoon(job.applicationDeadline) 
-                                ? 'bg-amber-50 text-amber-600 border border-amber-200' 
-                                : 'text-muted'
-                            }`}>
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <span className="hidden sm:inline text-muted/70">Rok:</span>
-                              <span>{new Date(job.applicationDeadline).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' })}</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Right: Pogledaj */}
-                        <span className="text-xs font-medium text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                          Pogledaj
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </span>
-                      </div>
+                    {/* Footer - clean and minimal */}
+                    <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                      <span className="flex items-center gap-1.5 text-xs text-muted">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {formatDate(job.createdAt)}
+                      </span>
+                      <span className="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                        Pogledaj
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </span>
                     </div>
                   </Link>
                 ))}
