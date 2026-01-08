@@ -4781,16 +4781,31 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
                       {job.isExpired ? 'Rok istekao' : `Rok: ${new Date(job.applicationDeadline).toLocaleDateString('sr-RS')}`}
                     </span>
                   )}
-                  {/* Prijave badge */}
+                  {/* Prijave badge - highlighted when has new applications */}
                   <button
                     onClick={() => handleViewApplications(job.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
+                    className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      jobsWithNewApplications.has(job.id) && (applicationCounts[job.id] || 0) > 0
+                        ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-md shadow-amber-200'
+                        : 'bg-primary text-white hover:bg-primary/90'
+                    }`}
                   >
+                    {/* Pulsing dot for new applications */}
+                    {jobsWithNewApplications.has(job.id) && (applicationCounts[job.id] || 0) > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                      </span>
+                    )}
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     Prijave
-                    <span className="px-1.5 py-0.5 bg-white/20 rounded text-[10px]">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                      jobsWithNewApplications.has(job.id) && (applicationCounts[job.id] || 0) > 0
+                        ? 'bg-white/30'
+                        : 'bg-white/20'
+                    }`}>
                       {applicationCounts[job.id] !== undefined ? applicationCounts[job.id] : '...'}
                     </span>
                   </button>
