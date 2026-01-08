@@ -3959,6 +3959,9 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
   // Engage creator - closes job and rejects other applications
   const handleEngageCreator = async (applicationId: string, jobId: string) => {
     try {
+      // Find the application to get creator info
+      const engagedApp = jobApplications.find(app => app.id === applicationId);
+      
       // 1. Update application status to 'engaged'
       const engageResponse = await fetch('/api/job-applications', {
         method: 'PUT',
@@ -3999,6 +4002,18 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       }));
       
       setJobs(jobs.map(j => j.id === jobId ? { ...j, status: 'closed' } : j));
+      
+      // 5. Update engagedCreators state immediately
+      if (engagedApp) {
+        setEngagedCreators(prev => ({
+          ...prev,
+          [jobId]: {
+            id: engagedApp.creatorId,
+            name: engagedApp.creator?.name || 'Kreator',
+            applicationId: applicationId
+          }
+        }));
+      }
       
       // Show success message
       setSuccessMessage('Kreator je angažovan! Posao je zatvoren.');
