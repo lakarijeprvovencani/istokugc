@@ -194,16 +194,18 @@ export default function KreatoriPage() {
 
       <div className="max-w-7xl 2xl:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12 py-8 lg:py-12">
         <div className="lg:flex lg:gap-12">
-          {/* Filter toggle - visible on all screens */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="w-full lg:w-auto mb-6 py-3 px-5 bg-white border border-border rounded-xl flex items-center justify-center gap-2 text-sm font-medium hover:bg-secondary transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            {showFilters ? 'Sakrij filtere' : 'Prikaži filtere'}
-          </button>
+          {/* Mobile filter toggle */}
+          <div className="lg:hidden mb-6">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white border border-border rounded-xl text-sm font-medium hover:bg-secondary transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              {showFilters ? 'Sakrij filtere' : 'Prikaži filtere'}
+            </button>
+          </div>
           
           {/* Sidebar filters */}
           <aside className={`
@@ -355,9 +357,25 @@ export default function KreatoriPage() {
           <main className="flex-1 min-w-0">
             {/* Results count & sorting */}
             <div className="mb-6 lg:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <p className="text-muted text-sm sm:text-base">
-                Prikazano <span className="font-medium text-foreground">{filteredCreators.length}</span> kreatora
-              </p>
+              <div className="flex items-center gap-3">
+                {/* Filter toggle button - desktop only */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`hidden lg:flex p-2.5 rounded-xl border transition-all ${
+                    showFilters 
+                      ? 'bg-primary text-white border-primary' 
+                      : 'bg-white text-muted border-border hover:bg-secondary hover:text-foreground'
+                  }`}
+                  title={showFilters ? 'Sakrij filtere' : 'Prikaži filtere'}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                </button>
+                <p className="text-muted text-sm sm:text-base">
+                  Prikazano <span className="font-medium text-foreground">{filteredCreators.length}</span> kreatora
+                </p>
+              </div>
               
               <select
                 value={sortBy}
