@@ -5,7 +5,7 @@ let stripeInstance: Stripe | null = null;
 
 export const getStripe = (): Stripe => {
   if (!stripeInstance) {
-    const secretKey = process.env.STRIPE_SECRET_KEY;
+    const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
     
     if (!secretKey) {
       throw new Error('STRIPE_SECRET_KEY is not set in environment variables');
@@ -29,9 +29,10 @@ export const stripe = new Proxy({} as Stripe, {
 
 // Price IDs iz Stripe Dashboard-a
 // Podržava oba formata imena: STRIPE_PRICE_MONTHLY i STRIPE_PRICE_ID_MONTHLY
+// trim() uklanja whitespace koji može izazvati greške
 export const PRICE_IDS = {
-  monthly: process.env.STRIPE_PRICE_MONTHLY || process.env.STRIPE_PRICE_ID_MONTHLY || '',
-  yearly: process.env.STRIPE_PRICE_YEARLY || process.env.STRIPE_PRICE_ID_YEARLY || '',
+  monthly: (process.env.STRIPE_PRICE_MONTHLY || process.env.STRIPE_PRICE_ID_MONTHLY || '').trim(),
+  yearly: (process.env.STRIPE_PRICE_YEARLY || process.env.STRIPE_PRICE_ID_YEARLY || '').trim(),
 };
 
 // Cene za prikaz u UI
