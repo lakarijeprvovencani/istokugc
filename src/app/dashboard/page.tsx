@@ -398,12 +398,14 @@ function CreatorDashboard() {
     fetchApplications();
   }, [currentUser.creatorId, isHydrated]);
   
-  // Fetch job invitations (Ponude) on mount to show badge count
+  // Fetch job invitations (Ponude) on mount and poll every 30 seconds
   useEffect(() => {
+    let isFirstLoad = true;
+    
     const fetchInvitations = async () => {
       if (!isHydrated || !currentUser.creatorId) return;
       
-      setIsLoadingInvitations(true);
+      if (isFirstLoad) setIsLoadingInvitations(true);
       try {
         const response = await fetch(`/api/job-invitations?creatorId=${currentUser.creatorId}`);
         if (response.ok) {
@@ -428,11 +430,19 @@ function CreatorDashboard() {
       } catch (error) {
         console.error('Error fetching invitations:', error);
       } finally {
-        setIsLoadingInvitations(false);
+        if (isFirstLoad) {
+          setIsLoadingInvitations(false);
+          isFirstLoad = false;
+        }
       }
     };
     
     fetchInvitations();
+    
+    // Poll for new invitations every 30 seconds
+    const interval = setInterval(fetchInvitations, 30000);
+    
+    return () => clearInterval(interval);
   }, [currentUser.creatorId, isHydrated]);
   
   // Show loading state

@@ -1,15 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-helper';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // GET - Fetch invitations
 export async function GET(request: Request) {
   try {
+    const supabase = createAdminClient();
+    
     const { searchParams } = new URL(request.url);
     const creatorId = searchParams.get('creatorId');
     const businessId = searchParams.get('businessId');
@@ -102,6 +99,8 @@ export async function POST(request: Request) {
     const { user, error: authError } = await getAuthUser();
     if (authError) return authError;
     
+    const supabase = createAdminClient();
+    
     const body = await request.json();
     const { jobId, businessId, creatorId, message } = body;
 
@@ -182,6 +181,8 @@ export async function PUT(request: Request) {
     // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
     const { user, error: authError } = await getAuthUser();
     if (authError) return authError;
+    
+    const supabase = createAdminClient();
     
     const body = await request.json();
     const { invitationId, status } = body;
@@ -301,6 +302,8 @@ export async function DELETE(request: Request) {
     // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
     const { user, error: authError } = await getAuthUser();
     if (authError) return authError;
+    
+    const supabase = createAdminClient();
     
     const { searchParams } = new URL(request.url);
     const invitationId = searchParams.get('invitationId');
