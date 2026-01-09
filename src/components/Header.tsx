@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useDemo } from '@/context/DemoContext';
 
@@ -195,13 +196,25 @@ export default function Header() {
                   href={currentUser.type === 'admin' ? '/admin' : '/dashboard'}
                   className="flex items-center gap-3 px-3 py-2 rounded-full hover:bg-secondary transition-colors group"
                 >
-                  {/* Avatar with initials and notification dot */}
+                  {/* Avatar with photo/logo or initials and notification dot */}
                   <div className="relative">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-semibold text-primary">
-                        {displayName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </span>
-                    </div>
+                    {(currentUser.photo || currentUser.logo) ? (
+                      <div className="w-8 h-8 rounded-full overflow-hidden">
+                        <Image 
+                          src={currentUser.photo || currentUser.logo || ''} 
+                          alt="" 
+                          width={32} 
+                          height={32} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-primary">
+                          {displayName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </span>
+                      </div>
+                    )}
                     {/* Red notification dot */}
                     {hasNotifications && (
                       <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse" />
@@ -336,10 +349,22 @@ export default function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-3 px-3 py-3 hover:bg-secondary rounded-xl transition-colors"
                 >
-                  <span className="relative w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                  <span className="relative w-10 h-10 rounded-full flex items-center justify-center overflow-hidden">
+                    {(currentUser.photo || currentUser.logo) ? (
+                      <Image 
+                        src={currentUser.photo || currentUser.logo || ''} 
+                        alt="" 
+                        width={40} 
+                        height={40} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="w-full h-full bg-primary/10 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </span>
+                    )}
                     {/* Red notification dot */}
                     {hasNotifications && (
                       <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />

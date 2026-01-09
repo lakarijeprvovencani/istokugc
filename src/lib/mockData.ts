@@ -320,9 +320,11 @@ export interface DemoUser {
   email: string;
   // Creator-specific fields (for matching profile)
   creatorId?: string;
+  photo?: string; // Creator profile photo
   // Business-specific fields (for future Supabase integration)
   businessId?: string;
   companyName?: string;
+  logo?: string; // Business logo
   website?: string;
   industry?: string;
   description?: string;

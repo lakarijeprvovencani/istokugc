@@ -362,12 +362,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               name: creatorData.name,
               creatorId: creatorData.id,
               email: creatorData.email || '',
+              photo: creatorData.photo || undefined,
             };
             setCurrentUser(creatorUser);
             setLoggedInCreatorId(creatorData.id);
             localStorage.setItem(STORAGE_KEY, 'creator');
             localStorage.setItem(CURRENT_CREATOR_ID_KEY, creatorData.id);
-            localStorage.setItem(CURRENT_CREATOR_KEY, JSON.stringify({ id: creatorData.id, name: creatorData.name, email: creatorData.email }));
+            localStorage.setItem(CURRENT_CREATOR_KEY, JSON.stringify({ id: creatorData.id, name: creatorData.name, email: creatorData.email, photo: creatorData.photo }));
           }
         } else if (userData?.role === 'business') {
           // Fetch business profile
@@ -384,6 +385,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               companyName: businessData.company_name,
               businessId: businessData.id,
               email: businessData.email || '',
+              logo: businessData.logo || undefined,
               subscriptionStatus: businessData.subscription_status,
               subscriptionPlan: businessData.subscription_type,
               subscriptionExpiresAt: businessData.expires_at,
@@ -392,9 +394,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               description: businessData.description,
             };
             setCurrentUser(businessUser);
-            setLoggedInBusiness({ id: businessData.id, companyName: businessData.company_name });
+            setLoggedInBusiness({ id: businessData.id, companyName: businessData.company_name, logo: businessData.logo });
             localStorage.setItem(STORAGE_KEY, 'business');
-            localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ id: businessData.id, companyName: businessData.company_name }));
+            localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ id: businessData.id, companyName: businessData.company_name, logo: businessData.logo }));
           }
         } else if (userData?.role === 'admin') {
           setCurrentUser(demoUsers.admin);
