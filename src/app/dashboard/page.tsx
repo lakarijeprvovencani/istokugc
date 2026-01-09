@@ -2469,10 +2469,14 @@ function BusinessDashboard() {
     }
   };
   
-  // Fetch jobs when tab is active
+  // Fetch jobs when tab is active and poll every 30 seconds
   useEffect(() => {
     if (activeTab === 'poslovi') {
       refreshJobs();
+      
+      // Poll for updates every 30 seconds
+      const interval = setInterval(refreshJobs, 30000);
+      return () => clearInterval(interval);
     }
   }, [activeTab, currentUser.businessId]);
   
@@ -4843,12 +4847,12 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
             if (aCount !== bCount) return bCount - aCount;
           }
           
-          // In archive, withdrawn jobs come first
-          if (jobsFilter === 'archive' && archiveFilter === 'all') {
-            const aWithdrawn = withdrawnJobs.has(a.id);
-            const bWithdrawn = withdrawnJobs.has(b.id);
-            if (aWithdrawn && !bWithdrawn) return -1;
-            if (!aWithdrawn && bWithdrawn) return 1;
+          // In archive, always sort by most recent change (updatedAt) first
+          // This ensures withdrawn jobs and completed jobs appear at the top when they happen
+          if (jobsFilter === 'archive') {
+            const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+            const dateB = new Date(b.updatedAt || b.createdAt).getTime();
+            return dateB - dateA; // Always newest first in archive
           }
           
           const dateA = new Date(a.updatedAt || a.createdAt).getTime();
