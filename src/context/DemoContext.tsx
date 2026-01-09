@@ -394,9 +394,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               description: businessData.description,
             };
             setCurrentUser(businessUser);
-            setLoggedInBusiness({ id: businessData.id, companyName: businessData.company_name, logo: businessData.logo });
+            setLoggedInBusiness({ id: businessData.id, companyName: businessData.company_name });
             localStorage.setItem(STORAGE_KEY, 'business');
-            localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ id: businessData.id, companyName: businessData.company_name, logo: businessData.logo }));
+            localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ id: businessData.id, companyName: businessData.company_name }));
           }
         } else if (userData?.role === 'admin') {
           setCurrentUser(demoUsers.admin);
