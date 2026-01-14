@@ -383,10 +383,17 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
         }
       }
       
+      // If we couldn't get status but user has businessId, assume active
+      // (they're logged in, so likely have valid subscription)
+      // Better to show content than wrongly block a paying user
+      if (!statusToCheck && currentUser.businessId && isCheckingSubscription) {
+        return true; // Allow during loading
+      }
+      
       return false;
     }
     return false; // guest
-  }, [currentUser, liveSubscriptionStatus, liveExpiresAt]);
+  }, [currentUser, liveSubscriptionStatus, liveExpiresAt, isCheckingSubscription]);
   
   // Update editedCreator when fetchedCreator is loaded
   useEffect(() => {
@@ -872,22 +879,29 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
               <h2 className="text-sm text-muted uppercase tracking-wider mb-6">Portfolio</h2>
               <div className="grid md:grid-cols-2 gap-6">
                 {creator.portfolio.map((item, index) => {
+                  // Check if item is a video or image
+                  const isVideo = item.type === 'youtube' || 
+                                 item.type === 'instagram' || 
+                                 item.type === 'tiktok' ||
+                                 (item.type === 'upload' && item.url && (item.url.includes('video') || item.url.match(/\.(mp4|webm|mov|avi)$/i)));
+                  const isImage = !isVideo;
+                  
                   // Get display platform (use platform if set, otherwise type)
                   const displayPlatform = item.platform || item.type;
                   const platformLabels: Record<string, string> = {
                     instagram: 'Instagram',
                     tiktok: 'TikTok',
                     youtube: 'YouTube',
-                    upload: 'Video',
                     other: 'Ostalo'
                   };
                   
-                  // Check if item is a video or image
-                  const isVideo = item.type === 'youtube' || 
-                                 item.type === 'instagram' || 
-                                 item.type === 'tiktok' ||
-                                 (item.type === 'upload' && item.url.includes('video'));
-                  const isImage = !isVideo;
+                  // For uploads, show 'Slika' or 'Video' based on content type
+                  const getBadgeLabel = () => {
+                    if (displayPlatform === 'upload') {
+                      return isVideo ? 'Video' : 'Slika';
+                    }
+                    return platformLabels[displayPlatform] || displayPlatform;
+                  };
                   
                   return (
                     <div key={index} className="flex flex-col">
@@ -939,7 +953,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                         )}
                         {/* Platform badge - text only */}
                         <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full">
-                          <span className="text-[10px] font-medium">{platformLabels[displayPlatform] || displayPlatform}</span>
+                          <span className="text-[10px] font-medium">{getBadgeLabel()}</span>
                         </div>
                       </div>
                       {/* Details button below image */}

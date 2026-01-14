@@ -750,35 +750,43 @@ function CreatorDashboard() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white rounded-xl p-1 border border-border w-fit overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative ${
-                activeTab === tab.id
-                  ? 'bg-primary text-white'
-                  : 'text-muted hover:text-foreground'
-              }`}
-            >
-              <span className="relative">
-                {tab.label}
-                {/* Unread messages badge (red) - superscript */}
-                {'unread' in tab && (tab.unread ?? 0) > 0 && (
-                  <span className="absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] bg-error text-white font-medium animate-pulse min-w-[18px] text-center">
-                    {tab.unread}
-                  </span>
-                )}
-                {/* New items badge - superscript */}
-                {!('unread' in tab && (tab.unread ?? 0) > 0) && tab.count !== null && tab.count > 0 && (
-                  <span className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-medium animate-pulse min-w-[18px] text-center ${
-                    activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-error text-white'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
-              </span>
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const hasUnread = 'unread' in tab && (tab.unread ?? 0) > 0;
+            const hasNewItems = tab.count !== null && tab.count > 0;
+            const hasNotification = hasUnread || hasNewItems;
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap relative ${
+                  activeTab === tab.id
+                    ? 'bg-primary text-white'
+                    : hasNotification 
+                      ? 'bg-amber-50 text-amber-700 ring-2 ring-amber-400/50 hover:bg-amber-100' 
+                      : 'text-muted hover:text-foreground'
+                }`}
+              >
+                <span className="relative">
+                  {tab.label}
+                  {/* Unread messages badge (red) - superscript */}
+                  {hasUnread && (
+                    <span className="absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] bg-error text-white font-medium animate-pulse min-w-[18px] text-center shadow-lg">
+                      {tab.unread}
+                    </span>
+                  )}
+                  {/* New items badge - superscript */}
+                  {!hasUnread && hasNewItems && (
+                    <span className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-medium animate-pulse min-w-[18px] text-center shadow-lg ${
+                      activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {activeTab === 'overview' && (
@@ -2678,9 +2686,9 @@ function BusinessDashboard() {
         <div className="flex gap-1 mb-8 border-b border-border">
           <button
             onClick={() => handleTabChange('pregled')}
-            className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+            className={`px-6 py-3 text-sm font-medium transition-all relative rounded-t-lg ${
               activeTab === 'pregled' 
-                ? 'text-primary' 
+                ? 'text-primary bg-white' 
                 : 'text-muted hover:text-foreground'
             }`}
           >
@@ -2691,10 +2699,12 @@ function BusinessDashboard() {
           </button>
           <button
             onClick={() => handleTabChange('poslovi')}
-            className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+            className={`px-6 py-3 text-sm font-medium transition-all relative rounded-t-lg ${
               activeTab === 'poslovi' 
-                ? 'text-primary' 
-                : 'text-muted hover:text-foreground'
+                ? 'text-primary bg-white' 
+                : pendingApplicationsCount > 0
+                  ? 'bg-amber-50 text-amber-700 ring-2 ring-amber-400/50'
+                  : 'text-muted hover:text-foreground'
             }`}
           >
             <span className="relative">
@@ -2705,7 +2715,7 @@ function BusinessDashboard() {
                 </span>
               )}
               {pendingApplicationsCount > 0 && (
-                <span className="absolute -top-3 -right-4 px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500 text-white font-medium animate-pulse">
+                <span className="absolute -top-3 -right-4 px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500 text-white font-medium animate-pulse shadow-lg">
                   {pendingApplicationsCount}
                 </span>
               )}
@@ -2716,18 +2726,22 @@ function BusinessDashboard() {
           </button>
           <button
             onClick={() => handleTabChange('poruke')}
-            className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+            className={`px-6 py-3 text-sm font-medium transition-all relative rounded-t-lg ${
               activeTab === 'poruke' 
-                ? 'text-primary' 
-                : 'text-muted hover:text-foreground'
+                ? 'text-primary bg-white' 
+                : unreadMessagesCount > 0
+                  ? 'bg-red-50 text-red-700 ring-2 ring-red-400/50'
+                  : 'text-muted hover:text-foreground'
             }`}
           >
-            Poruke
-            {unreadMessagesCount > 0 && (
-              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-error text-white font-medium">
-                {unreadMessagesCount}
-              </span>
-            )}
+            <span className="relative">
+              Poruke
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-3 -right-4 px-1.5 py-0.5 text-[10px] rounded-full bg-error text-white font-medium animate-pulse shadow-lg">
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </span>
             {activeTab === 'poruke' && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
             )}

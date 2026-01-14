@@ -60,9 +60,9 @@ export async function GET(
       userId: creator.user_id,
     };
 
-    // Cache za 60 sekundi (profil se ne menja često)
+    // Short cache for creator profile (10 seconds)
     const response = NextResponse.json({ creator: formattedCreator });
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    response.headers.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
     
     return response;
 

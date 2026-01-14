@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-helper';
 
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
+
 // GET /api/jobs - Dohvati poslove
 export async function GET(request: NextRequest) {
   try {
@@ -120,10 +123,8 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.json({ jobs: filteredJobs });
     
-    // Cache public job listings (not business-specific)
-    if (!businessId) {
-      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
-    }
+    // No caching - jobs need to be real-time
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     
     return response;
 

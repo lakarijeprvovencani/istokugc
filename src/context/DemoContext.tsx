@@ -190,6 +190,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               name: creatorData.name || 'Kreator',
               email: creatorData.email || '',
               creatorId: creatorData.id,
+              photo: creatorData.photo || undefined, // Load photo from localStorage
             });
             setLoggedInCreatorId(creatorData.id);
           } catch (e) {
@@ -227,6 +228,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               email: '',
               businessId: businessData.id,
               companyName: businessData.companyName,
+              subscriptionStatus: businessData.subscriptionStatus as 'active' | 'expired' | 'cancelled' | undefined,
+              subscriptionPlan: businessData.subscriptionPlan as 'monthly' | 'yearly' | undefined,
+              subscriptionExpiresAt: businessData.subscriptionExpiresAt,
             });
             setLoggedInBusiness(businessData);
           } catch (e) {
@@ -396,7 +400,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             setCurrentUser(businessUser);
             setLoggedInBusiness({ id: businessData.id, companyName: businessData.company_name });
             localStorage.setItem(STORAGE_KEY, 'business');
-            localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ id: businessData.id, companyName: businessData.company_name }));
+            localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ 
+              id: businessData.id, 
+              companyName: businessData.company_name,
+              subscriptionStatus: businessData.subscription_status,
+              subscriptionPlan: businessData.subscription_type,
+              subscriptionExpiresAt: businessData.expires_at,
+            }));
           }
         } else if (userData?.role === 'admin') {
           setCurrentUser(demoUsers.admin);

@@ -72,8 +72,8 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // Cache for 1 minute, stale for 5 minutes
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    // Short cache for public creator list (10 seconds)
+    response.headers.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
     
     return response;
 

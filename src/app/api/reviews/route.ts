@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-helper';
 
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
+
 // GET - Dohvati recenzije
 export async function GET(request: NextRequest) {
   try {
@@ -87,10 +90,8 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.json({ reviews: formattedReviews });
     
-    // Cache public reviews (for creator profiles) for 2 minutes
-    if (creatorId && !businessId) {
-      response.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
-    }
+    // No caching for reviews - they need to be real-time for admin dashboard
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     
     return response;
 

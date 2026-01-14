@@ -253,7 +253,10 @@ export default function AdminPage() {
   };
   
   // Approve review - using dedicated admin endpoint
+  const [isApprovingReview, setIsApprovingReview] = useState<string | null>(null);
+  
   const handleApproveReview = async (reviewId: string) => {
+    setIsApprovingReview(reviewId);
     try {
       const response = await fetch(`/api/reviews/${reviewId}/approve`, {
         method: 'POST',
@@ -261,15 +264,23 @@ export default function AdminPage() {
       if (response.ok) {
         await refreshReviews();
       } else {
-        console.error('Failed to approve review:', await response.text());
+        const errorText = await response.text();
+        console.error('Failed to approve review:', errorText);
+        alert('Greška pri odobravanju recenzije: ' + errorText);
       }
     } catch (error) {
       console.error('Error approving review:', error);
+      alert('Greška pri odobravanju recenzije');
+    } finally {
+      setIsApprovingReview(null);
     }
   };
   
   // Reject review - using dedicated admin endpoint
+  const [isRejectingReview, setIsRejectingReview] = useState<string | null>(null);
+  
   const handleRejectReview = async (reviewId: string, reason?: string) => {
+    setIsRejectingReview(reviewId);
     try {
       const response = await fetch(`/api/reviews/${reviewId}/reject`, {
         method: 'POST',
@@ -279,10 +290,15 @@ export default function AdminPage() {
       if (response.ok) {
         await refreshReviews();
       } else {
-        console.error('Failed to reject review:', await response.text());
+        const errorText = await response.text();
+        console.error('Failed to reject review:', errorText);
+        alert('Greška pri odbijanju recenzije: ' + errorText);
       }
     } catch (error) {
       console.error('Error rejecting review:', error);
+      alert('Greška pri odbijanju recenzije');
+    } finally {
+      setIsRejectingReview(null);
     }
   };
   
@@ -1530,9 +1546,10 @@ export default function AdminPage() {
                           <>
                             <button
                               onClick={() => handleApproveReview(review.id)}
-                              className="px-4 py-2 bg-success text-white rounded-lg text-sm font-medium hover:bg-success/90 transition-colors"
+                              disabled={isApprovingReview === review.id}
+                              className="px-4 py-2 bg-success text-white rounded-lg text-sm font-medium hover:bg-success/90 transition-colors disabled:opacity-50"
                             >
-                              ✓ Odobri
+                              {isApprovingReview === review.id ? 'Odobravanje...' : '✓ Odobri'}
                             </button>
                             <button
                               onClick={() => {

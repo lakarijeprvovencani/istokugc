@@ -206,6 +206,7 @@ export default function Header() {
                           width={32} 
                           height={32} 
                           className="w-full h-full object-cover"
+                          priority
                         />
                       </div>
                     ) : (
@@ -357,6 +358,7 @@ export default function Header() {
                         width={40} 
                         height={40} 
                         className="w-full h-full object-cover"
+                        priority
                       />
                     ) : (
                       <span className="w-full h-full bg-primary/10 flex items-center justify-center">
