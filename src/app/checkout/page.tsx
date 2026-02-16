@@ -20,12 +20,24 @@ function CheckoutContent() {
         return;
       }
 
+      // Dohvati email iz localStorage (sačuvan prilikom registracije)
+      let email = '';
       try {
-        // Pozovi API da kreira Stripe Checkout Session
+        const savedData = localStorage.getItem('businessRegistration');
+        if (savedData) {
+          const registrationData = JSON.parse(savedData);
+          email = registrationData.email || '';
+        }
+      } catch (e) {
+        console.error('Error reading registration data:', e);
+      }
+
+      try {
+        // Pozovi API da kreira Stripe Checkout Session sa email-om
         const response = await fetch('/api/stripe/create-checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan }),
+          body: JSON.stringify({ plan, email }),
         });
 
         const data = await response.json();

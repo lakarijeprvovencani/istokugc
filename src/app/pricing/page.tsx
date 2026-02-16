@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useDemo } from '@/context/DemoContext';
+import { useSupabaseUser } from '@/hooks/useSupabaseUser';
 
 export default function PricingPage() {
   const router = useRouter();
-  const { currentUser, isLoggedIn } = useDemo();
+  const { user, businessProfile } = useSupabaseUser();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly' | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -15,20 +15,23 @@ export default function PricingPage() {
     setSelectedPlan(plan);
     setIsLoading(true);
 
+    // Dohvati email - prioritet: businessProfile > Supabase user
+    const email = businessProfile?.email || user?.email || '';
+
     try {
-      // Kreiraj Stripe checkout sesiju
+      // Kreiraj Stripe checkout sesiju sa email-om
       const response = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, email }),
       });
 
       if (response.ok) {
         const { url } = await response.json();
         // Sačuvaj business ID za aktivaciju/obnovu pretplate
         // Ovo pokriva i slučaj kad biznis nikad nije platio
-        if (currentUser.businessId) {
-          sessionStorage.setItem('renewBusinessId', currentUser.businessId);
+        if (businessProfile?.id) {
+          sessionStorage.setItem('renewBusinessId', businessProfile.id);
         }
         window.location.href = url;
       } else {

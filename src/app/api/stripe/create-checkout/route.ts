@@ -11,7 +11,7 @@ import { stripe, PRICE_IDS } from '@/lib/stripe';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { plan } = body;
+    const { plan, email } = body;
 
     const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898').trim();
 
@@ -33,9 +33,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Kreiraj Stripe Checkout Session sa pravim Price ID-em
+    // customer_email osigurava da Stripe koristi isti email kao registracija
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
+      // Pre-popuni email sa registracije - korisnik ne može da ga promeni
+      ...(email && { customer_email: email }),
       line_items: [
         {
           price: priceId,
@@ -44,6 +47,7 @@ export async function POST(request: NextRequest) {
       ],
       metadata: {
         plan,
+        email: email || '', // Sačuvaj email u metadata za referencu
       },
       subscription_data: {
         metadata: {
