@@ -195,10 +195,10 @@ export default function PricingPage() {
         {/* Back link */}
         <div className="text-center mt-12">
           <Link 
-            href={currentUser.type === 'business' ? '/dashboard' : '/'} 
+            href={businessProfile ? '/dashboard' : '/'} 
             className="text-muted hover:text-foreground transition-colors"
           >
-            ← {currentUser.type === 'business' ? 'Nazad na Dashboard' : 'Nazad na početnu'}
+            ← {businessProfile ? 'Nazad na Dashboard' : 'Nazad na početnu'}
           </Link>
         </div>
 
