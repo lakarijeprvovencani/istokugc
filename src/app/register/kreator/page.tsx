@@ -53,6 +53,7 @@ export default function RegisterCreatorPage() {
   const [portfolioDescription, setPortfolioDescription] = useState('');
   const [portfolioError, setPortfolioError] = useState('');
   const [showAddPortfolio, setShowAddPortfolio] = useState(true);
+  const [acceptTerms, setAcceptTerms] = useState(false);
   
   // Categories from database
   const [categories, setCategories] = useState<string[]>([]);
@@ -335,6 +336,10 @@ export default function RegisterCreatorPage() {
       }
       if (portfolioItems.length === 0) {
         setPortfolioError('Molimo dodajte bar jednu stavku u portfolio');
+        return;
+      }
+      if (!acceptTerms) {
+        alert('Morate prihvatiti uslove korišćenja i politiku privatnosti');
         return;
       }
     }
@@ -865,7 +870,8 @@ export default function RegisterCreatorPage() {
               <label className="flex items-start gap-3 mt-6 cursor-pointer group">
                 <input 
                   type="checkbox" 
-                  required 
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
                   className="mt-1 w-4 h-4 rounded border-border accent-primary" 
                 />
                 <span className="text-sm text-muted">

@@ -26,6 +26,7 @@ export default function RegisterBusinessPage() {
     industry: '',
     description: '',
   });
+  const [acceptTerms, setAcceptTerms] = useState(false);
   
   // Handle logo file select
   const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,6 +74,10 @@ export default function RegisterBusinessPage() {
     }
     if (!formData.phone.trim()) {
       alert('Molimo unesite broj telefona');
+      return;
+    }
+    if (!acceptTerms) {
+      alert('Morate prihvatiti uslove korišćenja i politiku privatnosti');
       return;
     }
     
@@ -409,7 +414,8 @@ export default function RegisterBusinessPage() {
           <label className="flex items-start gap-3 mt-6 cursor-pointer group">
             <input 
               type="checkbox" 
-              required 
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
               className="mt-1 w-4 h-4 rounded border-border accent-primary" 
             />
             <span className="text-sm text-muted">
