@@ -38,3 +38,4 @@ CREATE POLICY "Businesses can update own views" ON public.creator_views
 COMMENT ON TABLE public.creator_views IS 'Beleži preglede profila kreatora od strane biznisa';
 
 
+

@@ -38,3 +38,4 @@ CREATE POLICY "Creators can unsave jobs"
         SELECT id FROM public.creators WHERE user_id = auth.uid()
     ));
 
+

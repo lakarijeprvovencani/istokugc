@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   // Compress responses
@@ -6,6 +7,11 @@ const nextConfig: NextConfig = {
   
   // Optimize production builds
   reactStrictMode: false, // Disable double-rendering in dev
+  
+  // Turbopack configuration - fix for multiple lockfiles
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   
   // Experimental optimizations
   experimental: {

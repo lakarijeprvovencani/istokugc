@@ -67,3 +67,4 @@ GRANT ALL ON public.job_invitations TO service_role;
 
 
 
+

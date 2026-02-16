@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useDemo } from '@/context/DemoContext';
 import { createClient } from '@/lib/supabase/client';
 import confetti from 'canvas-confetti';
 
@@ -12,7 +11,6 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const plan = searchParams.get('plan') as 'monthly' | 'yearly' | null;
   const sessionId = searchParams.get('session_id');
-  const { loginAsNewBusiness, updateCurrentUser } = useDemo();
   
   const [isCreating, setIsCreating] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,14 +65,14 @@ function SuccessContent() {
             throw new Error(data.error || 'Greška pri obnovi pretplate');
           }
 
-          // Ažuriraj lokalni state
-          updateCurrentUser({ 
-            subscriptionStatus: 'active',
-            subscriptionPlan: plan || 'monthly'
-          });
-          
           // Očisti sessionStorage
           sessionStorage.removeItem('renewBusinessId');
+          
+          // Refresh router da osveži server-side cache i sesiju
+          router.refresh();
+          
+          // Kratka pauza da se osigura da je sesija spremna
+          await new Promise(resolve => setTimeout(resolve, 500));
           
           setIsCreating(false);
           showConfetti();
@@ -142,6 +140,12 @@ function SuccessContent() {
         if (loginError) {
           console.error('Auto-login error:', loginError);
           // Not critical - user can log in manually
+        } else {
+          // Refresh router da osveži server-side cache i sesiju
+          router.refresh();
+          
+          // Kratka pauza da se osigura da je Supabase sesija spremna
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
         
         // Upload logo if provided
@@ -157,9 +161,6 @@ function SuccessContent() {
             // Not critical - user can add logo later
           }
         }
-        
-        // Update local state
-        loginAsNewBusiness(data.businessId, data.companyName, 'active', plan || 'monthly');
         
         // Clear registration data
         localStorage.removeItem('businessRegistration');
@@ -205,7 +206,7 @@ function SuccessContent() {
     };
 
     processPayment();
-  }, [loginAsNewBusiness, updateCurrentUser, plan, sessionId]);
+  }, [plan, sessionId, router]);
 
   const planDetails = {
     monthly: {
