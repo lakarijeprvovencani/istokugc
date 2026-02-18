@@ -7,9 +7,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthUser } from '@/lib/auth-helper';
 
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const businessId = searchParams.get('businessId');
 
@@ -18,6 +22,10 @@ export async function GET(request: NextRequest) {
         { error: 'Business ID is required' },
         { status: 400 }
       );
+    }
+
+    if (user?.role !== 'admin' && user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
     }
 
     // Dohvati business iz baze

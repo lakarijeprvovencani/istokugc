@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { getAuthUser } from '@/lib/auth-helper';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-12-15.clover',
 });
 
-// GET /api/stripe/session/[sessionId]
-// Dohvata podatke o Stripe checkout session
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { sessionId } = await params;
 
     if (!sessionId) {

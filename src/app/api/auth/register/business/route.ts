@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthLimiter, checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { businessRegistrationSchema, validate } from '@/lib/validations';
 
 // POST /api/auth/register/business
 // Registracija novog biznisa (poziva se nakon uspešnog Stripe plaćanja)
 export async function POST(request: NextRequest) {
   try {
+    const rateLimited = await checkRateLimit(getAuthLimiter(), getClientIp(request));
+    if (rateLimited) return rateLimited;
+
     const body = await request.json();
     
+    const { data: validated, error: validationError } = validate(businessRegistrationSchema, body);
+    if (validationError || !validated) {
+      return NextResponse.json({ error: validationError || 'Nevažeći podaci' }, { status: 400 });
+    }
+
     const {
       email,
       password,
@@ -15,25 +25,10 @@ export async function POST(request: NextRequest) {
       website,
       industry,
       description,
-      plan, // 'monthly' | 'yearly'
+      plan,
       stripeCustomerId,
       stripeSubscriptionId,
-    } = body;
-
-    // Validacija
-    if (!email || !password || !companyName) {
-      return NextResponse.json(
-        { error: 'Nedostaju obavezna polja' },
-        { status: 400 }
-      );
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: 'Lozinka mora imati najmanje 6 karaktera' },
-        { status: 400 }
-      );
-    }
+    } = validated;
 
     // Kreiraj Supabase admin client
     const supabaseAdmin = createClient(

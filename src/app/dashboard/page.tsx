@@ -1088,7 +1088,7 @@ function CreatorDashboard() {
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
                   {portfolioItems.map((item) => {
                     // Get display platform
                     const displayPlatform = item.platform || item.type;
@@ -1111,7 +1111,7 @@ function CreatorDashboard() {
                     return (
                       <div key={item.id} className="flex flex-col">
                         <div 
-                          className={`aspect-[3/4] relative rounded-xl overflow-hidden group cursor-pointer ${isImage ? 'hover:scale-105 transition-transform duration-300' : ''}`}
+                          className={`aspect-square relative rounded-xl overflow-hidden group cursor-pointer ${isImage ? 'hover:scale-105 transition-transform duration-300' : ''}`}
                           onClick={() => {
                             if (isVideo) {
                               setActiveVideo(item);
@@ -2423,7 +2423,6 @@ function BusinessDashboard() {
         
         if (viewsRes.ok) {
           const viewsData = await viewsRes.json();
-          console.log('Recent creators fetched:', viewsData);
           setRecentCreators(viewsData.creators || []);
           cacheData.recentCreators = viewsData.creators || [];
         } else {
@@ -2457,14 +2456,13 @@ function BusinessDashboard() {
   const refreshJobs = async () => {
     if (!currentUser.businessId) return;
     
-    console.log('Business Dashboard: Fetching jobs for businessId:', currentUser.businessId);
+    // Fetch jobs for business dashboard
     setIsLoadingJobs(true);
     try {
       const response = await fetch(`/api/jobs?businessId=${currentUser.businessId}`);
       console.log('Business Dashboard: Response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log('Business Dashboard: Received jobs:', data.jobs?.length, data.jobs);
         setMyJobs(data.jobs || []);
       } else {
         const errorText = await response.text();
@@ -4240,7 +4238,6 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         }
       } else {
         // Create new job - business jobs need admin approval
-        console.log('Creating job with businessId:', businessId);
         const response = await fetch('/api/jobs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4249,15 +4246,11 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         
         if (response.ok) {
           const responseData = await response.json();
-          console.log('Job created:', responseData);
           const { needsApproval } = responseData;
           
-          // Refetch jobs for this business
-          console.log('Fetching jobs for businessId:', businessId);
           const refreshRes = await fetch(`/api/jobs?businessId=${businessId}`);
           if (refreshRes.ok) {
             const data = await refreshRes.json();
-            console.log('Fetched jobs:', data.jobs?.length, 'jobs');
             setJobs(data.jobs || []);
           } else {
             console.error('Failed to fetch jobs:', await refreshRes.text());

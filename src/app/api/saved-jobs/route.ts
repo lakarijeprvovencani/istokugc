@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth-helper';
 
 // GET - Fetch saved jobs for a creator
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const creatorId = searchParams.get('creatorId');
     
     if (!creatorId) {
       return NextResponse.json({ error: 'Creator ID required' }, { status: 400 });
+    }
+
+    if (user?.role !== 'admin' && user?.creatorId !== creatorId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
     }
     
     // Fetch saved jobs with job details
@@ -96,11 +104,18 @@ export async function GET(request: NextRequest) {
 // POST - Save a job
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const supabase = await createClient();
     const { creatorId, jobId } = await request.json();
     
     if (!creatorId || !jobId) {
       return NextResponse.json({ error: 'Creator ID and Job ID required' }, { status: 400 });
+    }
+
+    if (user?.role !== 'admin' && user?.creatorId !== creatorId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
     }
     
     // Check if already saved
@@ -141,6 +156,9 @@ export async function POST(request: NextRequest) {
 // DELETE - Unsave a job
 export async function DELETE(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const creatorId = searchParams.get('creatorId');
@@ -148,6 +166,10 @@ export async function DELETE(request: NextRequest) {
     
     if (!creatorId || !jobId) {
       return NextResponse.json({ error: 'Creator ID and Job ID required' }, { status: 400 });
+    }
+
+    if (user?.role !== 'admin' && user?.creatorId !== creatorId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
     }
     
     const { error } = await supabase

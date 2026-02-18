@@ -8,10 +8,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 
 // POST - Create new job (admin)
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Samo admin ima pristup' }, { status: 403 });
+    }
+
     const body = await request.json();
     const {
       title,
@@ -76,6 +83,12 @@ export async function POST(request: NextRequest) {
 // PUT - Update job (status or all fields)
 export async function PUT(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Samo admin ima pristup' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { jobId, status, ...updates } = body;
 
@@ -156,6 +169,12 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete job (soft delete)
 export async function DELETE(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Samo admin ima pristup' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');
 

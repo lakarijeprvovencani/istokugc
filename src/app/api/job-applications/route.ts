@@ -3,14 +3,23 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-helper';
 
 // GET /api/job-applications - Dohvati prijave
-// NAPOMENA: GET ostaje otvoren jer se koristi za prikaz (bezbednost je u tome ŠTA se prikazuje)
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');
     const creatorId = searchParams.get('creatorId');
     const businessId = searchParams.get('businessId');
     const status = searchParams.get('status');
+
+    if (creatorId && user?.role !== 'admin' && user?.creatorId !== creatorId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+    }
+    if (businessId && user?.role !== 'admin' && user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+    }
 
     const supabase = createAdminClient();
 

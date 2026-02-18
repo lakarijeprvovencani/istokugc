@@ -877,7 +877,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
             {/* Portfolio */}
             <div className="mb-12">
               <h2 className="text-sm text-muted uppercase tracking-wider mb-6">Portfolio</h2>
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {creator.portfolio.map((item, index) => {
                   // Check if item is a video or image
                   const isVideo = item.type === 'youtube' || 
@@ -906,7 +906,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                   return (
                     <div key={index} className="flex flex-col">
                       <div 
-                        className={`group relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer ${isImage ? 'hover:scale-105 transition-transform duration-300' : ''}`}
+                        className={`group relative aspect-square rounded-2xl overflow-hidden cursor-pointer ${isImage ? 'hover:scale-105 transition-transform duration-300' : ''}`}
                         onClick={() => {
                           if (isVideo) {
                             setActiveVideo({
@@ -978,7 +978,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
               
               {/* Edit portfolio hint for owner */}
               {isOwner && (
-                <p className="mt-4 text-sm text-muted text-center">
+                <p className="mt-8 text-sm text-muted text-center">
                   Ako želiš da izmeniš ili dodaš još stavki u svoj portfolio{' '}
                   <Link 
                     href="/dashboard" 

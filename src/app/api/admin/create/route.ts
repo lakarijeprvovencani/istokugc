@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthLimiter, checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 // POST /api/admin/create - Kreiraj admin nalog (samo za development)
 export async function POST(request: NextRequest) {
   try {
+    const rateLimited = await checkRateLimit(getAuthLimiter(), getClientIp(request));
+    if (rateLimited) return rateLimited;
+
     const { email, password, secretKey } = await request.json();
 
-    // Proveri secret key za sigurnost
-    if (secretKey !== 'CREATE_ADMIN_2024') {
+    const expectedSecret = process.env.ADMIN_CREATE_SECRET;
+    if (!expectedSecret || secretKey !== expectedSecret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

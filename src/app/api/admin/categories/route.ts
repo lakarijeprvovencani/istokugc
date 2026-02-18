@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
+
+async function requireAdmin() {
+  const { user, error } = await getAuthUser();
+  if (error) return { user: null, error };
+  if (!user || !isAdmin(user)) {
+    return { user: null, error: NextResponse.json({ error: 'Samo admin ima pristup' }, { status: 403 }) };
+  }
+  return { user, error: null };
+}
 
 // GET /api/admin/categories - Dohvati sve kategorije
 export async function GET() {
   try {
+    const { user, error: authError } = await requireAdmin();
+    if (authError) return authError;
     const supabase = createAdminClient();
 
     const { data: categories, error } = await supabase
@@ -29,6 +41,9 @@ export async function GET() {
 // POST /api/admin/categories - Dodaj novu kategoriju
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAdmin();
+    if (authError) return authError;
+
     const { name } = await request.json();
 
     if (!name || !name.trim()) {
@@ -62,6 +77,9 @@ export async function POST(request: NextRequest) {
 // DELETE /api/admin/categories - Obriši kategoriju
 export async function DELETE(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAdmin();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const name = searchParams.get('name');
 

@@ -6,12 +6,19 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Samo admin može odobriti recenzije' }, { status: 403 });
+    }
+
     const { id } = await params;
     const supabase = createAdminClient();
 

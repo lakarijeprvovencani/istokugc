@@ -8,9 +8,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe, PRICE_IDS } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthUser } from '@/lib/auth-helper';
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const body = await request.json();
     const { businessId, newPlan } = body;
 
@@ -18,6 +22,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Business ID is required' },
         { status: 400 }
+      );
+    }
+
+    if (user?.role !== 'admin' && user?.businessId !== businessId) {
+      return NextResponse.json(
+        { error: 'Možete menjati samo svoj plan' },
+        { status: 403 }
       );
     }
 

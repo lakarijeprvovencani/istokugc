@@ -38,6 +38,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Idempotency: skip already-processed events
+    const { data: existing } = await supabase
+      .from('webhook_events')
+      .select('id')
+      .eq('event_id', event.id)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+
+    await supabase
+      .from('webhook_events')
+      .insert({ event_id: event.id, event_type: event.type });
+
     // Handle different event types
     switch (event.type) {
       // Pretplata uspešno kreirana ili obnovljena
@@ -64,7 +79,7 @@ export async function POST(request: NextRequest) {
           if (error) {
             console.error('Error updating business after payment:', error);
           } else {
-            console.log(`✅ Subscription renewed for customer ${customerId}`);
+            console.log('Subscription renewed successfully');
           }
         }
         break;
@@ -77,7 +92,7 @@ export async function POST(request: NextRequest) {
 
         if (subscriptionId) {
           // Označi pretplatu kao problematičnu (Stripe će pokušati ponovo)
-          console.log(`⚠️ Payment failed for subscription ${subscriptionId}`);
+          console.log('Payment failed for subscription');
           
           // Opcionalno: pošalji email korisniku
         }

@@ -60,16 +60,15 @@ export async function PUT(request: NextRequest) {
     if (authError) return authError;
     
     const body = await request.json();
-    const { businessId, companyName, website, industry, description, phone, logo } = body;
 
-    if (!businessId) {
-      return NextResponse.json(
-        { error: 'Business ID is required' },
-        { status: 400 }
-      );
+    const { validate, businessUpdateSchema } = await import('@/lib/validations');
+    const { data: validated, error: validationError } = validate(businessUpdateSchema, body);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
-    
-    // 🔒 BEZBEDNOSNA PROVERA: Biznis može menjati SAMO svoj profil
+
+    const { businessId, companyName, website, industry, description, phone, logo } = validated!;
+
     if (user?.businessId !== businessId) {
       return NextResponse.json(
         { error: 'Nemate dozvolu za izmenu ovog profila' },
@@ -77,7 +76,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Build update object with only provided fields
     const updateData: Record<string, any> = {};
     if (companyName !== undefined) updateData.company_name = companyName;
     if (website !== undefined) updateData.website = website;

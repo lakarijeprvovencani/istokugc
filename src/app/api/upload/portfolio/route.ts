@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 
 // POST /api/upload/portfolio - Upload portfolio file to Supabase Storage
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const creatorId = formData.get('creatorId') as string;
@@ -14,6 +18,16 @@ export async function POST(request: NextRequest) {
 
     if (!creatorId) {
       return NextResponse.json({ error: 'Creator ID required' }, { status: 400 });
+    }
+
+    // Sanitize creatorId to prevent path traversal
+    if (creatorId.includes('..') || creatorId.includes('/') || creatorId.includes('\\')) {
+      return NextResponse.json({ error: 'Invalid creator ID' }, { status: 400 });
+    }
+
+    // Verify ownership
+    if (!isAdmin(user!) && user?.creatorId !== creatorId) {
+      return NextResponse.json({ error: 'Možete uploadovati samo na svoj portfolio' }, { status: 403 });
     }
 
     // Validate file type

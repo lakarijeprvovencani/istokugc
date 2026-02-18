@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import emailService from '@/lib/email';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 
 // Tipovi notifikacija
 type NotificationType = 
@@ -25,14 +26,14 @@ type NotificationType =
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Samo admin može slati notifikacije' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { type, data } = body as { type: NotificationType; data: Record<string, unknown> };
-
-    // U produkciji, ovde bi bila autentikacija
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user?.isAdmin) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
 
     let result;
 

@@ -27,16 +27,14 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    // Filter by business (for dashboard) - return ALL statuses for that business
     if (businessId) {
-      console.log('Filtering by businessId:', businessId);
       query = query.eq('business_id', businessId);
     } else if (includeAll) {
-      // Admin view - get all jobs (no status filter)
-      console.log('Admin view - no status filter, getting ALL jobs');
+      const { user } = await getAuthUser();
+      if (!user || user.role !== 'admin') {
+        return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+      }
     } else {
-      // Public view - only open (approved) jobs
-      console.log('Public view - filtering by status:', status);
       query = query.eq('status', status);
     }
 
@@ -226,7 +224,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    console.log('Job created successfully:', job?.id);
+    console.log('Job created successfully');
     return NextResponse.json({ job, needsApproval: !isAdmin });
 
   } catch (error: any) {

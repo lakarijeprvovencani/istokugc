@@ -5,11 +5,18 @@ import { getAuthUser } from '@/lib/auth-helper';
 // GET /api/favorites - Get all favorites for business
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const businessId = searchParams.get('businessId');
 
     if (!businessId) {
       return NextResponse.json({ error: 'Business ID is required' }, { status: 400 });
+    }
+
+    if (user?.role !== 'admin' && user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
     }
 
     const supabase = createAdminClient();

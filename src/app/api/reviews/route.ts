@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-helper';
+import { reviewSchema, validate } from '@/lib/validations';
+import { getApiLimiter, checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 // Force dynamic rendering - no caching
 export const dynamic = 'force-dynamic';
@@ -105,26 +107,22 @@ export async function GET(request: NextRequest) {
 // ZAŠTIĆENO: Samo biznisi mogu kreirati recenzije za kreatore
 export async function POST(request: NextRequest) {
   try {
-    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const rateLimited = await checkRateLimit(getApiLimiter(), getClientIp(request));
+    if (rateLimited) return rateLimited;
+
     const { user, error: authError } = await getAuthUser();
     if (authError) return authError;
-    
-    const { businessId, creatorId, rating, comment } = await request.json();
 
-    console.log('Creating review:', { businessId, creatorId, rating, comment });
-
-    if (!businessId || !creatorId || !rating) {
-      console.log('Missing required fields:', { businessId, creatorId, rating });
-      return NextResponse.json({ error: 'Business ID, Creator ID, and rating are required' }, { status: 400 });
+    const body = await request.json();
+    const { data: validatedReview, error: validationError } = validate(reviewSchema, body);
+    if (validationError || !validatedReview) {
+      return NextResponse.json({ error: validationError || 'Nevažeći podaci' }, { status: 400 });
     }
-    
-    // 🔒 BEZBEDNOSNA PROVERA: Biznis može kreirati recenziju samo u svoje ime
+
+    const { businessId, creatorId, rating, comment } = validatedReview;
+
     if (user?.businessId !== businessId) {
       return NextResponse.json({ error: 'Nemate dozvolu da kreirate recenziju u ime drugog biznisa' }, { status: 403 });
-    }
-
-    if (rating < 1 || rating > 5) {
-      return NextResponse.json({ error: 'Rating must be between 1 and 5' }, { status: 400 });
     }
 
     const supabase = createAdminClient();

@@ -1,146 +1,103 @@
 /**
  * Next.js Middleware
  * 
- * Ovaj middleware:
- * 1. Osvežava Supabase sesiju (za auth)
- * 2. Proverava autentifikaciju i status pretplate za zaštićene rute
- * 
- * NAPOMENA: U demo modu, auth provere su preskočene, ali Supabase session refresh radi.
+ * 1. Osvežava Supabase sesiju
+ * 2. Štiti rute koje zahtevaju autentifikaciju
+ * 3. Štiti admin rute (samo za admin ulogu)
  */
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';
+import { createServerClient } from '@supabase/ssr';
 
-// Rute koje zahtevaju aktivnu pretplatu (business users)
-const SUBSCRIPTION_REQUIRED_ROUTES = [
-  '/kreatori',      // Pregled kreatora
-  '/kreator/',      // Pojedinačni kreator
-];
-
-// Rute koje zahtevaju autentifikaciju
-const AUTH_REQUIRED_ROUTES = [
-  '/dashboard',
-  '/admin',
-  ...SUBSCRIPTION_REQUIRED_ROUTES,
-];
-
-// Rute koje su javne (ne zahtevaju ništa)
 const PUBLIC_ROUTES = [
   '/',
   '/login',
   '/register',
+  '/pricing',
   '/checkout',
-  '/api/stripe/webhook',
-  '/auth/callback', // Supabase email verification callback
+  '/poslovi',
+  '/auth/callback',
+  '/auth/error',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-email',
+];
+
+const AUTH_REQUIRED_ROUTES = [
+  '/dashboard',
+  '/admin',
 ];
 
 export async function middleware(request: NextRequest) {
-  // Supabase session refresh - uvek radi (potrebno za auth)
-  const response = await updateSession(request);
-  
   const { pathname } = request.nextUrl;
 
-  // ============================================
-  // DEMO MODE - Preskoči auth provere
-  // ============================================
-  
-  // U demo modu, dozvoljavamo sve rute (ali Supabase session refresh je aktivan)
-  return response;
+  let supabaseResponse = NextResponse.next({ request });
 
-  // ============================================
-  // PRODUKCIJA - Aktiviraj provere ispod
-  // ============================================
-  
-  /*
-  // Javne rute - dozvoli
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
-    return NextResponse.next();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // API rute imaju svoju autentifikaciju u samim handlerima
+  if (pathname.startsWith('/api/')) {
+    return supabaseResponse;
   }
 
-  // API rute (osim webhook) - posebna logika
-  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/stripe/webhook')) {
-    // API rute imaju svoju autentifikaciju
-    return NextResponse.next();
+  // Javne rute
+  if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+    return supabaseResponse;
   }
 
-  // Dohvati JWT token
-  const token = await getToken({ 
-    req: request as any,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
-
-  // Nije ulogovan
-  if (!token) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Proveri subscription za business korisnike
-  if (SUBSCRIPTION_REQUIRED_ROUTES.some(route => pathname.startsWith(route))) {
-    // Admini uvek imaju pristup
-    if (token.role === 'admin') {
-      return NextResponse.next();
+  // Rute koje zahtevaju autentifikaciju
+  if (AUTH_REQUIRED_ROUTES.some(route => pathname.startsWith(route))) {
+    if (!user) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      const redirectResponse = NextResponse.redirect(loginUrl);
+      supabaseResponse.cookies.getAll().forEach(cookie => {
+        redirectResponse.cookies.set(cookie.name, cookie.value);
+      });
+      return redirectResponse;
     }
 
-    // Kreatori uvek imaju pristup
-    if (token.role === 'creator') {
-      return NextResponse.next();
-    }
-
-    // Business korisnici - proveri subscription
-    if (token.role === 'business') {
-      // Proveri subscription status
-      const subscriptionResponse = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/subscription/status`,
-        {
-          headers: {
-            Cookie: request.headers.get('cookie') || '',
-          },
-        }
-      );
-
-      if (subscriptionResponse.ok) {
-        const { canAccessPremium } = await subscriptionResponse.json();
-        
-        if (!canAccessPremium) {
-          // Nema aktivnu pretplatu - redirect na pricing
-          return NextResponse.redirect(new URL('/register/biznis', request.url));
-        }
+    // Admin rute — samo za admin ulogu
+    if (pathname.startsWith('/admin')) {
+      const role = user.user_metadata?.role;
+      if (role !== 'admin') {
+        const redirectResponse = NextResponse.redirect(new URL('/dashboard', request.url));
+        supabaseResponse.cookies.getAll().forEach(cookie => {
+          redirectResponse.cookies.set(cookie.name, cookie.value);
+        });
+        return redirectResponse;
       }
     }
-
-    // Guest korisnici - redirect na registraciju
-    if (token.role === 'guest' || !token.role) {
-      return NextResponse.redirect(new URL('/register/biznis', request.url));
-    }
   }
 
-  // Admin rute
-  if (pathname.startsWith('/admin') && token.role !== 'admin') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  return NextResponse.next();
-  */
+  return supabaseResponse;
 }
 
-// Definiši koje rute middleware obrađuje
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     '/((?!_next/static|_next/image|favicon.ico|public/).*)',
   ],
 };
-
-
-
-
 

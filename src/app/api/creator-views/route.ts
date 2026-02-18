@@ -5,6 +5,9 @@ import { getAuthUser } from '@/lib/auth-helper';
 // GET - Dohvati nedavno pregledane kreatore za biznis
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const businessId = searchParams.get('businessId');
     const limit = parseInt(searchParams.get('limit') || '5');
@@ -13,9 +16,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Business ID is required' }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
+    if (user?.role !== 'admin' && user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+    }
 
-    console.log('Fetching views for businessId:', businessId);
+    const supabase = createAdminClient();
     
     // Step 1: Fetch views
     const { data: views, error: viewsError } = await supabase
@@ -25,27 +30,14 @@ export async function GET(request: NextRequest) {
       .order('viewed_at', { ascending: false })
       .limit(limit);
 
-    console.log('Views query result:', { views, error: viewsError });
-
     if (viewsError) {
       console.error('Error fetching creator views:', viewsError);
       return NextResponse.json({ creators: [], error: viewsError.message });
     }
 
     if (!views || views.length === 0) {
-      console.log('No views found for business:', businessId);
-      
-      // Debug: Check if any views exist at all
-      const { data: allViews } = await supabase
-        .from('creator_views')
-        .select('*')
-        .limit(5);
-      console.log('All views in table (debug):', allViews);
-      
       return NextResponse.json({ creators: [] });
     }
-
-    console.log('Found views:', views);
 
     // Step 2: Get unique creator IDs
     const creatorIds = [...new Set(views.map(v => v.creator_id).filter(Boolean))];
@@ -64,8 +56,6 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching creators:', creatorsError);
       return NextResponse.json({ creators: [] });
     }
-
-    console.log('Found creators:', creators);
 
     // Step 4: Create a map for quick lookup
     const creatorMap = new Map(
@@ -128,8 +118,6 @@ export async function POST(request: NextRequest) {
     const isNewView = !existingView;
 
     // Upsert - ako već postoji, ažuriraj viewed_at
-    console.log('Attempting to upsert view:', { businessId, creatorId });
-    
     const { data: upsertData, error } = await supabase
       .from('creator_views')
       .upsert(
@@ -149,8 +137,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
     
-    console.log('Upsert result:', upsertData);
-
     // Increment profile_views only for new unique views
     if (isNewView) {
       const { data: creator } = await supabase

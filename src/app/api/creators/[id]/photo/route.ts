@@ -8,13 +8,25 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { id } = await params;
+
+    if (!isAdmin(user!) && user?.creatorId !== id) {
+      return NextResponse.json(
+        { success: false, error: 'Možete menjati samo svoju profilnu sliku' },
+        { status: 403 }
+      );
+    }
+
     const supabase = createAdminClient();
     
     // Dohvati body - može biti FormData ili JSON sa base64

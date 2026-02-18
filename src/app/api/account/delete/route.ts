@@ -64,7 +64,7 @@ export async function DELETE(request: NextRequest) {
       if (business?.stripe_subscription_id) {
         try {
           await stripe.subscriptions.cancel(business.stripe_subscription_id);
-          console.log('Stripe subscription cancelled:', business.stripe_subscription_id);
+          console.log('Stripe subscription cancelled');
         } catch (stripeError: any) {
           // Log ali nastavi - možda je već otkazana
           console.error('Error cancelling Stripe subscription:', stripeError.message);
@@ -75,7 +75,7 @@ export async function DELETE(request: NextRequest) {
       if (business?.stripe_customer_id) {
         try {
           await stripe.customers.del(business.stripe_customer_id);
-          console.log('Stripe customer deleted:', business.stripe_customer_id);
+          console.log('Stripe customer deleted');
         } catch (stripeError: any) {
           console.error('Error deleting Stripe customer:', stripeError.message);
         }

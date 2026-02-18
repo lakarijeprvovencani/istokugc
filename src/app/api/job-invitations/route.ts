@@ -5,6 +5,9 @@ import { getAuthUser } from '@/lib/auth-helper';
 // GET - Fetch invitations
 export async function GET(request: Request) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const supabase = createAdminClient();
     
     const { searchParams } = new URL(request.url);
@@ -12,6 +15,13 @@ export async function GET(request: Request) {
     const businessId = searchParams.get('businessId');
     const jobId = searchParams.get('jobId');
     const status = searchParams.get('status');
+
+    if (creatorId && user?.role !== 'admin' && user?.creatorId !== creatorId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+    }
+    if (businessId && user?.role !== 'admin' && user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+    }
 
     let query = supabase
       .from('job_invitations')

@@ -5,11 +5,23 @@ import { getAuthUser } from '@/lib/auth-helper';
 // GET /api/job-messages - Dohvati poruke za prijavu ili broj nepročitanih
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const applicationId = searchParams.get('applicationId');
     const countUnread = searchParams.get('countUnread');
     const recipientType = searchParams.get('recipientType');
     const recipientId = searchParams.get('recipientId');
+
+    if (recipientId) {
+      if (recipientType === 'creator' && user?.creatorId !== recipientId) {
+        return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+      }
+      if (recipientType === 'business' && user?.businessId !== recipientId) {
+        return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+      }
+    }
 
     const supabase = createAdminClient();
 
@@ -150,17 +162,13 @@ export async function POST(request: NextRequest) {
     
     // 🔒 BEZBEDNOSNA PROVERA: senderId mora odgovarati ulogovanom korisniku
     if (senderType === 'creator' && user?.creatorId !== senderId) {
-      console.error('Creator auth mismatch:', { userCreatorId: user?.creatorId, senderId, userRole: user?.role });
       return NextResponse.json({ 
-        error: 'Nemate dozvolu da šaljete poruke kao ovaj kreator',
-        debug: { userCreatorId: user?.creatorId, senderId }
+        error: 'Nemate dozvolu da šaljete poruke kao ovaj kreator'
       }, { status: 403 });
     }
     if (senderType === 'business' && user?.businessId !== senderId) {
-      console.error('Business auth mismatch:', { userBusinessId: user?.businessId, senderId, userRole: user?.role });
       return NextResponse.json({ 
-        error: 'Nemate dozvolu da šaljete poruke kao ovaj biznis',
-        debug: { userBusinessId: user?.businessId, senderId }
+        error: 'Nemate dozvolu da šaljete poruke kao ovaj biznis'
       }, { status: 403 });
     }
 

@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`✅ Verification email resent to: ${email}`);
+    console.log('Verification email resent');
 
     return NextResponse.json({
       success: true,

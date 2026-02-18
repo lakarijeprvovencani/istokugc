@@ -13,12 +13,20 @@ import { createAdminClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Ovaj endpoint je onemogućen u produkciji' }, { status: 403 });
+    }
+
     const supabase = createAdminClient();
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
     
-    const ADMIN_EMAIL = 'admin@ugcadmin.com';
-    const ADMIN_PASSWORD = 'SifraAdmin123321!';
+    const ADMIN_EMAIL = process.env.ADMIN_SETUP_EMAIL || 'admin@ugcadmin.com';
+    const ADMIN_PASSWORD = process.env.ADMIN_SETUP_PASSWORD;
+
+    if (!ADMIN_PASSWORD) {
+      return NextResponse.json({ error: 'ADMIN_SETUP_PASSWORD env varijabla nije podešena' }, { status: 500 });
+    }
     
     // 1. Proveri da li admin postoji u public.users
     const { data: existingAdmin, error: userError } = await supabase
@@ -92,7 +100,6 @@ export async function GET(request: NextRequest) {
           message: 'Admin dodat u Auth!',
           adminId: existingAdmin.id,
           email: existingAdmin.email || ADMIN_EMAIL,
-          password: ADMIN_PASSWORD,
           instructions: 'Sada se možeš ulogovati!'
         });
       }
@@ -135,7 +142,6 @@ export async function GET(request: NextRequest) {
         message: 'Admin kreiran!',
         adminId: authData.user!.id,
         email: ADMIN_EMAIL,
-        password: ADMIN_PASSWORD
       });
     }
     
@@ -166,7 +172,6 @@ export async function GET(request: NextRequest) {
         success: true,
         message: 'Lozinka resetovana!',
         email: existingAdmin.email,
-        password: ADMIN_PASSWORD
       });
     }
     

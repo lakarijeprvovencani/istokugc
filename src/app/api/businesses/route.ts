@@ -8,10 +8,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 
 // GET - Lista biznisa (admin only)
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    if (!isAdmin(user!)) {
+      return NextResponse.json({ success: false, error: 'Admin only' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get('page')) || 1;
     const pageSize = Number(searchParams.get('pageSize')) || 20;
@@ -81,9 +88,15 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Registracija biznisa (koristi se /api/auth/register/business umesto ovoga)
+// POST - Kreiranje biznisa (admin only, registracija koristi /api/auth/register/business)
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    if (!isAdmin(user!)) {
+      return NextResponse.json({ success: false, error: 'Admin only' }, { status: 403 });
+    }
+
     const body = await request.json();
     
     // Validacija

@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 import { MIN_COMMENT_LENGTH, MAX_COMMENT_LENGTH } from '@/types/review';
 
 export async function GET(
@@ -68,14 +69,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { id } = await params;
     const body = await request.json();
     const supabase = createAdminClient();
 
-    // Check if review exists
+    // Check if review exists and verify ownership
     const { data: existing, error: fetchError } = await supabase
       .from('reviews')
-      .select('id')
+      .select('id, business_id')
       .eq('id', id)
       .single();
     
@@ -83,6 +87,13 @@ export async function PUT(
       return NextResponse.json(
         { error: 'Review not found' },
         { status: 404 }
+      );
+    }
+
+    if (!isAdmin(user!) && user?.businessId !== existing.business_id) {
+      return NextResponse.json(
+        { error: 'Možete menjati samo svoje recenzije' },
+        { status: 403 }
       );
     }
 
@@ -117,7 +128,7 @@ export async function PUT(
     
     if (body.rating) updateData.rating = body.rating;
     if (body.comment) updateData.comment = body.comment.trim();
-    if (body.status) updateData.status = body.status;
+    if (body.status && isAdmin(user!)) updateData.status = body.status;
 
     // If content changes, reset to pending for re-moderation
     if (body.rating || body.comment) {
@@ -159,8 +170,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { id } = await params;
     const supabase = createAdminClient();
+
+    // Verify ownership
+    const { data: existing } = await supabase
+      .from('reviews')
+      .select('business_id')
+      .eq('id', id)
+      .single();
+
+    if (existing && !isAdmin(user!) && user?.businessId !== existing.business_id) {
+      return NextResponse.json({ error: 'Možete obrisati samo svoje recenzije' }, { status: 403 });
+    }
 
     // Delete review
     const { error } = await supabase

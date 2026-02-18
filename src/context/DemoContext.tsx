@@ -65,8 +65,8 @@ interface DemoContextType {
   currentUser: DemoUser;
   setUserType: (type: UserType) => void;
   updateCurrentUser: (updates: Partial<DemoUser>) => void; // Update current user properties
-  loginAsNewCreator: (creatorId: string, creatorName?: string, creatorEmail?: string) => void; // Login as newly registered creator
-  loginAsNewBusiness: (businessId: string, companyName: string, subscriptionStatus?: string, subscriptionPlan?: string) => void; // Login as newly registered business
+  loginAsNewCreator: (creatorId: string, creatorName?: string, creatorEmail?: string, creatorPhoto?: string) => void;
+  loginAsNewBusiness: (businessId: string, companyName: string, subscriptionStatus?: string, subscriptionPlan?: string, logo?: string) => void;
   isLoggedIn: boolean;
   logout: () => void;
   isHydrated: boolean;
@@ -228,6 +228,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               email: '',
               businessId: businessData.id,
               companyName: businessData.companyName,
+              logo: businessData.logo || undefined,
               subscriptionStatus: businessData.subscriptionStatus as 'active' | 'expired' | 'cancelled' | undefined,
               subscriptionPlan: businessData.subscriptionPlan as 'monthly' | 'yearly' | undefined,
               subscriptionExpiresAt: businessData.subscriptionExpiresAt,
@@ -440,13 +441,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   };
 
   // Login as a newly registered creator (links user to their creator profile)
-  const loginAsNewCreator = (creatorId: string, creatorName?: string, creatorEmail?: string) => {
-    // Set user type to creator with the new creator's ID and name
+  const loginAsNewCreator = (creatorId: string, creatorName?: string, creatorEmail?: string, creatorPhoto?: string) => {
     const creatorUser: DemoUser = {
       type: 'creator',
       name: creatorName || '',
       email: creatorEmail || '',
       creatorId: creatorId,
+      photo: creatorPhoto || undefined,
     };
     setCurrentUser(creatorUser);
     setLoggedInCreatorId(creatorId);
@@ -454,18 +455,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, 'creator');
       localStorage.setItem(CURRENT_CREATOR_ID_KEY, creatorId);
-      localStorage.setItem(CURRENT_CREATOR_KEY, JSON.stringify({ id: creatorId, name: creatorName, email: creatorEmail }));
+      localStorage.setItem(CURRENT_CREATOR_KEY, JSON.stringify({ id: creatorId, name: creatorName, email: creatorEmail, photo: creatorPhoto }));
     }
   };
 
   // Login as a newly registered business (after successful payment)
-  const loginAsNewBusiness = (businessId: string, companyName: string, subscriptionStatus?: string, subscriptionPlan?: string) => {
+  const loginAsNewBusiness = (businessId: string, companyName: string, subscriptionStatus?: string, subscriptionPlan?: string, logo?: string) => {
     const businessUser: DemoUser = {
       type: 'business',
       name: companyName,
       email: '',
       businessId: businessId,
       companyName: companyName,
+      logo: logo || undefined,
       subscriptionStatus: (subscriptionStatus || 'active') as 'active' | 'expired' | 'cancelled',
       subscriptionPlan: (subscriptionPlan || 'monthly') as 'monthly' | 'yearly',
     };
@@ -474,7 +476,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, 'business');
-      localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ id: businessId, companyName, subscriptionStatus, subscriptionPlan }));
+      localStorage.setItem(CURRENT_BUSINESS_KEY, JSON.stringify({ id: businessId, companyName, subscriptionStatus, subscriptionPlan, logo }));
     }
   };
 

@@ -10,9 +10,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthUser } from '@/lib/auth-helper';
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const body = await request.json();
     const { businessId } = body;
 
@@ -21,6 +25,10 @@ export async function POST(request: NextRequest) {
         { error: 'Business ID is required' },
         { status: 400 }
       );
+    }
+
+    if (user?.role !== 'admin' && user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
     }
 
     // Dohvati business iz baze da dobijemo stripe_customer_id
@@ -62,18 +70,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Error creating portal session:', error);
-    console.error('Stripe error details:', {
-      message: error.message,
-      type: error.type,
-      code: error.code,
-      param: error.param,
-    });
-    
-    // Return more specific error message
-    const errorMessage = error.message || 'Failed to create portal session';
+    console.error('Error creating portal session:', error.message);
     return NextResponse.json(
-      { error: errorMessage, details: error.code || error.type },
+      { error: 'Failed to create portal session' },
       { status: 500 }
     );
   }

@@ -29,8 +29,24 @@ export async function GET(
       .select('*', { count: 'exact', head: true })
       .eq('creator_id', id);
 
-    // Transformiši podatke u format koji frontend očekuje
-    const formattedCreator = {
+    // Proveri da li je korisnik ulogovan (za kontakt info)
+    const supabaseAuth = await (await import('@/lib/supabase/server')).createClient();
+    const { data: { user: authUser } } = await supabaseAuth.auth.getUser();
+    let userRole: string | null = null;
+    let userCreatorId: string | null = null;
+    if (authUser) {
+      const { data: ud } = await supabaseAuth.from('users').select('role').eq('id', authUser.id).single();
+      userRole = ud?.role || null;
+      if (userRole === 'creator') {
+        const { data: cd } = await supabaseAuth.from('creators').select('id').eq('user_id', authUser.id).single();
+        userCreatorId = cd?.id || null;
+      }
+    }
+
+    const isOwner = userCreatorId === id;
+    const canSeeContact = userRole === 'admin' || userRole === 'business' || isOwner;
+
+    const formattedCreator: Record<string, unknown> = {
       id: creator.id,
       name: creator.name,
       photo: creator.photo || null,
@@ -46,19 +62,21 @@ export async function GET(
       status: creator.status,
       approved: creator.status === 'approved',
       rejectionReason: creator.rejection_reason || null,
-      // Kontakt info
-      email: creator.email,
-      phone: creator.phone,
       instagram: creator.instagram,
       tiktok: creator.tiktok,
       youtube: creator.youtube,
       website: creator.website,
-      // Dodatna polja
       niches: creator.niches || [],
       portfolio: creator.portfolio || [],
       createdAt: creator.created_at,
       userId: creator.user_id,
     };
+
+    // Kontakt info samo za ulogovane korisnike sa pravom pristupa
+    if (canSeeContact) {
+      formattedCreator.email = creator.email;
+      formattedCreator.phone = creator.phone;
+    }
 
     // Short cache for creator profile (10 seconds)
     const response = NextResponse.json({ creator: formattedCreator });
@@ -86,45 +104,48 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     
-    // 🔒 BEZBEDNOSNA PROVERA: Kreator može menjati SAMO svoj profil
     const isOwner = user?.creatorId === id;
-    const isAdmin = user?.role === 'admin';
+    const isAdminUser = user?.role === 'admin';
     
-    if (!isOwner && !isAdmin) {
+    if (!isOwner && !isAdminUser) {
       return NextResponse.json(
         { error: 'Nemate dozvolu za izmenu ovog profila' },
         { status: 403 }
       );
     }
     
-    // Samo admin može menjati status
-    if (body.status !== undefined && !isAdmin) {
+    if (body.status !== undefined && !isAdminUser) {
       return NextResponse.json(
         { error: 'Samo admin može menjati status kreatora' },
         { status: 403 }
       );
     }
 
+    const { validate, creatorUpdateSchema } = await import('@/lib/validations');
+    const { data: validated, error: validationError } = validate(creatorUpdateSchema, body);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
     const supabase = createAdminClient();
 
-    // Mapiranje frontend polja na database polja
     const updateData: any = {};
     
-    if (body.bio !== undefined) updateData.bio = body.bio;
-    if (body.categories !== undefined) updateData.categories = body.categories;
-    if (body.platforms !== undefined) updateData.platforms = body.platforms;
-    if (body.languages !== undefined) updateData.languages = body.languages;
-    if (body.email !== undefined) updateData.email = body.email;
-    if (body.phone !== undefined) updateData.phone = body.phone;
-    if (body.instagram !== undefined) updateData.instagram = body.instagram;
-    if (body.tiktok !== undefined) updateData.tiktok = body.tiktok;
-    if (body.youtube !== undefined) updateData.youtube = body.youtube;
-    if (body.price_from !== undefined) updateData.price_from = body.price_from;
-    if (body.photo !== undefined) updateData.photo = body.photo;
-    if (body.portfolio !== undefined) updateData.portfolio = body.portfolio;
-    if (body.name !== undefined) updateData.name = body.name;
-    if (body.location !== undefined) updateData.location = body.location;
-    if (body.status !== undefined) updateData.status = body.status;
+    if (validated!.bio !== undefined) updateData.bio = validated!.bio;
+    if (validated!.categories !== undefined) updateData.categories = validated!.categories;
+    if (validated!.platforms !== undefined) updateData.platforms = validated!.platforms;
+    if (validated!.languages !== undefined) updateData.languages = validated!.languages;
+    if (validated!.email !== undefined) updateData.email = validated!.email;
+    if (validated!.phone !== undefined) updateData.phone = validated!.phone;
+    if (validated!.instagram !== undefined) updateData.instagram = validated!.instagram;
+    if (validated!.tiktok !== undefined) updateData.tiktok = validated!.tiktok;
+    if (validated!.youtube !== undefined) updateData.youtube = validated!.youtube;
+    if (validated!.price_from !== undefined) updateData.price_from = validated!.price_from;
+    if (validated!.photo !== undefined) updateData.photo = validated!.photo;
+    if (validated!.portfolio !== undefined) updateData.portfolio = validated!.portfolio;
+    if (validated!.name !== undefined) updateData.name = validated!.name;
+    if (validated!.location !== undefined) updateData.location = validated!.location;
+    if (validated!.status !== undefined) updateData.status = validated!.status;
 
     const { data: creator, error } = await supabase
       .from('creators')

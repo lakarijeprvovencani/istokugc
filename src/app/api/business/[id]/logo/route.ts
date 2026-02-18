@@ -8,16 +8,28 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { id } = await params;
+
+    if (id.includes('..') || id.includes('/') || id.includes('\\')) {
+      return NextResponse.json({ success: false, error: 'Invalid ID' }, { status: 400 });
+    }
+
+    if (!isAdmin(user!) && user?.businessId !== id) {
+      return NextResponse.json({ success: false, error: 'Nemate dozvolu' }, { status: 403 });
+    }
+
     const supabase = createAdminClient();
     
-    // Dohvati body - može biti FormData ili JSON sa base64
     const contentType = request.headers.get('content-type') || '';
     
     let logoData: string;
@@ -30,6 +42,14 @@ export async function POST(
       if (!logoData || !logoData.startsWith('data:image')) {
         return NextResponse.json(
           { success: false, error: 'Invalid image data' },
+          { status: 400 }
+        );
+      }
+
+      const base64Size = (logoData.length * 3) / 4;
+      if (base64Size > 2 * 1024 * 1024) {
+        return NextResponse.json(
+          { success: false, error: 'Logo mora biti manji od 2MB' },
           { status: 400 }
         );
       }

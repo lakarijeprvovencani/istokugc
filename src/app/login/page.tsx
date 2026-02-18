@@ -114,8 +114,7 @@ export default function LoginPage() {
         // Dodaj kreatora u DemoContext
         addCreatorFromSupabase(creator);
         
-        // Login kao kreator sa imenom
-        loginAsNewCreator(creatorData.id, creatorData.name, creatorData.email);
+        loginAsNewCreator(creatorData.id, creatorData.name, creatorData.email, creatorData.photo);
         
         // Ako je pending, idi na pending stranicu
         if (creatorData.status === 'pending') {
@@ -148,7 +147,7 @@ export default function LoginPage() {
 
         // Dozvoli login bez obzira na status pretplate (expired je OK)
         // Dashboard će prikazati opciju za obnovu ako je pretplata istekla
-        loginAsNewBusiness(businessData.id, businessData.company_name, businessData.subscription_status, businessData.subscription_type);
+        loginAsNewBusiness(businessData.id, businessData.company_name, businessData.subscription_status, businessData.subscription_type, businessData.logo);
         router.push('/dashboard');
       }
 

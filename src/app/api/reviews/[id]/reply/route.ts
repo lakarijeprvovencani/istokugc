@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth-helper';
 
 // POST - Dodaj odgovor
 export async function POST(
@@ -15,6 +16,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { id } = await params;
     const { reply } = await request.json();
     const supabase = createAdminClient();
@@ -24,6 +28,21 @@ export async function POST(
         { error: 'Reply is required' },
         { status: 400 }
       );
+    }
+
+    // Proveri da kreator odgovara na recenziju svog profila
+    const { data: reviewData } = await supabase
+      .from('reviews')
+      .select('creator_id')
+      .eq('id', id)
+      .single();
+
+    if (!reviewData) {
+      return NextResponse.json({ error: 'Review not found' }, { status: 404 });
+    }
+
+    if (user?.role !== 'admin' && user?.creatorId !== reviewData.creator_id) {
+      return NextResponse.json({ error: 'Možete odgovoriti samo na recenzije vašeg profila' }, { status: 403 });
     }
 
     // Update review with reply
@@ -65,9 +84,22 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { id } = await params;
     const { reply } = await request.json();
     const supabase = createAdminClient();
+
+    const { data: reviewData } = await supabase
+      .from('reviews')
+      .select('creator_id')
+      .eq('id', id)
+      .single();
+
+    if (reviewData && user?.role !== 'admin' && user?.creatorId !== reviewData.creator_id) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+    }
 
     if (!reply || !reply.trim()) {
       return NextResponse.json(
@@ -115,8 +147,21 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { id } = await params;
     const supabase = createAdminClient();
+
+    const { data: reviewData } = await supabase
+      .from('reviews')
+      .select('creator_id')
+      .eq('id', id)
+      .single();
+
+    if (reviewData && user?.role !== 'admin' && user?.creatorId !== reviewData.creator_id) {
+      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+    }
 
     // Remove reply
     const { data: review, error } = await supabase

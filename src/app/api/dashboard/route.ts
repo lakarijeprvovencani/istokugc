@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthUser } from '@/lib/auth-helper';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,10 +10,21 @@ const supabaseAdmin = createClient(
 // Combined dashboard endpoint - fetches all data in parallel
 export async function GET(request: Request) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'creator' or 'business'
     const creatorId = searchParams.get('creatorId');
     const businessId = searchParams.get('businessId');
+
+    // Verify the user can only access their own dashboard data
+    if (type === 'creator' && creatorId && user?.role !== 'admin' && user?.creatorId !== creatorId) {
+      return NextResponse.json({ error: 'Nemate pristup ovim podacima' }, { status: 403 });
+    }
+    if (type === 'business' && businessId && user?.role !== 'admin' && user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Nemate pristup ovim podacima' }, { status: 403 });
+    }
 
     if (type === 'creator' && creatorId) {
       // Fetch all creator data in PARALLEL

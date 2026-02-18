@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ error: 'Samo admin ima pristup' }, { status: 403 });
+    }
+
     const { email } = await request.json();
 
     if (!email) {

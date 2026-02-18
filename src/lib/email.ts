@@ -38,11 +38,7 @@ export async function notifyAdminNewCreator(data: {
 }) {
   const { creatorName, creatorEmail, categories, location } = data;
   
-  // DEMO MODE - samo loguj
-  console.log('📧 [DEMO] Email would be sent:');
-  console.log('   To:', ADMIN_EMAIL);
-  console.log('   Subject: 🆕 Nova prijava kreatora:', creatorName);
-  console.log('   Data:', { creatorEmail, categories, location });
+  console.log('[DEMO] Email: notifyAdminNewCreator');
   
   return { success: true, demo: true };
 
@@ -86,11 +82,7 @@ export async function notifyAdminNewReview(data: {
 }) {
   const { businessName, creatorName, rating, comment } = data;
   
-  // DEMO MODE
-  console.log('📧 [DEMO] Email would be sent:');
-  console.log('   To:', ADMIN_EMAIL);
-  console.log('   Subject: ⭐ Nova recenzija za pregled');
-  console.log('   Data:', { businessName, creatorName, rating, commentPreview: comment.substring(0, 50) });
+  console.log('[DEMO] Email: notifyAdminNewReview');
   
   return { success: true, demo: true };
 
@@ -136,11 +128,7 @@ export async function notifyCreatorApproved(data: {
 }) {
   const { creatorName, creatorEmail } = data;
   
-  // DEMO MODE
-  console.log('📧 [DEMO] Email would be sent:');
-  console.log('   To:', creatorEmail);
-  console.log('   Subject: ✅ Tvoj profil je odobren!');
-  console.log('   Data:', { creatorName });
+  console.log('[DEMO] Email: notifyCreatorApproved');
   
   return { success: true, demo: true };
 
@@ -181,11 +169,7 @@ export async function notifyCreatorRejected(data: {
 }) {
   const { creatorName, creatorEmail, reason } = data;
   
-  // DEMO MODE
-  console.log('📧 [DEMO] Email would be sent:');
-  console.log('   To:', creatorEmail);
-  console.log('   Subject: Tvoja prijava nije prihvaćena');
-  console.log('   Data:', { creatorName, reason });
+  console.log('[DEMO] Email: notifyCreatorRejected');
   
   return { success: true, demo: true };
 
@@ -227,11 +211,7 @@ export async function notifyCreatorNewReview(data: {
 }) {
   const { creatorName, creatorEmail, businessName, rating } = data;
   
-  // DEMO MODE
-  console.log('📧 [DEMO] Email would be sent:');
-  console.log('   To:', creatorEmail);
-  console.log('   Subject: ⭐ Nova recenzija na tvom profilu');
-  console.log('   Data:', { creatorName, businessName, rating });
+  console.log('[DEMO] Email: notifyCreatorNewReview');
   
   return { success: true, demo: true };
 
@@ -277,11 +257,7 @@ export async function notifyBusinessWelcome(data: {
 }) {
   const { companyName, email, plan } = data;
   
-  // DEMO MODE
-  console.log('📧 [DEMO] Email would be sent:');
-  console.log('   To:', email);
-  console.log('   Subject: 🎉 Dobrodošli na UGC Executive!');
-  console.log('   Data:', { companyName, plan });
+  console.log('[DEMO] Email: notifyBusinessWelcome');
   
   return { success: true, demo: true };
 
@@ -323,11 +299,7 @@ export async function notifyBusinessReviewApproved(data: {
 }) {
   const { companyName, email, creatorName } = data;
   
-  // DEMO MODE
-  console.log('📧 [DEMO] Email would be sent:');
-  console.log('   To:', email);
-  console.log('   Subject: ✅ Tvoja recenzija je objavljena');
-  console.log('   Data:', { companyName, creatorName });
+  console.log('[DEMO] Email: notifyBusinessReviewApproved');
   
   return { success: true, demo: true };
 
@@ -369,11 +341,7 @@ export async function notifyBusinessSubscriptionExpiring(data: {
 }) {
   const { companyName, email, expiresAt, daysLeft } = data;
   
-  // DEMO MODE
-  console.log('📧 [DEMO] Email would be sent:');
-  console.log('   To:', email);
-  console.log('   Subject: ⚠️ Tvoja pretplata ističe za', daysLeft, 'dana');
-  console.log('   Data:', { companyName, expiresAt });
+  console.log('[DEMO] Email: notifyBusinessSubscriptionExpiring');
   
   return { success: true, demo: true };
 

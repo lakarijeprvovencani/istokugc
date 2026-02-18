@@ -8,9 +8,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthUser } from '@/lib/auth-helper';
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const body = await request.json();
     const { businessId } = body;
 
@@ -19,6 +23,10 @@ export async function POST(request: NextRequest) {
         { error: 'Business ID is required' },
         { status: 400 }
       );
+    }
+
+    if (user?.role !== 'admin' && user?.businessId !== businessId) {
+      return NextResponse.json({ error: 'Možete reaktivirati samo svoju pretplatu' }, { status: 403 });
     }
 
     // Dohvati business iz baze

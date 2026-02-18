@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
+
+async function requireAdmin() {
+  const { user, error } = await getAuthUser();
+  if (error) return { user: null, error };
+  if (!user || !isAdmin(user)) {
+    return { user: null, error: NextResponse.json({ error: 'Samo admin ima pristup' }, { status: 403 }) };
+  }
+  return { user, error: null };
+}
 
 // GET /api/admin/creators - Dohvati kreatore za admin panel
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAdmin();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // 'pending', 'approved', 'rejected', 'deactivated', or null for all
 
@@ -81,6 +94,9 @@ export async function GET(request: NextRequest) {
 // PUT /api/admin/creators - Ažuriraj kreatora (status ili profile)
 export async function PUT(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAdmin();
+    if (authError) return authError;
+
     const body = await request.json();
     const { creatorId, action, rejectionReason, ...profileUpdates } = body;
 
@@ -153,6 +169,9 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/admin/creators - Obriši kreatora
 export async function DELETE(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAdmin();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const creatorId = searchParams.get('creatorId');
 

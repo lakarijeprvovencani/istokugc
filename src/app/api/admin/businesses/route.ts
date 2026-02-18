@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-12-15.clover',
 });
 
+async function requireAdmin() {
+  const { user, error } = await getAuthUser();
+  if (error) return { user: null, error };
+  if (!user || !isAdmin(user)) {
+    return { user: null, error: NextResponse.json({ error: 'Samo admin ima pristup' }, { status: 403 }) };
+  }
+  return { user, error: null };
+}
+
 // GET /api/admin/businesses - Dohvati sve biznise
 export async function GET() {
   try {
+    const { user, error: authError } = await requireAdmin();
+    if (authError) return authError;
     const supabase = createAdminClient();
 
     const { data: businesses, error } = await supabase
@@ -52,6 +64,9 @@ export async function GET() {
 // PUT /api/admin/businesses - Ažuriraj biznis
 export async function PUT(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAdmin();
+    if (authError) return authError;
+
     const body = await request.json();
     const { businessId, action, ...updateData } = body;
 
@@ -133,6 +148,9 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/admin/businesses - Obriši biznis
 export async function DELETE(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAdmin();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const businessId = searchParams.get('businessId');
 
