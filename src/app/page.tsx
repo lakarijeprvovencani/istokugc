@@ -367,7 +367,7 @@ export default function Home() {
             Spreman da pronađeš savršenog kreatora?
           </h2>
           <p className="text-white/70 max-w-xl mx-auto mb-10">
-            Pridruži se stotinama brendova koji već koriste UGC Select 
+            Pridruži se stotinama brendova koji već koriste UGC Executive 
             za pronalazak autentičnog sadržaja.
           </p>
           <div className="flex flex-wrap justify-center gap-4">

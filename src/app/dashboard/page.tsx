@@ -3642,7 +3642,7 @@ function CreatorPendingScreen() {
 
         {/* Description */}
         <p className="text-muted text-lg mb-8 leading-relaxed">
-          Hvala vam što ste se registrovali na UGC Select! <br />
+          Hvala vam što ste se registrovali na UGC Executive! <br />
           Naš tim trenutno pregleda vaš profil i uskoro ćete dobiti obaveštenje.
         </p>
 

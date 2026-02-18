@@ -13,7 +13,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "UGC Select - Pronađi savršene UGC kreatore",
+  title: "UGC Executive - Pronađi savršene UGC kreatore",
   description: "Platforma koja povezuje brendove sa talentovanim UGC kreatorima. Pretražujte, kontaktirajte i sarađujte.",
 };
 

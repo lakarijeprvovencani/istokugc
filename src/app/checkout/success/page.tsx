@@ -274,7 +274,7 @@ function SuccessContent() {
           <p className="text-muted text-lg">
             {isRenewal 
               ? 'Vaša pretplata je ponovo aktivna. Možete nastaviti sa korišćenjem platforme.'
-              : 'Dobrodošli u UGC Select. Vaš nalog je aktiviran.'
+              : 'Dobrodošli u UGC Executive. Vaš nalog je aktiviran.'
             }
           </p>
         </div>

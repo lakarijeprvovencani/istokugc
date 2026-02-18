@@ -75,7 +75,7 @@ const baseTemplate = (content: string) => `
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UGC Select</title>
+  <title>UGC Executive</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: ${COLORS.background};">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
@@ -85,7 +85,7 @@ const baseTemplate = (content: string) => `
           <!-- Header -->
           <tr>
             <td style="padding: 32px 40px; text-align: center; border-bottom: 1px solid ${COLORS.border};">
-              <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: ${COLORS.primary};">UGC Select</h1>
+              <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: ${COLORS.primary};">UGC Executive</h1>
             </td>
           </tr>
           <!-- Content -->
@@ -98,10 +98,10 @@ const baseTemplate = (content: string) => `
           <tr>
             <td style="padding: 24px 40px; background-color: ${COLORS.background}; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: ${COLORS.muted};">
-                © ${new Date().getFullYear()} UGC Select. Sva prava zadržana.
+                © ${new Date().getFullYear()} UGC Executive. Sva prava zadržana.
               </p>
               <p style="margin: 8px 0 0 0; font-size: 12px; color: ${COLORS.muted};">
-                Ovaj email je poslat sa UGC Select platforme.
+                Ovaj email je poslat sa UGC Executive platforme.
               </p>
             </td>
           </tr>
@@ -145,7 +145,7 @@ export const emailTemplates = {
       🆕 Novi kreator je aplicirao
     </h2>
     <p style="margin: 0 0 24px 0; color: ${COLORS.muted}; line-height: 1.6;">
-      Novi kreator je podneo prijavu za kreiranje profila na UGC Select platformi.
+      Novi kreator je podneo prijavu za kreiranje profila na UGC Executive platformi.
     </p>
     
     <table role="presentation" style="width: 100%; background-color: ${COLORS.background}; border-radius: 12px; margin-bottom: 24px;">
@@ -216,7 +216,7 @@ export const emailTemplates = {
       Zdravo ${data.creatorName},
     </p>
     <p style="margin: 0 0 24px 0; color: ${COLORS.muted}; line-height: 1.6;">
-      Hvala ti što si se prijavila/o na UGC Select platformu! Tvoja prijava je uspešno primljena i nalazi se na čekanju za pregled.
+      Hvala ti što si se prijavila/o na UGC Executive platformu! Tvoja prijava je uspešno primljena i nalazi se na čekanju za pregled.
     </p>
     
     <table role="presentation" style="width: 100%; background-color: #fffbeb; border-radius: 12px; margin-bottom: 24px;">
@@ -257,7 +257,7 @@ export const emailTemplates = {
       Zdravo ${data.creatorName},
     </p>
     <p style="margin: 0 0 24px 0; color: ${COLORS.muted}; line-height: 1.6;">
-      Drago nam je da te obavestimo da je tvoj kreatorski profil na UGC Select platformi odobren! 
+      Drago nam je da te obavestimo da je tvoj kreatorski profil na UGC Executive platformi odobren! 
       Tvoj profil je sada vidljiv brendovima koji traže UGC kreatore.
     </p>
     
@@ -288,7 +288,7 @@ export const emailTemplates = {
     contactEmail: string;
   }) => baseTemplate(`
     <h2 style="margin: 0 0 16px 0; font-size: 20px; color: ${COLORS.primary};">
-      Tvoja prijava na UGC Select
+      Tvoja prijava na UGC Executive
     </h2>
     <p style="margin: 0 0 24px 0; color: ${COLORS.muted}; line-height: 1.6;">
       Zdravo ${data.creatorName},
@@ -364,13 +364,13 @@ export const emailTemplates = {
     dashboardUrl: string;
   }) => baseTemplate(`
     <h2 style="margin: 0 0 16px 0; font-size: 20px; color: ${COLORS.success};">
-      🎉 Dobrodošli na UGC Select!
+      🎉 Dobrodošli na UGC Executive!
     </h2>
     <p style="margin: 0 0 24px 0; color: ${COLORS.muted}; line-height: 1.6;">
       Zdravo ${data.companyName},
     </p>
     <p style="margin: 0 0 24px 0; color: ${COLORS.muted}; line-height: 1.6;">
-      Hvala ti što si se pridružio UGC Select platformi! Tvoj ${data.plan === 'yearly' ? 'godišnji' : 'mesečni'} plan je aktiviran.
+      Hvala ti što si se pridružio UGC Executive platformi! Tvoj ${data.plan === 'yearly' ? 'godišnji' : 'mesečni'} plan je aktiviran.
     </p>
     
     <table role="presentation" style="width: 100%; background-color: #f0fdf4; border-radius: 12px; margin-bottom: 24px;">
@@ -434,7 +434,7 @@ export const emailTemplates = {
       Zdravo ${data.companyName},
     </p>
     <p style="margin: 0 0 24px 0; color: ${COLORS.muted}; line-height: 1.6;">
-      Tvoja pretplata na UGC Select ističe 
+      Tvoja pretplata na UGC Executive ističe 
       <strong>${data.expiresAt.toLocaleDateString('sr-RS', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.
     </p>
     
@@ -469,7 +469,7 @@ export const emailTemplates = {
       Zdravo ${data.companyName},
     </p>
     <p style="margin: 0 0 24px 0; color: ${COLORS.muted}; line-height: 1.6;">
-      Tvoja pretplata na UGC Select je istekla. Više nemaš pristup kontakt informacijama kreatora.
+      Tvoja pretplata na UGC Executive je istekla. Više nemaš pristup kontakt informacijama kreatora.
     </p>
     
     <table role="presentation" style="width: 100%; background-color: #fef2f2; border-radius: 12px; margin-bottom: 24px;">
@@ -512,7 +512,7 @@ export const emailTemplates = {
     </p>
     <p style="margin: 0 0 24px 0; color: ${COLORS.muted}; line-height: 1.6;">
       Tvoja ${data.plan === 'yearly' ? 'godišnja' : 'mesečna'} pretplata je uspešno obnovljena. 
-      Hvala ti što nastavljaš da koristiš UGC Select!
+      Hvala ti što nastavljaš da koristiš UGC Executive!
     </p>
     
     <table role="presentation" style="width: 100%; background-color: #f0fdf4; border-radius: 12px; margin-bottom: 24px;">

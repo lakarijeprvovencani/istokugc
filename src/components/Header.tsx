@@ -136,7 +136,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo */}
           <Link href="/" className="text-xl sm:text-2xl font-medium tracking-tight">
-            UGC Select
+            UGC Executive
           </Link>
 
           {/* Desktop Navigation */}

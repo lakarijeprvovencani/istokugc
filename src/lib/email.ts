@@ -20,7 +20,7 @@ import { emailTemplates } from './emailTemplates';
 
 // Admin email - gde se šalju admin notifikacije
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@ugcselect.com';
-const FROM_EMAIL = process.env.FROM_EMAIL || 'UGC Select <noreply@ugcselect.com>';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'UGC Executive <noreply@ugcselect.com>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 // ============================================
@@ -150,7 +150,7 @@ export async function notifyCreatorApproved(data: {
     const { data: emailData, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: creatorEmail,
-      subject: '✅ Tvoj profil je odobren na UGC Select!',
+      subject: '✅ Tvoj profil je odobren na UGC Executive!',
       html: emailTemplates.creatorApproved({
         creatorName,
         profileUrl: `${APP_URL}/kreatori`,
@@ -195,7 +195,7 @@ export async function notifyCreatorRejected(data: {
     const { data: emailData, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: creatorEmail,
-      subject: 'Tvoja prijava na UGC Select',
+      subject: 'Tvoja prijava na UGC Executive',
       html: emailTemplates.creatorRejected({
         creatorName,
         reason: reason || 'Tvoj profil trenutno ne ispunjava naše kriterijume.',
@@ -280,7 +280,7 @@ export async function notifyBusinessWelcome(data: {
   // DEMO MODE
   console.log('📧 [DEMO] Email would be sent:');
   console.log('   To:', email);
-  console.log('   Subject: 🎉 Dobrodošli na UGC Select!');
+  console.log('   Subject: 🎉 Dobrodošli na UGC Executive!');
   console.log('   Data:', { companyName, plan });
   
   return { success: true, demo: true };
@@ -291,7 +291,7 @@ export async function notifyBusinessWelcome(data: {
     const { data: emailData, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
-      subject: '🎉 Dobrodošli na UGC Select!',
+      subject: '🎉 Dobrodošli na UGC Executive!',
       html: emailTemplates.businessWelcome({
         companyName,
         plan,

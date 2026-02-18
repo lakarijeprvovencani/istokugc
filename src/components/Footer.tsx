@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           {/* Brand */}
           <div className="md:col-span-2">
-            <h3 className="text-xl font-medium mb-4">UGC Select</h3>
+            <h3 className="text-xl font-medium mb-4">UGC Executive</h3>
             <p className="text-muted text-sm max-w-md leading-relaxed">
               Platforma koja povezuje talentovane UGC kreatore sa brendovima 
               koji traže autentičan sadržaj. Jednostavno, transparentno, efikasno.
@@ -63,7 +63,7 @@ export default function Footer() {
         <div className="border-t border-border mt-12 pt-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <p className="text-sm text-muted">
-              © {new Date().getFullYear()} UGC Select. Sva prava zadržana.
+              © {new Date().getFullYear()} UGC Executive. Sva prava zadržana.
             </p>
             
             {/* Payment Icons */}

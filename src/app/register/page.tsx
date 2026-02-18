@@ -7,7 +7,7 @@ export default function RegisterPage() {
     <div className="min-h-[calc(100vh-80px)] py-12 lg:py-16 bg-gradient-to-b from-secondary/30 to-white">
       <div className="max-w-3xl mx-auto px-6">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-light mb-4">Pridruži se UGC Select</h1>
+          <h1 className="text-4xl font-light mb-4">Pridruži se UGC Executive</h1>
           <p className="text-muted text-lg">
             Izaberi tip naloga koji želiš da kreiraš
           </p>
