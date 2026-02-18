@@ -16,11 +16,16 @@ export async function GET(request: Request) {
     const jobId = searchParams.get('jobId');
     const status = searchParams.get('status');
 
-    if (creatorId && user?.role !== 'admin' && user?.creatorId !== creatorId) {
-      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
-    }
-    if (businessId && user?.role !== 'admin' && user?.businessId !== businessId) {
-      return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+    if (user?.role !== 'admin') {
+      if (!creatorId && !businessId) {
+        return NextResponse.json({ error: 'creatorId ili businessId je obavezan' }, { status: 400 });
+      }
+      if (creatorId && user?.creatorId !== creatorId) {
+        return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+      }
+      if (businessId && user?.businessId !== businessId) {
+        return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+      }
     }
 
     let query = supabase

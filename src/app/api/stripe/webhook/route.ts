@@ -134,12 +134,27 @@ export async function POST(request: NextRequest) {
         } else if (subscription.status === 'active') {
           const expiresAt = new Date(subscription.current_period_end * 1000);
           
+          // Detect plan type from the subscription's price
+          let subscriptionType: string | undefined;
+          const priceId = subscription.items?.data?.[0]?.price?.id;
+          if (priceId) {
+            const monthlyPriceId = (process.env.STRIPE_PRICE_MONTHLY || process.env.STRIPE_PRICE_ID_MONTHLY || '').trim();
+            const yearlyPriceId = (process.env.STRIPE_PRICE_YEARLY || process.env.STRIPE_PRICE_ID_YEARLY || '').trim();
+            if (priceId === monthlyPriceId) subscriptionType = 'monthly';
+            else if (priceId === yearlyPriceId) subscriptionType = 'yearly';
+          }
+
+          const updateData: Record<string, any> = {
+            subscription_status: 'active',
+            expires_at: expiresAt.toISOString(),
+          };
+          if (subscriptionType) {
+            updateData.subscription_type = subscriptionType;
+          }
+          
           const { error } = await supabase
             .from('businesses')
-            .update({
-              subscription_status: 'active',
-              expires_at: expiresAt.toISOString(),
-            })
+            .update(updateData)
             .eq('stripe_subscription_id', subscription.id);
 
           if (error) {

@@ -153,8 +153,9 @@ export async function POST(request: NextRequest) {
       duration,
       experienceLevel,
       applicationDeadline,
-      isAdmin, // Flag to check if admin is creating the job
     } = body;
+
+    const userIsAdmin = user?.role === 'admin';
 
     if (!businessId || !title || !description || !category) {
       return NextResponse.json(
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
     
     // 🔒 BEZBEDNOSNA PROVERA: Biznis mora imati aktivnu pretplatu
-    if (user?.role === 'business' && !isAdmin) {
+    if (user?.role === 'business' && !userIsAdmin) {
       const { data: business } = await supabase
         .from('businesses')
         .select('subscription_status, expires_at')
@@ -194,7 +195,7 @@ export async function POST(request: NextRequest) {
 
     // If admin creates job, it's automatically approved ('open')
     // If business creates job, it needs approval ('pending')
-    const initialStatus = isAdmin ? 'open' : 'pending';
+    const initialStatus = userIsAdmin ? 'open' : 'pending';
 
     const { data: job, error } = await supabase
       .from('jobs')
@@ -225,7 +226,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Job created successfully');
-    return NextResponse.json({ job, needsApproval: !isAdmin });
+    return NextResponse.json({ job, needsApproval: !userIsAdmin });
 
   } catch (error: any) {
     console.error('Job creation error:', error);

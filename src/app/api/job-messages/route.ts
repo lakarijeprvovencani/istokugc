@@ -107,7 +107,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'applicationId je obavezan' }, { status: 400 });
     }
 
-    // Fetch messages for this application
+    // Verify user is a participant in this application
+    if (user?.role !== 'admin') {
+      const { data: app } = await supabase
+        .from('job_applications')
+        .select('creator_id, job_id')
+        .eq('id', applicationId)
+        .single();
+
+      if (app) {
+        const { data: job } = await supabase
+          .from('jobs')
+          .select('business_id')
+          .eq('id', app.job_id)
+          .single();
+
+        const isParticipant = 
+          user?.creatorId === app.creator_id || 
+          user?.businessId === job?.business_id;
+
+        if (!isParticipant) {
+          return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+        }
+      }
+    }
+
     const { data: messages, error } = await supabase
       .from('job_messages')
       .select('*')
