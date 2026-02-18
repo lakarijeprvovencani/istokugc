@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { getAuthUser } from '@/lib/auth-helper';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-12-15.clover',
 });
 
+// No auth required: called during registration before user has a session.
+// Stripe session IDs are cryptographically random and short-lived.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    const { user, error: authError } = await getAuthUser();
-    if (authError) return authError;
-
     const { sessionId } = await params;
 
     if (!sessionId) {
@@ -27,6 +25,8 @@ export async function GET(
       expand: ['subscription', 'customer'],
     });
 
+    const metadata = session.metadata || {};
+
     return NextResponse.json({
       customerId: typeof session.customer === 'string' 
         ? session.customer 
@@ -36,6 +36,14 @@ export async function GET(
         : session.subscription?.id || null,
       customerEmail: session.customer_email,
       paymentStatus: session.payment_status,
+      registrationData: metadata.reg_email ? {
+        email: metadata.reg_email,
+        password: metadata.reg_password,
+        companyName: metadata.reg_companyName,
+        website: metadata.reg_website || null,
+        industry: metadata.reg_industry || null,
+        description: metadata.reg_description || null,
+      } : null,
     });
 
   } catch (error) {

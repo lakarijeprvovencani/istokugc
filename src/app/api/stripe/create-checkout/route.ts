@@ -11,9 +11,9 @@ import { stripe, PRICE_IDS } from '@/lib/stripe';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { plan, email } = body;
+    const { plan, email, registrationData } = body;
 
-    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9898').trim();
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').trim();
 
     if (!plan || !['monthly', 'yearly'].includes(plan)) {
       return NextResponse.json(
@@ -32,12 +32,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Kreiraj Stripe Checkout Session sa pravim Price ID-em
-    // customer_email osigurava da Stripe koristi isti email kao registracija
+    const metadata: Record<string, string> = {
+      plan,
+      email: email || '',
+    };
+
+    if (registrationData) {
+      metadata.reg_email = registrationData.email || '';
+      metadata.reg_password = registrationData.password || '';
+      metadata.reg_companyName = registrationData.companyName || '';
+      metadata.reg_website = registrationData.website || '';
+      metadata.reg_industry = registrationData.industry || '';
+      metadata.reg_description = (registrationData.description || '').substring(0, 500);
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
-      // Pre-popuni email sa registracije - korisnik ne može da ga promeni
       ...(email && { customer_email: email }),
       line_items: [
         {
@@ -45,10 +56,7 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      metadata: {
-        plan,
-        email: email || '', // Sačuvaj email u metadata za referencu
-      },
+      metadata,
       subscription_data: {
         metadata: {
           plan,

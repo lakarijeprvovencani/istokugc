@@ -80,34 +80,44 @@ function SuccessContent() {
         }
         
         // NOVA REGISTRACIJA
-        const savedData = localStorage.getItem('businessRegistration');
-        if (!savedData) {
-          setError('Podaci za registraciju nisu pronađeni. Molimo registrujte se ponovo.');
-          setIsCreating(false);
-          return;
-        }
-        
-        const registrationData = JSON.parse(savedData);
-
-        // Dohvati Stripe session podatke ako postoji session_id
+        let registrationData: any = null;
         let stripeCustomerId = null;
         let stripeSubscriptionId = null;
 
+        // 1) Pokusaj localStorage
+        try {
+          const savedData = localStorage.getItem('businessRegistration');
+          if (savedData) {
+            registrationData = JSON.parse(savedData);
+          }
+        } catch (e) {
+          // localStorage might be unavailable
+        }
+
+        // 2) Dohvati Stripe session — i kao fallback za registracione podatke
         if (sessionId) {
           try {
             const stripeResponse = await fetch(`/api/stripe/session/${sessionId}`);
             if (stripeResponse.ok) {
               const stripeData = await stripeResponse.json();
-              stripeCustomerId = stripeData.customerId;  // Fixed: was 'customer'
-              stripeSubscriptionId = stripeData.subscriptionId;  // Fixed: was 'subscription'
-              console.log('Stripe data received');
+              stripeCustomerId = stripeData.customerId;
+              stripeSubscriptionId = stripeData.subscriptionId;
+
+              if (!registrationData && stripeData.registrationData) {
+                registrationData = stripeData.registrationData;
+              }
             }
           } catch (stripeError) {
             console.error('Error fetching Stripe session:', stripeError);
           }
         }
+
+        if (!registrationData || !registrationData.email) {
+          setError('Podaci za registraciju nisu pronađeni. Molimo registrujte se ponovo.');
+          setIsCreating(false);
+          return;
+        }
         
-        // Call API to create business in Supabase
         const response = await fetch('/api/auth/register/business', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -130,25 +140,23 @@ function SuccessContent() {
           throw new Error(data.error || 'Greška pri kreiranju naloga');
         }
 
-        // Success! Log in to Supabase Auth
-        const supabase = createClient();
-        const { error: loginError } = await supabase.auth.signInWithPassword({
-          email: registrationData.email,
-          password: registrationData.password,
-        });
-        
-        if (loginError) {
-          console.error('Auto-login error:', loginError);
-          // Not critical - user can log in manually
-        } else {
-          // Refresh router da osveži server-side cache i sesiju
-          router.refresh();
+        // Auto-login
+        if (registrationData.password) {
+          const supabase = createClient();
+          const { error: loginError } = await supabase.auth.signInWithPassword({
+            email: registrationData.email,
+            password: registrationData.password,
+          });
           
-          // Kratka pauza da se osigura da je Supabase sesija spremna
-          await new Promise(resolve => setTimeout(resolve, 500));
+          if (loginError) {
+            console.error('Auto-login error:', loginError);
+          } else {
+            router.refresh();
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
         
-        // Upload logo if provided
+        // Upload logo if provided (only from localStorage, not stored in Stripe)
         if (registrationData.logo && data.businessId) {
           try {
             await fetch(`/api/business/${data.businessId}/logo`, {
@@ -158,11 +166,9 @@ function SuccessContent() {
             });
           } catch (logoError) {
             console.error('Error uploading logo:', logoError);
-            // Not critical - user can add logo later
           }
         }
         
-        // Clear registration data
         localStorage.removeItem('businessRegistration');
         
         setIsCreating(false);
