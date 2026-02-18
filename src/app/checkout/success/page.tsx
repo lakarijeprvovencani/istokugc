@@ -4,11 +4,13 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { useDemo } from '@/context/DemoContext';
 import confetti from 'canvas-confetti';
 
 function SuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { loginAsNewBusiness, updateCurrentUser } = useDemo();
   const plan = searchParams.get('plan') as 'monthly' | 'yearly' | null;
   const sessionId = searchParams.get('session_id');
   
@@ -140,7 +142,7 @@ function SuccessContent() {
           throw new Error(data.error || 'Greška pri kreiranju naloga');
         }
 
-        // Auto-login
+        // Auto-login to Supabase + update DemoContext
         if (registrationData.password) {
           const supabase = createClient();
           const { error: loginError } = await supabase.auth.signInWithPassword({
@@ -154,6 +156,17 @@ function SuccessContent() {
             router.refresh();
             await new Promise(resolve => setTimeout(resolve, 500));
           }
+        }
+
+        // Update DemoContext so dashboard recognizes the user immediately
+        if (data.businessId) {
+          loginAsNewBusiness(
+            data.businessId,
+            registrationData.companyName || '',
+            'active',
+            plan || 'monthly',
+            registrationData.logo || undefined
+          );
         }
         
         // Upload logo if provided (only from localStorage, not stored in Stripe)
@@ -212,7 +225,7 @@ function SuccessContent() {
     };
 
     processPayment();
-  }, [plan, sessionId, router]);
+  }, [plan, sessionId, router, loginAsNewBusiness, updateCurrentUser]);
 
   const planDetails = {
     monthly: {

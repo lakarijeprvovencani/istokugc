@@ -336,6 +336,22 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       
       // Check Supabase session and restore real user data
       checkSupabaseSession();
+
+      // Listen for auth state changes (login/logout from anywhere in the app)
+      const supabase = createClient();
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_IN') {
+          checkSupabaseSession();
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUser(demoUsers.guest);
+          setLoggedInCreatorId(undefined);
+          setLoggedInBusiness(undefined);
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
     }
   }, []);
 
