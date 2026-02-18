@@ -251,6 +251,15 @@ Sve varijable su u `.env.local` (gitignored). Primer u `.env.example`.
 
 ---
 
+## Dodatne popravke (18. feb 2026, runda 2)
+
+1. **Jobs POST `isAdmin` bypass** — `isAdmin` flag se sada čita iz `user.role` na serveru, a ne iz request body-ja. Sprečava zaobilaženje provere pretplate.
+2. **Job-applications/invitations GET** — non-admin korisnici moraju proslediti svoj `creatorId` ili `businessId`. Ne mogu više da listaju sve podatke iz baze.
+3. **Job-messages GET** — pre vraćanja poruka, proverava se da li je korisnik učesnik u toj aplikaciji (kreator ili biznis).
+4. **Stripe webhook `subscription_type`** — kad Stripe pošalje `customer.subscription.updated`, webhook sada čita price ID i ažurira `subscription_type` (monthly/yearly) u bazi.
+
+---
+
 ## Poznati minorni issues (ne utiču na funkcionalnost)
 
 1. Dashboard: polje `replyAt: r.reply_at` trebalo bi da bude `r.reply_date` — kozmetika
