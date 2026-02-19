@@ -275,6 +275,19 @@ Pokrenuti u Supabase SQL Editor-u **REDOSLEDOM**:
 
 ## Istorija Promena
 
+### 19. februar 2026 — Supabase Security Fix (via MCP Plugin)
+- Obrisano 10 prekomerno permisivnih RLS politika koje su zaobilazile ispravne politike:
+  - `businesses` INSERT (true), `creators` INSERT (true)
+  - `creator_views` INSERT/UPDATE/SELECT (true) — duplikati ispravnih politika
+  - `reviews` INSERT/UPDATE/DELETE (true) + broken SELECT (`approved OR true`)
+  - `saved_creators` ALL (true) — zaobilazila 3 ispravne politike
+- Popravljene 3 funkcije — dodat `SET search_path = ''`:
+  - `update_updated_at`, `cleanup_old_rate_limits`, `cleanup_old_webhook_events`
+- Dodat missing index: `idx_saved_creators_creator_id` na `saved_creators(creator_id)`
+- Dodata RLS politika na `rate_limits` tabelu (service_role only)
+- Supabase Security Advisor: sve WARN/INFO rezolvirano (ostaje samo Leaked Password Protection — podešava se u Dashboard-u)
+- **67/67 testova prolazi** — nijedan fajl koda nije menjan, samo baza
+
 ### 19. februar 2026 — Cursor Plugini
 - Instalirani Cursor Marketplace plugini za direktan pristup servisima:
   - **Supabase** — upravljanje tabelama, upit podataka, konfiguracija direktno iz Cursora
