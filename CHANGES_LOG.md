@@ -275,6 +275,13 @@ Pokrenuti u Supabase SQL Editor-u **REDOSLEDOM**:
 
 ## Istorija Promena
 
+### 19. februar 2026 — Cursor Plugini
+- Instalirani Cursor Marketplace plugini za direktan pristup servisima:
+  - **Supabase** — upravljanje tabelama, upit podataka, konfiguracija direktno iz Cursora
+  - **Stripe** — Stripe integracija + best practices + upgrade vodič
+  - **Vercel** — React/Next.js best practices + deploy komanda iz Cursora
+- Plugini omogućavaju agentu da direktno pristupa bazi, Stripe nalogu i deploy-u
+
 ### 18. februar 2026 — Kompletni Security Audit + Testovi
 - Middleware potpuno prepisan
 - Auth dodat na 25+ API ruta
