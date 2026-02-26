@@ -241,8 +241,52 @@ Sve varijable su u `.env.local` (gitignored). Primer u `.env.example`.
 
 **VAŽNO za produkciju:**
 - Promeni `NEXT_PUBLIC_SITE_URL` na pravi domen
-- Promeni Stripe ključeve na live mode
+- Promeni Stripe ključeve na live mode (videti sekciju ispod)
 - `ADMIN_SETUP_*` varijable nisu potrebne u produkciji
+
+---
+
+## Prelazak na Klijentov Stripe Live Account (TODO)
+
+Trenutno je povezan test Stripe account. Kad klijent da pristup svom live nalogu, treba:
+
+### Šta je potrebno od klijenta:
+1. **Live Secret Key** (`sk_live_...`) — sa Stripe Dashboard → Developers → API keys
+2. **Live Publishable Key** (`pk_live_...`) — isto mesto
+3. **Dva Price ID-a** za mesečni i godišnji plan — klijent kreira produkte/cene u svom Stripe-u, ili mi kreiramo
+4. **Webhook Endpoint Secret** (`whsec_...`) — kreira se kad se doda webhook u klijentovom Stripe-u
+
+### Koraci za prebacivanje:
+```
+1. U klijentovom Stripe Dashboard-u:
+   - Developers → Webhooks → Add endpoint
+   - URL: https://PRODUKCIJSKI-DOMEN/api/stripe/webhook
+   - Events: invoice.payment_succeeded, invoice.payment_failed,
+             customer.subscription.deleted, customer.subscription.updated
+   - Kopiraj Signing Secret (whsec_...)
+
+2. Klijent kreira Products + Prices (ili mi):
+   - Product: "UGC Platform Pretplata"
+   - Price 1: Mesečni (recurring monthly) → kopiraj price_id
+   - Price 2: Godišnji (recurring yearly) → kopiraj price_id
+
+3. Ažuriraj env varijable na Vercelu (Settings → Environment Variables):
+   STRIPE_SECRET_KEY        = sk_live_...
+   STRIPE_WEBHOOK_SECRET    = whsec_... (novi sa live naloga)
+   STRIPE_PRICE_MONTHLY     = price_... (novi mesečni)
+   STRIPE_PRICE_YEARLY      = price_... (novi godišnji)
+   NEXT_PUBLIC_STRIPE_KEY   = pk_live_...
+
+4. Redeploy na Vercelu (automatski ili ručno)
+
+5. Testiraj jednu pravu uplatu
+```
+
+### Šta se NE menja u kodu:
+- Webhook handler (`src/app/api/stripe/webhook/route.ts`) — ostaje isti
+- Checkout flow — ostaje isti
+- Subscription logika — ostaje ista
+- Samo env varijable se menjaju, **nula promena u kodu**
 
 ---
 
