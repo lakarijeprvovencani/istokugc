@@ -349,12 +349,14 @@ function CreatorDashboard() {
     fetchCategories();
   }, []);
   
-  // Fetch job applications on mount for badge counts
+  // Fetch job applications on mount and poll every 30 seconds for badge counts
   useEffect(() => {
+    let isFirstLoad = true;
+
     const fetchApplications = async () => {
       if (!isHydrated || !currentUser.creatorId) return;
       
-      setIsLoadingApplications(true);
+      if (isFirstLoad) setIsLoadingApplications(true);
       try {
         const response = await fetch(`/api/job-applications?creatorId=${currentUser.creatorId}`);
         if (response.ok) {
@@ -362,19 +364,16 @@ function CreatorDashboard() {
           const fetchedApps = data.applications || [];
           setMyApplications(fetchedApps);
           
-          // Calculate new applications count (status changes since last viewed)
           const lastViewedKey = `lastViewed_applications_${currentUser.creatorId}`;
           const lastViewed = localStorage.getItem(lastViewedKey);
           if (lastViewed) {
             const lastViewedDate = new Date(lastViewed);
-            // Count apps with status changes (accepted, rejected, engaged) since last viewed
             const newCount = fetchedApps.filter((a: any) => 
               a.updatedAt && new Date(a.updatedAt) > lastViewedDate && 
               ['accepted', 'rejected', 'engaged', 'completed'].includes(a.status)
             ).length;
             setNewApplicationsCount(newCount);
           } else {
-            // First time - show pending responses as "new"
             const pendingResponses = fetchedApps.filter((a: any) => 
               ['accepted', 'rejected', 'engaged'].includes(a.status)
             ).length;
@@ -382,7 +381,6 @@ function CreatorDashboard() {
           }
         }
         
-        // Fetch unread messages count
         const unreadResponse = await fetch(`/api/job-messages?countUnread=true&recipientType=creator&recipientId=${currentUser.creatorId}`);
         if (unreadResponse.ok) {
           const unreadData = await unreadResponse.json();
@@ -391,11 +389,18 @@ function CreatorDashboard() {
       } catch (error) {
         console.error('Error fetching applications:', error);
       } finally {
-        setIsLoadingApplications(false);
+        if (isFirstLoad) {
+          setIsLoadingApplications(false);
+          isFirstLoad = false;
+        }
       }
     };
     
     fetchApplications();
+
+    const interval = setInterval(fetchApplications, 30000);
+
+    return () => clearInterval(interval);
   }, [currentUser.creatorId, isHydrated]);
   
   // Fetch job invitations (Ponude) on mount and poll every 30 seconds
@@ -2295,7 +2300,7 @@ function BusinessDashboard() {
     }
   };
   
-  // Fetch all applications for messages tab and pending count
+  // Fetch all applications for messages tab and pending count — poll every 30s
   useEffect(() => {
     const fetchApplications = async () => {
       if (!currentUser.businessId) return;
@@ -2306,12 +2311,10 @@ function BusinessDashboard() {
           const data = await response.json();
           const allApps = data.applications || [];
           
-          // Count ALL pending applications for badge (always show this)
           const pendingApps = allApps.filter((app: any) => app.status === 'pending');
           const pendingCount = pendingApps.length;
           setPendingApplicationsCount(pendingCount);
           
-          // Count NEW pending applications (created after last viewed) - for header notification
           const lastViewedKey = `lastViewed_jobs_${currentUser.businessId}`;
           const lastViewed = localStorage.getItem(lastViewedKey);
           if (lastViewed) {
@@ -2319,16 +2322,13 @@ function BusinessDashboard() {
             const newApps = pendingApps.filter((app: any) => new Date(app.createdAt) > lastViewedDate);
             setNewPendingApplicationsCount(newApps.length);
             
-            // Track which jobs have NEW applications (for yellow border)
             const jobsWithNew = new Set<string>();
             newApps.forEach((app: any) => {
               if (app.jobId) jobsWithNew.add(app.jobId);
             });
             setJobsWithNewApplications(jobsWithNew);
           } else {
-            // First time - all pending are "new"
             setNewPendingApplicationsCount(pendingCount);
-            // All jobs with pending apps are "new"
             const jobsWithNew = new Set<string>();
             pendingApps.forEach((app: any) => {
               if (app.jobId) jobsWithNew.add(app.jobId);
@@ -2336,14 +2336,12 @@ function BusinessDashboard() {
             setJobsWithNewApplications(jobsWithNew);
           }
           
-          // Only show accepted and engaged applications for messages
           const activeApps = allApps.filter(
             (app: any) => app.status === 'accepted' || app.status === 'engaged'
           );
           setAllApplications(activeApps);
         }
         
-        // Fetch unread messages count
         const unreadResponse = await fetch(`/api/job-messages?countUnread=true&recipientType=business&recipientId=${currentUser.businessId}`);
         if (unreadResponse.ok) {
           const unreadData = await unreadResponse.json();
@@ -2355,6 +2353,10 @@ function BusinessDashboard() {
     };
     
     fetchApplications();
+
+    const interval = setInterval(fetchApplications, 30000);
+
+    return () => clearInterval(interval);
   }, [currentUser.businessId]);
 
   // Fetch real business data from Supabase - with caching and parallel fetching
@@ -4589,8 +4591,8 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
         throw new Error('Failed to close job');
       }
       
-      // 3. Reject all other applications for this job
-      const otherApplications = jobApplications.filter(app => app.id !== applicationId && app.status === 'pending');
+      // 3. Reject all other pending and accepted applications for this job
+      const otherApplications = jobApplications.filter(app => app.id !== applicationId && (app.status === 'pending' || app.status === 'accepted'));
       for (const app of otherApplications) {
         await fetch('/api/job-applications', {
           method: 'PUT',
@@ -4602,7 +4604,7 @@ function BusinessJobsTab({ businessId, jobs, setJobs, isLoading, showAddModal, s
       // 4. Update local state
       setJobApplications(prev => prev.map(app => {
         if (app.id === applicationId) return { ...app, status: 'engaged' };
-        if (app.status === 'pending') return { ...app, status: 'rejected' };
+        if (app.status === 'pending' || app.status === 'accepted') return { ...app, status: 'rejected' };
         return app;
       }));
       
@@ -6098,11 +6100,23 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
         body: JSON.stringify({ jobId: activeChat.jobId, status: 'closed' }),
       });
       
-      // 3. Update local state
+      // 3. Reject all other pending/accepted applications for this job
+      const otherApps = applications.filter(app => app.id !== activeChat.id && app.jobId === activeChat.jobId && (app.status === 'pending' || app.status === 'accepted'));
+      for (const app of otherApps) {
+        await fetch('/api/job-applications', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ applicationId: app.id, status: 'rejected' }),
+        });
+      }
+
+      // 4. Update local state
       if (setApplications) {
-        setApplications(applications.map(app => 
-          app.id === activeChat.id ? { ...app, status: 'engaged' } : app
-        ));
+        setApplications(applications.map(app => {
+          if (app.id === activeChat.id) return { ...app, status: 'engaged' };
+          if (app.jobId === activeChat.jobId && (app.status === 'pending' || app.status === 'accepted')) return { ...app, status: 'rejected' };
+          return app;
+        }));
       }
       setActiveChat({ ...activeChat, status: 'engaged' });
       setEngageSuccess(true);
