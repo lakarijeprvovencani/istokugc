@@ -307,7 +307,7 @@ export async function GET(request: Request) {
           website: business.website,
           logo: business.logo,
           subscriptionStatus: business.subscription_status,
-          subscriptionPlan: business.subscription_plan
+          subscriptionPlan: business.subscription_type
         } : null,
         jobs,
         applications,
