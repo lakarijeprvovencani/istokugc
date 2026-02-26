@@ -6194,21 +6194,19 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
     isFirstLoadRef.current = true;
   }, [activeChat?.id]);
   
-  // Fetch messages and mark as read
+  // Fetch messages on load + Realtime subscription for new messages
   useEffect(() => {
     if (!activeChat) return;
-    
+
     const fetchMessages = async () => {
-      // Only show loading on first fetch
       if (isFirstLoadRef.current) setIsLoading(true);
-      
+
       try {
         const response = await fetch(`/api/job-messages?applicationId=${activeChat.id}`);
         if (response.ok) {
           const data = await response.json();
           setMessages(data.messages || []);
-          
-          // Mark messages as read (only on first load)
+
           if (isFirstLoadRef.current && businessId) {
             fetch('/api/job-messages', {
               method: 'PUT',
@@ -6220,7 +6218,6 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
               }),
             }).then(res => {
               if (res.ok) {
-                // Notify Header to clear notification badge
                 window.dispatchEvent(new Event('notificationsCleared'));
               }
             }).catch(err => console.error('Error marking messages as read:', err));
@@ -6235,12 +6232,52 @@ function BusinessMessagesTab({ applications, activeChat, setActiveChat, business
         }
       }
     };
-    
+
     fetchMessages();
-    pollIntervalRef.current = setInterval(fetchMessages, 5000);
-    
+
+    let channel: any = null;
+    (async () => {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      channel = supabase
+        .channel(`biz-inline-msgs-${activeChat.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'job_messages',
+          filter: `application_id=eq.${activeChat.id}`,
+        }, (payload: any) => {
+          const row = payload.new;
+          const newMsg = {
+            id: row.id,
+            applicationId: row.application_id,
+            senderType: row.sender_type,
+            senderId: row.sender_id,
+            message: row.message,
+            createdAt: row.created_at,
+            isRead: row.is_read,
+          };
+          setMessages(prev => {
+            if (prev.some((m: any) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          if (businessId && row.sender_type !== 'business') {
+            fetch('/api/job-messages', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                applicationId: activeChat.id,
+                recipientType: 'business',
+                recipientId: businessId,
+              }),
+            }).catch(() => {});
+          }
+        })
+        .subscribe();
+    })();
+
     return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (channel) channel.unsubscribe();
     };
   }, [activeChat?.id, businessId]);
 
@@ -7569,21 +7606,19 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
     isFirstLoadRef.current = true;
   }, [activeChat?.id]);
   
-  // Fetch messages for active chat and mark as read
+  // Fetch messages on load + Realtime subscription for new messages
   useEffect(() => {
     if (!activeChat) return;
-    
+
     const fetchMessages = async () => {
-      // Only show loading on first fetch
       if (isFirstLoadRef.current) setIsLoading(true);
-      
+
       try {
         const response = await fetch(`/api/job-messages?applicationId=${activeChat.id}`);
         if (response.ok) {
           const data = await response.json();
           setMessages(data.messages || []);
-          
-          // Mark messages as read (only on first load)
+
           if (isFirstLoadRef.current && creatorId) {
             fetch('/api/job-messages', {
               method: 'PUT',
@@ -7595,7 +7630,6 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
               }),
             }).then(res => {
               if (res.ok) {
-                // Notify Header to clear notification badge
                 window.dispatchEvent(new Event('notificationsCleared'));
               }
             }).catch(err => console.error('Error marking messages as read:', err));
@@ -7610,18 +7644,54 @@ function CreatorMessagesTab({ applications, activeChat, setActiveChat, creatorId
         }
       }
     };
-    
+
     fetchMessages();
-    
-    // Poll for new messages (silently in background)
-    pollIntervalRef.current = setInterval(fetchMessages, 5000);
-    
+
+    let channel: any = null;
+    (async () => {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      channel = supabase
+        .channel(`creator-inline-msgs-${activeChat.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'job_messages',
+          filter: `application_id=eq.${activeChat.id}`,
+        }, (payload: any) => {
+          const row = payload.new;
+          const newMsg = {
+            id: row.id,
+            applicationId: row.application_id,
+            senderType: row.sender_type,
+            senderId: row.sender_id,
+            message: row.message,
+            createdAt: row.created_at,
+            isRead: row.is_read,
+          };
+          setMessages(prev => {
+            if (prev.some((m: any) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          if (creatorId && row.sender_type !== 'creator') {
+            fetch('/api/job-messages', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                applicationId: activeChat.id,
+                recipientType: 'creator',
+                recipientId: creatorId,
+              }),
+            }).catch(() => {});
+          }
+        })
+        .subscribe();
+    })();
+
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
+      if (channel) channel.unsubscribe();
     };
-  }, [activeChat?.id]);
+  }, [activeChat?.id, creatorId]);
 
   useEffect(() => {
     scrollToBottom();
