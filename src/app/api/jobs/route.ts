@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Fetch jobs
     let query = supabase
       .from('jobs')
-      .select('*')
+      .select('id, business_id, title, description, category, platforms, budget_type, budget_min, budget_max, duration, experience_level, application_deadline, status, created_at, updated_at')
       .order('created_at', { ascending: false })
       .limit(limit);
 

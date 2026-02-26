@@ -1970,9 +1970,9 @@ export default function AdminPage() {
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                       {editingCreator.portfolio.map((item: { thumbnail?: string; url?: string }, index: number) => (
                         <div key={index} className="relative group">
-                          <div className="aspect-square rounded-lg overflow-hidden bg-secondary">
+                          <div className="relative aspect-square rounded-lg overflow-hidden bg-secondary">
                             {item.thumbnail ? (
-                              <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
+                              <Image src={item.thumbnail} alt="" fill className="object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-muted">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

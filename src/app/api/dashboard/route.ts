@@ -38,7 +38,7 @@ export async function GET(request: Request) {
         // Creator profile
         supabaseAdmin
           .from('creators')
-          .select('*')
+          .select('id, user_id, name, email, phone, bio, photo, location, categories, platforms, languages, price_from, instagram, tiktok, youtube, portfolio, status, rejection_reason, profile_views, created_at, updated_at')
           .eq('id', creatorId)
           .single(),
         
@@ -188,14 +188,14 @@ export async function GET(request: Request) {
         // Business profile
         supabaseAdmin
           .from('businesses')
-          .select('*')
+          .select('id, user_id, company_name, email, description, website, industry, logo, phone, subscription_type, subscription_status, subscribed_at, expires_at, stripe_customer_id, stripe_subscription_id, created_at, updated_at')
           .eq('id', businessId)
           .single(),
         
         // Jobs with application counts
         supabaseAdmin
           .from('jobs')
-          .select('*')
+          .select('id, title, description, category, budget_type, budget_min, budget_max, status, created_at, application_deadline, business_id, platforms, duration, experience_level, updated_at')
           .eq('business_id', businessId)
           .neq('status', 'deleted')
           .order('created_at', { ascending: false }),

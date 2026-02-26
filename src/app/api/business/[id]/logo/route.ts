@@ -1,14 +1,7 @@
-/**
- * API Route: /api/business/[id]/logo
- * 
- * Upload loga biznisa na Supabase Storage
- * 
- * POST /api/business/[id]/logo - Upload loga
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser, isAdmin } from '@/lib/auth-helper';
+import { uploadToR2 } from '@/lib/r2';
 
 export async function POST(
   request: NextRequest,
@@ -35,7 +28,6 @@ export async function POST(
     let logoData: string;
     
     if (contentType.includes('application/json')) {
-      // Base64 slika (od croppera)
       const body = await request.json();
       logoData = body.logo;
       
@@ -54,7 +46,6 @@ export async function POST(
         );
       }
     } else {
-      // FormData
       const formData = await request.formData();
       const file = formData.get('logo') as File;
       
@@ -65,7 +56,6 @@ export async function POST(
         );
       }
       
-      // Validacija tipa
       if (!file.type.startsWith('image/')) {
         return NextResponse.json(
           { success: false, error: 'File must be an image' },
@@ -73,7 +63,6 @@ export async function POST(
         );
       }
       
-      // Validacija veličine (max 2MB za logo)
       if (file.size > 2 * 1024 * 1024) {
         return NextResponse.json(
           { success: false, error: 'Logo mora biti manji od 2MB' },
@@ -81,45 +70,21 @@ export async function POST(
         );
       }
       
-      // Convert to base64
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
       logoData = `data:${file.type};base64,${buffer.toString('base64')}`;
     }
     
-    // Ekstraktuj base64 podatke
     const base64Data = logoData.split(',')[1];
     const mimeType = logoData.split(';')[0].split(':')[1];
     const extension = mimeType.split('/')[1] || 'png';
     
-    // Kreiraj buffer od base64
     const buffer = Buffer.from(base64Data, 'base64');
     
-    // Generiši unikatno ime fajla
-    const fileName = `logos/${id}/${Date.now()}.${extension}`;
+    const filePath = `logos/${id}/${Date.now()}.${extension}`;
     
-    // Upload na Supabase Storage (koristimo portfolio bucket)
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('portfolio')
-      .upload(fileName, buffer, {
-        contentType: mimeType,
-        upsert: true,
-      });
+    const publicUrl = await uploadToR2(buffer, filePath, mimeType);
     
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to upload logo' },
-        { status: 500 }
-      );
-    }
-    
-    // Dobij javni URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('portfolio')
-      .getPublicUrl(fileName);
-    
-    // Ažuriraj biznis profil u bazi
     const { error: updateError } = await supabase
       .from('businesses')
       .update({ logo: publicUrl })
@@ -147,6 +112,3 @@ export async function POST(
     );
   }
 }
-
-
-

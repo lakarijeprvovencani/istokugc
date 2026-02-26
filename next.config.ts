@@ -60,6 +60,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '*.supabase.co',
       },
+      {
+        protocol: 'https',
+        hostname: 'pub-3764e3cd630540209ba5570c0c8c830f.r2.dev',
+      },
     ],
   },
   
@@ -73,7 +77,7 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-          { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.tiktokcdn.com https://*.cdninstagram.com https://img.youtube.com https://i.ytimg.com https://i3.ytimg.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com https://www.youtube.com https://youtube.com https://www.instagram.com https://www.tiktok.com; media-src 'self' blob: https://*.supabase.co; object-src 'none'; base-uri 'self'" },
+          { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.r2.dev https://images.unsplash.com https://*.tiktokcdn.com https://*.cdninstagram.com https://img.youtube.com https://i.ytimg.com https://i3.ytimg.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com https://www.youtube.com https://youtube.com https://www.instagram.com https://www.tiktok.com; media-src 'self' blob: https://*.supabase.co https://*.r2.dev; object-src 'none'; base-uri 'self'" },
         ],
       },
       {

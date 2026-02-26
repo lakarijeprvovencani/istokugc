@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 
 interface Message {
   id: string;
@@ -96,7 +97,7 @@ export default function ChatModal({
       pollIntervalRef.current = setInterval(() => {
         fetchMessages();
         markAsRead();
-      }, 5000);
+      }, 30000);
 
       return () => {
         if (pollIntervalRef.current) {
@@ -180,9 +181,9 @@ export default function ChatModal({
         {/* Header */}
         <div className="p-4 border-b border-border flex items-center justify-between bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+            <div className="relative w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
               {otherPartyPhoto ? (
-                <img src={otherPartyPhoto} alt={otherPartyName} className="w-full h-full object-cover" />
+                <Image src={otherPartyPhoto} alt={otherPartyName} fill className="object-cover" />
               ) : (
                 <span className="text-lg font-medium text-muted">
                   {otherPartyName.charAt(0).toUpperCase()}
