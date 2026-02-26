@@ -162,9 +162,7 @@ export async function GET(request: Request) {
           platforms: creator.platforms,
           languages: creator.languages,
           priceFrom: creator.price_from,
-          priceTo: creator.price_to,
-          portfolioImages: creator.portfolio_images,
-          portfolioVideos: creator.portfolio_videos,
+          portfolio: creator.portfolio,
           status: creator.status
         } : null,
         applications,
