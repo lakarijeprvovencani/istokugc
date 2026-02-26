@@ -2,7 +2,7 @@
 
 > **Ovo je najvažniji dokument u projektu.**
 > Svaki agent/developer MORA da pročita ovaj fajl pre bilo kakve izmene.
-> Poslednje ažuriranje: 18. februar 2026.
+> Poslednje ažuriranje: 26. februar 2026.
 
 ---
 
@@ -51,7 +51,8 @@
 |-----------|-------------|
 | Frontend | Next.js 16 (App Router), React, TypeScript |
 | Styling | Tailwind CSS 4 |
-| Backend/DB | Supabase (PostgreSQL + Auth + Storage) |
+| Backend/DB | Supabase (PostgreSQL + Auth + Realtime) |
+| Slike/CDN | Cloudflare R2 (S3 kompatibilan, 0 egress troškova) |
 | Plaćanje | Stripe (Checkout, Subscriptions, Webhooks, Customer Portal) |
 | Deploy | Vercel |
 | Validacija | Zod |
@@ -232,6 +233,11 @@ Sve varijable su u `.env.local` (gitignored). Primer u `.env.example`.
 | `ADMIN_SETUP_EMAIL` | Email za admin nalog | Admin setup |
 | `ADMIN_SETUP_PASSWORD` | Lozinka za admin nalog | Admin setup |
 | `ADMIN_CREATE_SECRET` | Tajni ključ za kreiranje admina | Admin kreiranje |
+| `R2_ACCOUNT_ID` | Cloudflare Account ID | R2 upload |
+| `R2_ACCESS_KEY_ID` | R2 API ključ | R2 upload |
+| `R2_SECRET_ACCESS_KEY` | R2 tajni ključ | R2 upload |
+| `R2_BUCKET_NAME` | Ime R2 bucket-a (`ugc-platform-media`) | R2 upload |
+| `R2_PUBLIC_URL` | Javni URL za R2 bucket | Prikaz slika |
 
 **VAŽNO za produkciju:**
 - Promeni `NEXT_PUBLIC_SITE_URL` na pravi domen
@@ -273,7 +279,83 @@ Pokrenuti u Supabase SQL Editor-u **REDOSLEDOM**:
 
 ---
 
+## Kapacitet i Skaliranje
+
+Platforma u trenutnom stanju (bez dodatnih optimizacija) podržava:
+
+| Metrika | Kapacitet | Napomena |
+|---------|-----------|----------|
+| Registrovanih korisnika | ~5.000+ | Baza lako gura desetine hiljada redova |
+| Aktivnih dnevno | ~100-200 | Bez ikakvih problema |
+| Istovremeno na chatu | ~200 | Supabase Realtime Free limit |
+| Supabase egress | ~2GB/mes (Free) | R2 za slike eliminiše glavni izvor |
+
+**Kad treba Pro plan ($25/mes):** 500+ aktivnih dnevno ili 200+ istovremenih chat konekcija.
+
+---
+
+## Buduće Optimizacije (kad bude potrebno)
+
+Ove stavke NE blokiraju lansiranje. Radi se kad app poraste.
+
+| # | Optimizacija | Kad uraditi | Uticaj |
+|---|-------------|-------------|--------|
+| 1 | **Code splitting dashboarda** — razbiti 8000-linijski fajl na dinamičke importe | Kad korisnici prijave sporo učitavanje na mobilnom | Brže inicijalno učitavanje |
+| 2 | **Rate limiting na sve javne rute** — dodati `checkRateLimit()` na `/api/creators`, `/api/jobs` itd. | Pre nego što app postane popularna | Zaštita od spam/abuse |
+| 3 | **Memoizacija u dashboardu** — `React.memo`, `useCallback`, `useMemo` | Kad dashboard postane sporiji | Manje nepotrebnih re-rendera |
+| 4 | **Razdvajanje DemoContext-a** — podeliti na auth, creators, settings kontekste | Kad se dodaju novi feature-ovi | Bolji performance, lakše održavanje |
+| 5 | **Obični Supabase client umesto admin** — koristiti RLS umesto admin client za korisničke operacije | Kad bude vremena za refaktoring | Drugi sloj zaštite na nivou baze |
+
+---
+
 ## Istorija Promena
+
+### 26. februar 2026 — Egress Optimizacija + CDN + Realtime + Security Hardening
+
+**Cloudflare R2 integracija (CDN za slike):**
+- Svi novi upload-i (portfolio, profilna slika, biznis logo) idu na R2 umesto Supabase Storage
+- R2 ima 0 egress troškova — eliminisan glavni izvor Supabase egress-a
+- Dodat `src/lib/r2.ts` helper sa `uploadToR2()` funkcijom
+- `next.config.ts` ažuriran sa R2 domenom u `remotePatterns` i CSP headerima
+- Postojeće slike iz Supabase i dalje rade (Next.js Image Optimization kešira)
+
+**Realtime poruke (umesto polling-a):**
+- `ChatModal.tsx` prebačen sa 5s polling na Supabase Realtime (Postgres Changes)
+- Dashboard inline chat (biznis + kreator strana) prebačen sa 5s polling na Realtime
+- Poruke stižu instant bez osvežavanja stranice
+- Eliminisano ~720 requestova/sat po aktivnom chatu
+
+**Dashboard polling za badge-eve:**
+- Kreator: prijave i nepročitane poruke se osvežavaju na 30s (bilo je samo na mount)
+- Biznis: nove prijave i nepročitane poruke se osvežavaju na 30s
+- Pozivi (invitations) već su imali 30s polling — ostaje
+
+**Stripe webhook popravke:**
+- `invoice.payment_failed` — SAD ažurira subscription na `expired` kad Stripe kaže `past_due`/`unpaid` ili posle 3+ neuspelih naplate
+- `subscription.updated` — SAD hvata i `past_due` status
+- Event se markira kao obrađen TEK POSLE uspešne obrade — ako obrada padne, vraća 500 pa Stripe ponovo šalje
+- Ranije: event se markirao pre obrade, neuspeli event se nikad ne bi ponovo obradio
+
+**Zaštita statusa prijava:**
+- Dodata validacija prelaza statusa u `PUT /api/job-applications`:
+  - `pending` → accepted, rejected, withdrawn, cancelled
+  - `accepted` → engaged, rejected, withdrawn, cancelled
+  - `engaged` → completed, cancelled
+  - `completed`, `cancelled`, `rejected`, `withdrawn` → terminalni (ne mogu se menjati)
+  - Admin može zaobići validaciju
+- Engage sad odbija i `accepted` prijave (ne samo `pending`)
+
+**Database constraint (race condition zaštita):**
+- Dodat unique partial index `idx_one_engaged_per_job` na `job_applications(job_id) WHERE status='engaged'`
+- Baza fizički sprečava da dva kreatora budu engaged za isti posao
+
+**Privatnost:**
+- Email i telefon uklonjeni iz javnog `GET /api/creators` — kontakt info vidljiv samo na profilu kreatora
+- `SELECT *` zamenjeni specifičnim kolonama u `/api/creators`, `/api/jobs`, `/api/dashboard`
+
+**Review validacija:**
+- `POST /api/reviews` sad zahteva `completed` ili `engaged` posao između biznisa i kreatora
+- Biznis ne može ostaviti review kreatoru sa kojim nikad nije sarađivao
 
 ### 19. februar 2026 — Supabase Security Fix (via MCP Plugin)
 - Obrisano 10 prekomerno permisivnih RLS politika koje su zaobilazile ispravne politike:
