@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     // Jednostavan query - bez kompleksnih filtera
     let query = supabase
       .from('creators')
-      .select('id, name, photo, categories, platforms, languages, location, bio, price_from, profile_views, status, email, phone, instagram, tiktok, youtube, created_at', { count: 'exact' })
+      .select('id, name, photo, categories, platforms, languages, location, bio, price_from, profile_views, status, instagram, tiktok, youtube, created_at', { count: 'exact' })
       .order('created_at', { ascending: false });
 
     // Filter po statusu - ako nije admin, samo approved
@@ -46,8 +46,6 @@ export async function GET(request: NextRequest) {
       priceFrom: creator.price_from || 0,
       profileViews: creator.profile_views || 0,
       status: creator.status,
-      email: creator.email,
-      phone: creator.phone,
       instagram: creator.instagram,
       tiktok: creator.tiktok,
       youtube: creator.youtube,

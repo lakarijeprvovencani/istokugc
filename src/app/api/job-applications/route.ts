@@ -270,7 +270,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'applicationId i status su obavezni' }, { status: 400 });
     }
 
-    if (!['pending', 'accepted', 'rejected', 'withdrawn', 'engaged', 'completed', 'cancelled'].includes(status)) {
+    const validStatuses = ['pending', 'accepted', 'rejected', 'withdrawn', 'engaged', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: 'Nevažeći status' }, { status: 400 });
     }
 
@@ -279,7 +280,7 @@ export async function PUT(request: NextRequest) {
     // 🔒 BEZBEDNOSNA PROVERA: Dohvati prijavu i proveri vlasništvo
     const { data: existingApp } = await supabase
       .from('job_applications')
-      .select('creator_id, job_id')
+      .select('creator_id, job_id, status')
       .eq('id', applicationId)
       .single();
     
@@ -311,6 +312,26 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(
         { error: 'Možete samo povući svoju prijavu' },
         { status: 403 }
+      );
+    }
+
+    // Validacija dozvoljenih prelaza statusa
+    const validTransitions: Record<string, string[]> = {
+      pending:   ['accepted', 'rejected', 'withdrawn', 'cancelled'],
+      accepted:  ['engaged', 'rejected', 'withdrawn', 'cancelled'],
+      engaged:   ['completed', 'cancelled'],
+      completed: [],
+      cancelled: [],
+      rejected:  [],
+      withdrawn: [],
+    };
+
+    const currentStatus = existingApp.status as string;
+    const allowed = validTransitions[currentStatus] || [];
+    if (!isAdminUser && !allowed.includes(status)) {
+      return NextResponse.json(
+        { error: `Ne može se promeniti status sa "${currentStatus}" na "${status}"` },
+        { status: 400 }
       );
     }
 

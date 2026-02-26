@@ -139,7 +139,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         error: 'Već ste ostavili recenziju za ovog kreatora',
         existingReviewId: existingReview.id 
-      }, { status: 409 }); // 409 Conflict
+      }, { status: 409 });
+    }
+
+    // 🔒 Proveri da postoji završen posao između biznisa i kreatora
+    const { data: businessJobs } = await supabase
+      .from('jobs')
+      .select('id')
+      .eq('business_id', businessId);
+
+    if (businessJobs && businessJobs.length > 0) {
+      const jobIds = businessJobs.map(j => j.id);
+      const { data: completedApp } = await supabase
+        .from('job_applications')
+        .select('id')
+        .eq('creator_id', creatorId)
+        .in('job_id', jobIds)
+        .in('status', ['completed', 'engaged'])
+        .limit(1)
+        .maybeSingle();
+
+      if (!completedApp) {
+        return NextResponse.json(
+          { error: 'Možete oceniti samo kreatora sa kojim ste sarađivali' },
+          { status: 403 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { error: 'Možete oceniti samo kreatora sa kojim ste sarađivali' },
+        { status: 403 }
+      );
     }
 
     const { data: review, error } = await supabase

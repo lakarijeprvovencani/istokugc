@@ -49,25 +49,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, duplicate: true });
     }
 
-    await supabase
-      .from('webhook_events')
-      .insert({ event_id: event.id, event_type: event.type });
+    // Process event FIRST, then mark as processed
+    let processingError: string | null = null;
 
-    // Handle different event types
     switch (event.type) {
-      // Pretplata uspešno kreirana ili obnovljena
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as any;
         const subscriptionId = invoice.subscription as string;
-        const customerId = invoice.customer as string;
 
         if (subscriptionId) {
           const subscription: any = await stripe.subscriptions.retrieve(subscriptionId);
-          
-          // Izračunaj datum isteka na osnovu billing perioda
           const expiresAt = new Date(subscription.current_period_end * 1000);
 
-          // Ažuriraj business u bazi
           const { error } = await supabase
             .from('businesses')
             .update({
@@ -77,64 +70,71 @@ export async function POST(request: NextRequest) {
             .eq('stripe_subscription_id', subscriptionId);
 
           if (error) {
-            console.error('Error updating business after payment:', error);
-          } else {
-            console.log('Subscription renewed successfully');
+            processingError = `Error updating business after payment: ${error.message}`;
+            console.error(processingError);
           }
         }
         break;
       }
 
-      // Plaćanje nije uspelo (npr. kartica istekla)
       case 'invoice.payment_failed': {
         const invoice = event.data.object as any;
         const subscriptionId = invoice.subscription as string;
 
         if (subscriptionId) {
-          // Označi pretplatu kao problematičnu (Stripe će pokušati ponovo)
-          console.log('Payment failed for subscription');
-          
-          // Opcionalno: pošalji email korisniku
+          const subscription: any = await stripe.subscriptions.retrieve(subscriptionId);
+          const attemptCount = invoice.attempt_count || 0;
+
+          if (subscription.status === 'past_due' || subscription.status === 'unpaid' || attemptCount >= 3) {
+            const { error } = await supabase
+              .from('businesses')
+              .update({ subscription_status: 'expired' })
+              .eq('stripe_subscription_id', subscriptionId);
+
+            if (error) {
+              processingError = `Error updating failed payment status: ${error.message}`;
+              console.error(processingError);
+            } else {
+              console.log(`Payment failed (attempt ${attemptCount}), subscription marked expired`);
+            }
+          } else {
+            console.log(`Payment failed (attempt ${attemptCount}), Stripe will retry`);
+          }
         }
         break;
       }
 
-      // Pretplata otkazana
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         
         const { error } = await supabase
           .from('businesses')
-          .update({
-            subscription_status: 'expired',
-          })
+          .update({ subscription_status: 'expired' })
           .eq('stripe_subscription_id', subscription.id);
 
         if (error) {
-          console.error('Error updating cancelled subscription:', error);
+          processingError = `Error updating cancelled subscription: ${error.message}`;
+          console.error(processingError);
         }
         break;
       }
 
-      // Pretplata ažurirana
       case 'customer.subscription.updated': {
         const subscription = event.data.object as any;
         
         if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
           const { error } = await supabase
             .from('businesses')
-            .update({
-              subscription_status: 'expired',
-            })
+            .update({ subscription_status: 'expired' })
             .eq('stripe_subscription_id', subscription.id);
 
           if (error) {
-            console.error('Error updating subscription status:', error);
+            processingError = `Error updating subscription status: ${error.message}`;
+            console.error(processingError);
           }
         } else if (subscription.status === 'active') {
           const expiresAt = new Date(subscription.current_period_end * 1000);
           
-          // Detect plan type from the subscription's price
           let subscriptionType: string | undefined;
           const priceId = subscription.items?.data?.[0]?.price?.id;
           if (priceId) {
@@ -158,7 +158,18 @@ export async function POST(request: NextRequest) {
             .eq('stripe_subscription_id', subscription.id);
 
           if (error) {
-            console.error('Error updating subscription:', error);
+            processingError = `Error updating subscription: ${error.message}`;
+            console.error(processingError);
+          }
+        } else if (subscription.status === 'past_due') {
+          const { error } = await supabase
+            .from('businesses')
+            .update({ subscription_status: 'expired' })
+            .eq('stripe_subscription_id', subscription.id);
+
+          if (error) {
+            processingError = `Error updating past_due subscription: ${error.message}`;
+            console.error(processingError);
           }
         }
         break;
@@ -167,6 +178,16 @@ export async function POST(request: NextRequest) {
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
+
+    // If processing failed, return 500 so Stripe retries
+    if (processingError) {
+      return NextResponse.json({ error: processingError }, { status: 500 });
+    }
+
+    // Mark as processed ONLY after successful handling
+    await supabase
+      .from('webhook_events')
+      .insert({ event_id: event.id, event_type: event.type });
 
     return NextResponse.json({ received: true });
 
