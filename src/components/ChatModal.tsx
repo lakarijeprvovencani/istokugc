@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
+import { createClient } from '@/lib/supabase/client';
 
 interface Message {
   id: string;
@@ -43,15 +44,12 @@ export default function ChatModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Scroll to bottom when messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Fetch messages
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const response = await fetch(`/api/job-messages?applicationId=${applicationId}`);
       if (response.ok) {
@@ -63,10 +61,9 @@ export default function ChatModal({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [applicationId]);
 
-  // Mark messages as read
-  const markAsRead = async () => {
+  const markAsRead = useCallback(async () => {
     try {
       const response = await fetch('/api/job-messages', {
         method: 'PUT',
@@ -78,34 +75,57 @@ export default function ChatModal({
         }),
       });
       if (response.ok) {
-        // Notify Header to re-check notifications (clear the red dot)
         window.dispatchEvent(new Event('notificationsCleared'));
       }
     } catch (error) {
       console.error('Error marking as read:', error);
     }
-  };
+  }, [applicationId, currentUserType, currentUserId]);
 
-  // Initial fetch and polling
   useEffect(() => {
-    if (isOpen && applicationId) {
-      setIsLoading(true);
-      fetchMessages();
-      markAsRead();
+    if (!isOpen || !applicationId) return;
 
-      // Poll for new messages every 5 seconds
-      pollIntervalRef.current = setInterval(() => {
-        fetchMessages();
-        markAsRead();
-      }, 30000);
+    setIsLoading(true);
+    fetchMessages();
+    markAsRead();
 
-      return () => {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`chat-${applicationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'job_messages',
+          filter: `application_id=eq.${applicationId}`,
+        },
+        (payload) => {
+          const msg = payload.new as any;
+          const formatted: Message = {
+            id: msg.id,
+            applicationId: msg.application_id,
+            senderType: msg.sender_type,
+            senderId: msg.sender_id,
+            message: msg.message,
+            readAt: msg.read_at,
+            createdAt: msg.created_at,
+          };
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === formatted.id)) return prev;
+            return [...prev, formatted];
+          });
+          if (msg.sender_type !== currentUserType) {
+            markAsRead();
+          }
         }
-      };
-    }
-  }, [isOpen, applicationId]);
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, applicationId, fetchMessages, markAsRead, currentUserType]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
