@@ -25,8 +25,6 @@ export async function GET(
       expand: ['subscription', 'customer'],
     });
 
-    const metadata = session.metadata || {};
-
     return NextResponse.json({
       customerId: typeof session.customer === 'string' 
         ? session.customer 
@@ -36,14 +34,6 @@ export async function GET(
         : session.subscription?.id || null,
       customerEmail: session.customer_email,
       paymentStatus: session.payment_status,
-      registrationData: metadata.reg_email ? {
-        email: metadata.reg_email,
-        password: metadata.reg_password,
-        companyName: metadata.reg_companyName,
-        website: metadata.reg_website || null,
-        industry: metadata.reg_industry || null,
-        description: metadata.reg_description || null,
-      } : null,
     });
 
   } catch (error) {

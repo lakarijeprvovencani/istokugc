@@ -21,11 +21,10 @@ function CheckoutContent() {
       }
 
       let email = '';
-      let registrationData: Record<string, string> | null = null;
       try {
         const savedData = localStorage.getItem('businessRegistration');
         if (savedData) {
-          registrationData = JSON.parse(savedData);
+          const registrationData = JSON.parse(savedData);
           email = registrationData?.email || '';
         }
       } catch (e) {
@@ -36,7 +35,7 @@ function CheckoutContent() {
         const response = await fetch('/api/stripe/create-checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan, email, registrationData }),
+          body: JSON.stringify({ plan, email }),
         });
 
         const data = await response.json();

@@ -86,7 +86,9 @@ function SuccessContent() {
         let stripeCustomerId = null;
         let stripeSubscriptionId = null;
 
-        // 1) Pokusaj localStorage
+        // Registracioni podaci žive samo u browser localStorage (iz sigurnosnih razloga
+        // se ne prosleđuju kroz Stripe metadata). Ovo znači da isti browser koji je
+        // pokrenuo checkout mora da završi flow.
         try {
           const savedData = localStorage.getItem('businessRegistration');
           if (savedData) {
@@ -96,7 +98,7 @@ function SuccessContent() {
           // localStorage might be unavailable
         }
 
-        // 2) Dohvati Stripe session — i kao fallback za registracione podatke
+        // Dohvati Stripe customer/subscription ID-jeve za vezu sa business nalogom
         if (sessionId) {
           try {
             const stripeResponse = await fetch(`/api/stripe/session/${sessionId}`);
@@ -104,10 +106,6 @@ function SuccessContent() {
               const stripeData = await stripeResponse.json();
               stripeCustomerId = stripeData.customerId;
               stripeSubscriptionId = stripeData.subscriptionId;
-
-              if (!registrationData && stripeData.registrationData) {
-                registrationData = stripeData.registrationData;
-              }
             }
           } catch (stripeError) {
             console.error('Error fetching Stripe session:', stripeError);
@@ -115,7 +113,7 @@ function SuccessContent() {
         }
 
         if (!registrationData || !registrationData.email) {
-          setError('Podaci za registraciju nisu pronađeni. Molimo registrujte se ponovo.');
+          setError('Podaci za registraciju nisu pronađeni u browseru. Uplata je evidentirana — molimo kontaktirajte podršku na support@ugcselect.com sa email adresom koju ste koristili za plaćanje kako bismo aktivirali vaš nalog.');
           setIsCreating(false);
           return;
         }

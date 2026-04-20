@@ -11,7 +11,7 @@ import { stripe, PRICE_IDS } from '@/lib/stripe';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { plan, email, registrationData } = body;
+    const { plan, email } = body;
 
     const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').trim();
 
@@ -32,19 +32,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // NOTE: Registration data (including password) is intentionally NOT stored
+    // in Stripe metadata for security/GDPR reasons. It lives only in the
+    // user's browser localStorage and is used on the success page.
     const metadata: Record<string, string> = {
       plan,
       email: email || '',
     };
-
-    if (registrationData) {
-      metadata.reg_email = registrationData.email || '';
-      metadata.reg_password = registrationData.password || '';
-      metadata.reg_companyName = registrationData.companyName || '';
-      metadata.reg_website = registrationData.website || '';
-      metadata.reg_industry = registrationData.industry || '';
-      metadata.reg_description = (registrationData.description || '').substring(0, 500);
-    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
