@@ -79,10 +79,18 @@ export async function middleware(request: NextRequest) {
       return redirectResponse;
     }
 
-    // Admin rute — samo za admin ulogu
+    // Admin rute — samo za admin ulogu.
+    // VAŽNO: role se čita iz public.users tabele (server-side, pod RLS),
+    // NE iz user.user_metadata jer korisnik može da upisuje u user_metadata
+    // iz browsera i time bi eskalirao privilegije (OWASP: Broken Access Control).
     if (pathname.startsWith('/admin')) {
-      const role = user.user_metadata?.role;
-      if (role !== 'admin') {
+      const { data: dbUser, error: dbError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (dbError || !dbUser || dbUser.role !== 'admin') {
         const redirectResponse = NextResponse.redirect(new URL('/dashboard', request.url));
         supabaseResponse.cookies.getAll().forEach(cookie => {
           redirectResponse.cookies.set(cookie.name, cookie.value);
