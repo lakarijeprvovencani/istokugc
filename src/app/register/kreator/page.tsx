@@ -876,9 +876,9 @@ export default function RegisterCreatorPage() {
                 />
                 <span className="text-sm text-muted">
                   Slažem se sa{' '}
-                  <Link href="/uslovi" className="underline hover:text-foreground">uslovima korišćenja</Link>
+                  <Link href="/uslovi-koriscenja" className="underline hover:text-foreground" target="_blank">uslovima korišćenja</Link>
                   {' '}i{' '}
-                  <Link href="/privatnost" className="underline hover:text-foreground">politikom privatnosti</Link>
+                  <Link href="/politika-privatnosti" className="underline hover:text-foreground" target="_blank">politikom privatnosti</Link>
                   <span className="text-error ml-1">*</span>
                 </span>
               </label>

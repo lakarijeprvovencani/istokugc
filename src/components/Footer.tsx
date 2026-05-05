@@ -41,17 +41,17 @@ export default function Footer() {
             <h4 className="font-medium mb-4 text-sm uppercase tracking-wider text-muted">Pravno</h4>
             <ul className="space-y-3">
               <li>
-                <Link href="#" className="text-sm text-muted hover:text-foreground transition-colors">
+                <Link href="/uslovi-koriscenja" className="text-sm text-muted hover:text-foreground transition-colors">
                   Uslovi korišćenja
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-sm text-muted hover:text-foreground transition-colors">
+                <Link href="/politika-privatnosti" className="text-sm text-muted hover:text-foreground transition-colors">
                   Politika privatnosti
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-sm text-muted hover:text-foreground transition-colors">
+                <Link href="/gdpr" className="text-sm text-muted hover:text-foreground transition-colors">
                   GDPR
                 </Link>
               </li>
