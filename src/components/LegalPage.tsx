@@ -36,10 +36,10 @@ export default function LegalPage({ title, lastUpdated, intro, children }: Legal
         <p>
           Ako imaš pitanja ili komentare u vezi sa ovim dokumentom, kontaktiraj nas na{' '}
           <a
-            href="mailto:[CONTACT_EMAIL]"
+            href="mailto:hello@ugcexecutive.com"
             className="text-primary hover:underline"
           >
-            [CONTACT_EMAIL]
+            hello@ugcexecutive.com
           </a>
           .
         </p>

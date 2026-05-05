@@ -20,8 +20,8 @@ export default function UsloviKoriscenjaPage() {
       <Section id="o-nama" title="1. O nama">
         <P>
           UGC Executive (u daljem tekstu „Platforma“, „mi“, „nas“) je usluga koju
-          pruža <strong>[NAZIV FIRME], LLC</strong>, registrovana u državi Wyoming,
-          Sjedinjene Američke Države, sa sedištem na adresi <strong>[ADRESA FIRME]</strong>.
+          pruža <strong>Minnie Downtown Media LLC</strong>, registrovana u državi Wyoming,
+          Sjedinjene Američke Države, sa sedištem na adresi <strong>30 N Gould St Ste R, Sheridan, WY 82801, USA</strong>.
         </P>
         <P>
           Platforma je dostupna na adresi{' '}
@@ -81,8 +81,8 @@ export default function UsloviKoriscenjaPage() {
           Odgovoran si za čuvanje pristupnih podataka (email i lozinke) i za sve
           aktivnosti koje se odvijaju pod tvojim nalogom. Ako sumnjaš na neovlašćen
           pristup, dužan si da nas odmah obavestiš na{' '}
-          <a href="mailto:[CONTACT_EMAIL]" className="text-primary hover:underline">
-            [CONTACT_EMAIL]
+          <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline">
+            hello@ugcexecutive.com
           </a>
           .
         </P>
@@ -120,8 +120,8 @@ export default function UsloviKoriscenjaPage() {
           Izuzetak je tzv. <em>cooling-off period</em> od 14 dana koji važi za
           potrošače u EU pri prvoj pretplati — u tom roku možeš zatražiti pun
           povraćaj novca slanjem zahteva na{' '}
-          <a href="mailto:[CONTACT_EMAIL]" className="text-primary hover:underline">
-            [CONTACT_EMAIL]
+          <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline">
+            hello@ugcexecutive.com
           </a>
           , osim ako si već koristio značajne funkcionalnosti Platforme.
         </P>
@@ -175,7 +175,7 @@ export default function UsloviKoriscenjaPage() {
         <P>
           Sav sadržaj Platforme (osim sadržaja korisnika) — uključujući dizajn,
           logo, kod, tekstove, baze podataka — je vlasništvo{' '}
-          <strong>[NAZIV FIRME], LLC</strong> i zaštićen je zakonima o
+          <strong>Minnie Downtown Media LLC</strong> i zaštićen je zakonima o
           intelektualnoj svojini. Bez naše izričite pisane saglasnosti zabranjeno
           je kopiranje, modifikovanje ili komercijalno korišćenje.
         </P>
@@ -226,7 +226,7 @@ export default function UsloviKoriscenjaPage() {
           Ovi uslovi se tumače u skladu sa zakonima države <strong>Wyoming, USA</strong>,
           bez obzira na principe sukoba zakona. Sve sporove ćemo prvenstveno
           pokušati da rešimo mirnim putem. U slučaju spora koji se ne može rešiti
-          mirno, isključivo nadležan je sud u <strong>[GRAD], Wyoming, USA</strong>.
+          mirno, isključivo nadležan je sud u <strong>Sheridanu, Wyoming, USA</strong>.
         </P>
         <P>
           Ako si potrošač iz Evropske Unije, ova odredba ne ograničava tvoja
@@ -237,8 +237,8 @@ export default function UsloviKoriscenjaPage() {
       <Section id="kontakt" title="12. Kontakt">
         <P>
           Za sva pitanja u vezi sa ovim uslovima, piši nam na{' '}
-          <a href="mailto:[CONTACT_EMAIL]" className="text-primary hover:underline">
-            [CONTACT_EMAIL]
+          <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline">
+            hello@ugcexecutive.com
           </a>
           .
         </P>

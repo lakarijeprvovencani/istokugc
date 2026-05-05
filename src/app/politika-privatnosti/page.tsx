@@ -20,10 +20,10 @@ export default function PolitikaPrivatnostiPage() {
       <Section id="kontroler" title="1. Ko upravlja tvojim podacima">
         <P>
           Kontrolor podataka u smislu ove politike je{' '}
-          <strong>[NAZIV FIRME], LLC</strong>, Wyoming, SAD, sa sedištem na adresi{' '}
-          <strong>[ADRESA FIRME]</strong>. Možeš nam se obratiti email-om na{' '}
-          <a href="mailto:[CONTACT_EMAIL]" className="text-primary hover:underline">
-            [CONTACT_EMAIL]
+          <strong>Minnie Downtown Media LLC</strong>, Wyoming, SAD, sa sedištem na adresi{' '}
+          <strong>30 N Gould St Ste R, Sheridan, WY 82801, USA</strong>. Možeš nam se obratiti email-om na{' '}
+          <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline">
+            hello@ugcexecutive.com
           </a>
           .
         </P>
@@ -247,8 +247,8 @@ export default function PolitikaPrivatnostiPage() {
         <P>
           Za sva pitanja u vezi sa privatnošću ili da iskoristiš neko od svojih
           prava, piši nam na{' '}
-          <a href="mailto:[CONTACT_EMAIL]" className="text-primary hover:underline">
-            [CONTACT_EMAIL]
+          <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline">
+            hello@ugcexecutive.com
           </a>{' '}
           ili na našu poštansku adresu navedenu u sekciji 1.
         </P>

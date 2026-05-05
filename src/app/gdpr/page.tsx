@@ -21,7 +21,7 @@ export default function GdprPage() {
       <Section id="kontroler" title="1. Kontrolor podataka">
         <P>
           Kontrolor tvojih podataka u smislu GDPR-a je{' '}
-          <strong>[NAZIV FIRME], LLC</strong>, registrovan u državi Wyoming, SAD.
+          <strong>Minnie Downtown Media LLC</strong>, registrovan u državi Wyoming, SAD.
           Naša puna kontakt adresa i email su navedeni u{' '}
           <a href="/politika-privatnosti" className="text-primary hover:underline">
             Politici privatnosti
@@ -32,8 +32,8 @@ export default function GdprPage() {
           Iako nismo zakonski obavezni da imenujemo Predstavnika u EU prema članu
           27 GDPR-a (zbog veličine i prirode obrade), možeš nam se uvek obratiti
           direktno na{' '}
-          <a href="mailto:[CONTACT_EMAIL]" className="text-primary hover:underline">
-            [CONTACT_EMAIL]
+          <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline">
+            hello@ugcexecutive.com
           </a>
           .
         </P>
@@ -52,8 +52,8 @@ export default function GdprPage() {
         <P>
           Većinu podataka možeš sam ispraviti kroz panel <em>Podešavanja</em>. Za
           podatke koje ne možeš sam menjati, piši nam na{' '}
-          <a href="mailto:[CONTACT_EMAIL]" className="text-primary hover:underline">
-            [CONTACT_EMAIL]
+          <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline">
+            hello@ugcexecutive.com
           </a>
           .
         </P>
@@ -154,10 +154,10 @@ export default function GdprPage() {
         <P>Pošalji nam email na adresu:</P>
         <P>
           <a
-            href="mailto:[CONTACT_EMAIL]"
+            href="mailto:hello@ugcexecutive.com"
             className="text-primary hover:underline text-lg"
           >
-            [CONTACT_EMAIL]
+            hello@ugcexecutive.com
           </a>
         </P>
         <P>U porukama, navedi:</P>
@@ -205,8 +205,8 @@ export default function GdprPage() {
           Nismo zakonski obavezni da imenujemo formalnog Službenika za zaštitu
           podataka (DPO), ali svi GDPR upiti se direktno obrađuju od strane našeg
           tima na adresi{' '}
-          <a href="mailto:[CONTACT_EMAIL]" className="text-primary hover:underline">
-            [CONTACT_EMAIL]
+          <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline">
+            hello@ugcexecutive.com
           </a>
           .
         </P>
