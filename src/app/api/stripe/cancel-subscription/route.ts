@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
+import { stripe, getSubscriptionPeriodEnd } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth-helper';
 
@@ -93,9 +93,7 @@ export async function POST(request: NextRequest) {
       cancelAt: subscription.cancel_at 
         ? new Date(subscription.cancel_at * 1000).toISOString() 
         : null,
-      currentPeriodEnd: subscription.current_period_end
-        ? new Date(subscription.current_period_end * 1000).toISOString()
-        : null,
+      currentPeriodEnd: getSubscriptionPeriodEnd(subscription)?.toISOString() ?? null,
     });
 
   } catch (error) {

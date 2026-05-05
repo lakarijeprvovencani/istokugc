@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
+import { stripe, getSubscriptionPeriodStart, getSubscriptionPeriodEnd } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth-helper';
 
@@ -67,8 +67,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         status: subscription.status,
         plan: business.subscription_type,
-        currentPeriodStart: new Date(subscription.current_period_start * 1000).toISOString(),
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+        currentPeriodStart: getSubscriptionPeriodStart(subscription)?.toISOString() ?? null,
+        currentPeriodEnd: getSubscriptionPeriodEnd(subscription)?.toISOString() ?? null,
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         cancelAt: subscription.cancel_at 
           ? new Date(subscription.cancel_at * 1000).toISOString() 

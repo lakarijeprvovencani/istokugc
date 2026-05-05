@@ -35,6 +35,38 @@ export const PRICE_IDS = {
   yearly: (process.env.STRIPE_PRICE_YEARLY || process.env.STRIPE_PRICE_ID_YEARLY || '').trim(),
 };
 
+/**
+ * Stripe API 2025+ removed `current_period_end` / `current_period_start` from
+ * the top-level Subscription object and moved them onto each subscription_item.
+ * This helper reads from the new location with a legacy fallback.
+ */
+export function getSubscriptionPeriodEnd(subscription: any): Date | null {
+  const fromItem = subscription?.items?.data?.[0]?.current_period_end;
+  const legacy = subscription?.current_period_end;
+  const ts = (typeof fromItem === 'number' ? fromItem : null) ??
+             (typeof legacy === 'number' ? legacy : null);
+  return ts ? new Date(ts * 1000) : null;
+}
+
+export function getSubscriptionPeriodStart(subscription: any): Date | null {
+  const fromItem = subscription?.items?.data?.[0]?.current_period_start;
+  const legacy = subscription?.current_period_start;
+  const ts = (typeof fromItem === 'number' ? fromItem : null) ??
+             (typeof legacy === 'number' ? legacy : null);
+  return ts ? new Date(ts * 1000) : null;
+}
+
+/**
+ * Stripe API 2025+ removed `invoice.subscription` and exposes the linked
+ * subscription via `invoice.parent.subscription_details.subscription` instead.
+ */
+export function getInvoiceSubscriptionId(invoice: any): string | null {
+  const fromParent = invoice?.parent?.subscription_details?.subscription;
+  const legacy = invoice?.subscription;
+  return (typeof fromParent === 'string' && fromParent) ||
+         (typeof legacy === 'string' && legacy) || null;
+}
+
 // Cene za prikaz u UI (mora se poklapati sa Stripe Price-evima u live mode-u)
 export const PRICES = {
   monthly: {

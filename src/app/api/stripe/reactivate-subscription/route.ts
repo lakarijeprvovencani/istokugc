@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
+import { stripe, getSubscriptionPeriodEnd } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth-helper';
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Pretplata je reaktivirana.',
       status: subscription.status,
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+      currentPeriodEnd: getSubscriptionPeriodEnd(subscription)?.toISOString() ?? null,
     });
 
   } catch (error) {

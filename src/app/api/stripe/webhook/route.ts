@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { getSubscriptionPeriodEnd, getInvoiceSubscriptionId } from '@/lib/stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-12-15.clover',
@@ -8,7 +9,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-// Supabase admin client
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -55,18 +55,22 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as any;
-        const subscriptionId = invoice.subscription as string;
+        const subscriptionId = getInvoiceSubscriptionId(invoice);
 
         if (subscriptionId) {
           const subscription: any = await stripe.subscriptions.retrieve(subscriptionId);
-          const expiresAt = new Date(subscription.current_period_end * 1000);
+          const expiresAt = getSubscriptionPeriodEnd(subscription);
+
+          const updateData: Record<string, any> = { subscription_status: 'active' };
+          if (expiresAt) {
+            updateData.expires_at = expiresAt.toISOString();
+          } else {
+            console.warn(`No current_period_end on subscription ${subscriptionId}; expires_at not updated.`);
+          }
 
           const { error } = await supabase
             .from('businesses')
-            .update({
-              subscription_status: 'active',
-              expires_at: expiresAt.toISOString(),
-            })
+            .update(updateData)
             .eq('stripe_subscription_id', subscriptionId);
 
           if (error) {
@@ -79,7 +83,7 @@ export async function POST(request: NextRequest) {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as any;
-        const subscriptionId = invoice.subscription as string;
+        const subscriptionId = getInvoiceSubscriptionId(invoice);
 
         if (subscriptionId) {
           const subscription: any = await stripe.subscriptions.retrieve(subscriptionId);
@@ -132,9 +136,9 @@ export async function POST(request: NextRequest) {
             processingError = `Error updating subscription status: ${error.message}`;
             console.error(processingError);
           }
-        } else if (subscription.status === 'active') {
-          const expiresAt = new Date(subscription.current_period_end * 1000);
-          
+        } else if (subscription.status === 'active' || subscription.status === 'trialing') {
+          const expiresAt = getSubscriptionPeriodEnd(subscription);
+
           let subscriptionType: string | undefined;
           const priceId = subscription.items?.data?.[0]?.price?.id;
           if (priceId) {
@@ -144,14 +148,16 @@ export async function POST(request: NextRequest) {
             else if (priceId === yearlyPriceId) subscriptionType = 'yearly';
           }
 
-          const updateData: Record<string, any> = {
-            subscription_status: 'active',
-            expires_at: expiresAt.toISOString(),
-          };
+          const updateData: Record<string, any> = { subscription_status: 'active' };
+          if (expiresAt) {
+            updateData.expires_at = expiresAt.toISOString();
+          } else {
+            console.warn(`No current_period_end on subscription ${subscription.id}; expires_at not updated.`);
+          }
           if (subscriptionType) {
             updateData.subscription_type = subscriptionType;
           }
-          
+
           const { error } = await supabase
             .from('businesses')
             .update(updateData)

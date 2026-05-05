@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, PRICE_IDS } from '@/lib/stripe';
+import { stripe, PRICE_IDS, getSubscriptionPeriodEnd } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth-helper';
 
@@ -95,22 +95,23 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    // Ažuriraj u bazi
-    const newExpiresAt = new Date(updatedSubscription.current_period_end * 1000);
-    
+    const newExpiresAt = getSubscriptionPeriodEnd(updatedSubscription);
+
+    const updateData: Record<string, any> = { subscription_type: newPlan };
+    if (newExpiresAt) {
+      updateData.expires_at = newExpiresAt.toISOString();
+    }
+
     await supabase
       .from('businesses')
-      .update({
-        subscription_type: newPlan,
-        expires_at: newExpiresAt.toISOString(),
-      })
+      .update(updateData)
       .eq('id', businessId);
 
     return NextResponse.json({
       success: true,
       message: `Plan promenjen na ${newPlan === 'monthly' ? 'mesečni' : 'godišnji'}.`,
       newPlan,
-      currentPeriodEnd: newExpiresAt.toISOString(),
+      currentPeriodEnd: newExpiresAt?.toISOString() ?? null,
     });
 
   } catch (error) {
