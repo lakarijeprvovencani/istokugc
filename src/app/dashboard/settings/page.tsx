@@ -559,7 +559,7 @@ export default function SettingsPage() {
                         {currentUser.subscriptionPlan === 'yearly' ? 'Godišnji plan' : 'Mesečni plan'}
                       </p>
                       <p className="text-sm text-muted">
-                        {currentUser.subscriptionPlan === 'yearly' ? '€490/godina' : '€49/mesec'}
+                        {currentUser.subscriptionPlan === 'yearly' ? '$490/godina' : '$49/mesec'}
                       </p>
                     </div>
                     <span className={`px-4 py-1.5 rounded-full text-sm flex items-center gap-2 ${

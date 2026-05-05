@@ -2528,7 +2528,7 @@ function BusinessDashboard() {
       plan,
       status,
       expiresAt,
-      price: plan === 'monthly' ? '€49/mesec' : '€490/godina',
+      price: plan === 'monthly' ? '$49/mesec' : '$490/godina',
       cancelAtPeriodEnd: subscriptionData?.cancelAtPeriodEnd || false,
       hasAccessUntilExpiry,
       effectivelyActive,
@@ -3907,12 +3907,12 @@ function BusinessPaywallScreen({ companyName }: { companyName: string }) {
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
           <div className="bg-white rounded-xl border border-border px-6 py-4 text-center">
             <p className="text-sm text-muted mb-1">Mesečna pretplata</p>
-            <p className="text-2xl font-bold text-foreground">€49<span className="text-sm font-normal text-muted">/mesec</span></p>
+            <p className="text-2xl font-bold text-foreground">$49<span className="text-sm font-normal text-muted">/mesec</span></p>
           </div>
           <div className="bg-primary/5 rounded-xl border border-primary/20 px-6 py-4 text-center relative">
             <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-white text-xs px-2 py-0.5 rounded-full">Ušteda 17%</span>
             <p className="text-sm text-muted mb-1">Godišnja pretplata</p>
-            <p className="text-2xl font-bold text-foreground">€490<span className="text-sm font-normal text-muted">/godina</span></p>
+            <p className="text-2xl font-bold text-foreground">$490<span className="text-sm font-normal text-muted">/godina</span></p>
           </div>
         </div>
 

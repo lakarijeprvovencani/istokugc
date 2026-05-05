@@ -69,7 +69,7 @@ export default function PricingPage() {
             <div className="text-center mb-6">
               <h3 className="text-xl font-medium mb-2">Mesečni plan</h3>
               <div className="flex items-baseline justify-center gap-1">
-                <span className="text-4xl font-light">€49</span>
+                <span className="text-4xl font-light">$49</span>
                 <span className="text-muted">/mesec</span>
               </div>
             </div>
@@ -138,10 +138,10 @@ export default function PricingPage() {
             <div className="text-center mb-6">
               <h3 className="text-xl font-medium mb-2">Godišnji plan</h3>
               <div className="flex items-baseline justify-center gap-1">
-                <span className="text-4xl font-light">€490</span>
+                <span className="text-4xl font-light">$490</span>
                 <span className="text-muted">/godina</span>
               </div>
-              <p className="text-sm text-success mt-1">Ušteda €98 godišnje</p>
+              <p className="text-sm text-success mt-1">Ušteda $98 godišnje</p>
             </div>
             
             <ul className="space-y-3 mb-8">

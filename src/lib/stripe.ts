@@ -35,17 +35,17 @@ export const PRICE_IDS = {
   yearly: (process.env.STRIPE_PRICE_YEARLY || process.env.STRIPE_PRICE_ID_YEARLY || '').trim(),
 };
 
-// Cene za prikaz u UI
+// Cene za prikaz u UI (mora se poklapati sa Stripe Price-evima u live mode-u)
 export const PRICES = {
   monthly: {
-    amount: 4900, // €49.00
-    currency: 'eur',
+    amount: 4900, // $49.00
+    currency: 'usd',
     interval: 'month' as const,
     name: 'Mesečni plan',
   },
   yearly: {
-    amount: 49000, // €490.00
-    currency: 'eur',
+    amount: 49000, // $490.00
+    currency: 'usd',
     interval: 'year' as const,
     name: 'Godišnji plan',
   },
