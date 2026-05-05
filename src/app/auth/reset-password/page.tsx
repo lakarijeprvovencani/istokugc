@@ -39,8 +39,8 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Lozinka mora imati najmanje 6 karaktera');
+    if (password.length < 8) {
+      setError('Lozinka mora imati najmanje 8 karaktera');
       return;
     }
 
@@ -151,7 +151,7 @@ export default function ResetPasswordPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 6 karaktera"
+                  placeholder="Minimum 8 karaktera"
                   className="w-full px-4 py-3.5 pr-12 border border-border rounded-xl focus:outline-none focus:border-muted"
                   required
                   minLength={6}

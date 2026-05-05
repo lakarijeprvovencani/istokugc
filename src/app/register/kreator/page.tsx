@@ -282,8 +282,8 @@ export default function RegisterCreatorPage() {
         alert('Molimo unesite validnu email adresu');
         return;
       }
-      if (!formData.password || formData.password.length < 6) {
-        alert('Lozinka mora imati najmanje 6 karaktera');
+      if (!formData.password || formData.password.length < 8) {
+        alert('Lozinka mora imati najmanje 8 karaktera');
         return;
       }
       if (!formData.name.trim()) {

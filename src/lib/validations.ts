@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const creatorRegistrationSchema = z.object({
   email: z.string().email('Email adresa nije validna'),
-  password: z.string().min(6, 'Lozinka mora imati najmanje 6 karaktera'),
+  password: z.string().min(8, 'Lozinka mora imati najmanje 8 karaktera'),
   name: z.string().min(2, 'Ime mora imati najmanje 2 karaktera').max(100),
   bio: z.string().min(10, 'Bio mora imati najmanje 10 karaktera').max(2000),
   location: z.string().min(2, 'Lokacija je obavezna').max(100),
@@ -20,7 +20,7 @@ export const creatorRegistrationSchema = z.object({
 
 export const businessRegistrationSchema = z.object({
   email: z.string().email('Email adresa nije validna'),
-  password: z.string().min(6, 'Lozinka mora imati najmanje 6 karaktera'),
+  password: z.string().min(8, 'Lozinka mora imati najmanje 8 karaktera'),
   companyName: z.string().min(2, 'Naziv kompanije mora imati najmanje 2 karaktera').max(200),
   phone: z.string().max(30).optional().nullable(),
   website: z.string().url('URL nije validan').optional().nullable().or(z.literal('')),
