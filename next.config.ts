@@ -69,6 +69,27 @@ const nextConfig: NextConfig = {
   },
   
   async headers() {
+    // unsafe-eval je potreban samo za Next.js dev mode (HMR/Turbopack).
+    // U produkciji ga uklanjamo da smanjimo XSS povrsinu.
+    const isDev = process.env.NODE_ENV !== 'production';
+    const scriptSrc = isDev
+      ? "'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com"
+      : "'self' 'unsafe-inline' https://js.stripe.com";
+
+    const csp = [
+      "default-src 'self'",
+      `script-src ${scriptSrc}`,
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://*.r2.dev https://images.unsplash.com https://*.tiktokcdn.com https://*.cdninstagram.com https://img.youtube.com https://i.ytimg.com https://i3.ytimg.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.ingest.de.sentry.io https://*.ingest.sentry.io https://*.sentry.io",
+      "worker-src 'self' blob:",
+      "frame-src https://js.stripe.com https://hooks.stripe.com https://www.youtube.com https://youtube.com https://www.instagram.com https://www.tiktok.com",
+      "media-src 'self' blob: https://*.supabase.co https://*.r2.dev",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join('; ');
+
     return [
       {
         source: '/(.*)',
@@ -78,7 +99,7 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-          { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.r2.dev https://images.unsplash.com https://*.tiktokcdn.com https://*.cdninstagram.com https://img.youtube.com https://i.ytimg.com https://i3.ytimg.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.ingest.de.sentry.io https://*.ingest.sentry.io https://*.sentry.io; worker-src 'self' blob:; frame-src https://js.stripe.com https://hooks.stripe.com https://www.youtube.com https://youtube.com https://www.instagram.com https://www.tiktok.com; media-src 'self' blob: https://*.supabase.co https://*.r2.dev; object-src 'none'; base-uri 'self'" },
+          { key: 'Content-Security-Policy', value: csp },
         ],
       },
       {

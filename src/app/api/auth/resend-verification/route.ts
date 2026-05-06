@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit, getAuthLimiter, getClientIp } from '@/lib/rate-limit';
 
 // POST /api/auth/resend-verification
 // Ponovo šalje email za verifikaciju
 export async function POST(request: NextRequest) {
   try {
+    // 🚦 RATE LIMIT: Spreci spam slanja email-a (5/min po IP-ju)
+    const rateLimited = await checkRateLimit(getAuthLimiter(), getClientIp(request));
+    if (rateLimited) return rateLimited;
+
     const body = await request.json();
     const { email } = body;
 
-    if (!email) {
+    if (!email || typeof email !== 'string') {
       return NextResponse.json(
         { error: 'Email je obavezan' },
         { status: 400 }

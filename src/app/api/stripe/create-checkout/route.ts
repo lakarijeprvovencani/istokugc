@@ -7,9 +7,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe, PRICE_IDS } from '@/lib/stripe';
+import { checkRateLimit, getAuthLimiter, getClientIp } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
+    // 🚦 RATE LIMIT: Sprecava spam Stripe Checkout sesija (5/min po IP-ju).
+    // Endpoint je javan jer se zove pre login-a tokom registracije, pa
+    // koristimo IP-based limit umesto auth-based.
+    const rateLimited = await checkRateLimit(getAuthLimiter(), getClientIp(request));
+    if (rateLimited) return rateLimited;
+
     const body = await request.json();
     const { plan, email } = body;
 
