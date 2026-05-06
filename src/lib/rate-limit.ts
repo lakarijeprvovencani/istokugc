@@ -14,6 +14,11 @@ interface RateLimitConfig {
 
 const AUTH_LIMIT: RateLimitConfig = { maxRequests: 5, windowSeconds: 60, prefix: 'auth' };
 const API_LIMIT: RateLimitConfig = { maxRequests: 30, windowSeconds: 60, prefix: 'api' };
+// Limit za korisničke akcije: prijave, pozivi, slanje poruka.
+// 20/min je dovoljno za normalan rad ali blokira spam botove.
+const ACTION_LIMIT: RateLimitConfig = { maxRequests: 20, windowSeconds: 60, prefix: 'action' };
+// Strogi limit za kreiranje aplikacija/poziva: 10/min spreči spam ka kreatorima
+const APPLY_LIMIT: RateLimitConfig = { maxRequests: 10, windowSeconds: 60, prefix: 'apply' };
 
 export function getAuthLimiter(): RateLimitConfig {
   return AUTH_LIMIT;
@@ -21,6 +26,14 @@ export function getAuthLimiter(): RateLimitConfig {
 
 export function getApiLimiter(): RateLimitConfig {
   return API_LIMIT;
+}
+
+export function getActionLimiter(): RateLimitConfig {
+  return ACTION_LIMIT;
+}
+
+export function getApplyLimiter(): RateLimitConfig {
+  return APPLY_LIMIT;
 }
 
 /**

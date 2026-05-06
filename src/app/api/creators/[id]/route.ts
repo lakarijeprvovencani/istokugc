@@ -34,6 +34,7 @@ export async function GET(
     const { data: { user: authUser } } = await supabaseAuth.auth.getUser();
     let userRole: string | null = null;
     let userCreatorId: string | null = null;
+    let businessHasActiveSubscription = false;
     if (authUser) {
       const { data: ud } = await supabaseAuth.from('users').select('role').eq('id', authUser.id).single();
       userRole = ud?.role || null;
@@ -41,10 +42,23 @@ export async function GET(
         const { data: cd } = await supabaseAuth.from('creators').select('id').eq('user_id', authUser.id).single();
         userCreatorId = cd?.id || null;
       }
+      // Biznis mora da ima aktivnu pretplatu (i da nije istekla) da bi video email/telefon
+      if (userRole === 'business') {
+        const { data: bd } = await supabase
+          .from('businesses')
+          .select('subscription_status, expires_at')
+          .eq('user_id', authUser.id)
+          .maybeSingle();
+        if (bd?.subscription_status === 'active') {
+          const notExpired = !bd.expires_at || new Date(bd.expires_at as string) > new Date();
+          businessHasActiveSubscription = notExpired;
+        }
+      }
     }
 
     const isOwner = userCreatorId === id;
-    const canSeeContact = userRole === 'admin' || userRole === 'business' || isOwner;
+    // Pristup kontaktima: admin uvek, vlasnik svog profila uvek, biznis samo sa aktivnom pretplatom
+    const canSeeContact = userRole === 'admin' || isOwner || (userRole === 'business' && businessHasActiveSubscription);
 
     const formattedCreator: Record<string, unknown> = {
       id: creator.id,

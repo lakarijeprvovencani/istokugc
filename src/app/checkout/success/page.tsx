@@ -113,7 +113,7 @@ function SuccessContent() {
         }
 
         if (!registrationData || !registrationData.email) {
-          setError('Podaci za registraciju nisu pronađeni u browseru. Uplata je evidentirana — molimo kontaktirajte podršku na support@ugcselect.com sa email adresom koju ste koristili za plaćanje kako bismo aktivirali vaš nalog.');
+          setError('Podaci za registraciju nisu pronađeni u browseru. Uplata je evidentirana — molimo pišite nam na hello@ugcexecutive.com sa email adresom koju ste koristili za plaćanje kako bismo aktivirali vaš nalog.');
           setIsCreating(false);
           return;
         }
@@ -385,8 +385,8 @@ function SuccessContent() {
         {/* Support note */}
         <p className="text-sm text-muted mt-12">
           Imate pitanja? Kontaktirajte nas na{' '}
-          <a href="mailto:support@ugcselect.com" className="text-primary hover:underline">
-            support@ugcselect.com
+          <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline">
+            hello@ugcexecutive.com
           </a>
         </p>
       </div>

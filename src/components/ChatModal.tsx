@@ -308,6 +308,7 @@ export default function ChatModal({
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Napišite poruku..."
+              maxLength={2000}
               className="flex-1 px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
               disabled={isSending}
             />

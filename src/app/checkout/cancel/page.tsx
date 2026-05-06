@@ -79,9 +79,9 @@ export default function CheckoutCancelPage() {
 
         {/* Help text */}
         <p className="text-sm text-muted mt-12">
-          Imate problema sa plaćanjem?{' '}
-          <a href="mailto:support@ugcselect.com" className="text-primary hover:underline">
-            Kontaktirajte podršku
+          Imate problema sa plaćanjem? Pišite nam na{' '}
+          <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline font-medium">
+            hello@ugcexecutive.com
           </a>
         </p>
       </div>

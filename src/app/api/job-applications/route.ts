@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-helper';
+import { checkRateLimit, getApplyLimiter, getClientIp } from '@/lib/rate-limit';
+
+// Maksimalna dužina cover letter-a (sprečava DOS i DB bloat)
+const MAX_COVER_LETTER_LENGTH = 5000;
 
 // GET /api/job-applications - Dohvati prijave
 export async function GET(request: NextRequest) {
@@ -173,7 +177,12 @@ export async function POST(request: NextRequest) {
     // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
     const { user, error: authError } = await getAuthUser();
     if (authError) return authError;
-    
+
+    // 🚦 RATE LIMIT: Spreči spam prijava (10/min po korisniku)
+    const rateLimitId = user?.id || getClientIp(request);
+    const rateLimited = await checkRateLimit(getApplyLimiter(), rateLimitId);
+    if (rateLimited) return rateLimited;
+
     const body = await request.json();
     const {
       jobId,
@@ -186,6 +195,14 @@ export async function POST(request: NextRequest) {
     if (!jobId || !creatorId || !coverLetter || !proposedPrice) {
       return NextResponse.json(
         { error: 'jobId, creatorId, coverLetter i proposedPrice su obavezni' },
+        { status: 400 }
+      );
+    }
+
+    // Validacija dužine cover letter-a (sprečava DOS i DB bloat)
+    if (typeof coverLetter !== 'string' || coverLetter.length > MAX_COVER_LETTER_LENGTH) {
+      return NextResponse.json(
+        { error: `Tekst prijave je predugačak (maksimalno ${MAX_COVER_LETTER_LENGTH} karaktera)` },
         { status: 400 }
       );
     }

@@ -19,8 +19,8 @@ import { emailTemplates } from './emailTemplates';
 // const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Admin email - gde se šalju admin notifikacije
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@ugcselect.com';
-const FROM_EMAIL = process.env.FROM_EMAIL || 'UGC Executive <noreply@ugcselect.com>';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'hello@ugcexecutive.com';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'UGC Executive <noreply@ugcexecutive.com>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 // ============================================
@@ -183,7 +183,7 @@ export async function notifyCreatorRejected(data: {
       html: emailTemplates.creatorRejected({
         creatorName,
         reason: reason || 'Tvoj profil trenutno ne ispunjava naše kriterijume.',
-        contactEmail: 'support@ugcselect.com',
+        contactEmail: 'hello@ugcexecutive.com',
       }),
     });
 

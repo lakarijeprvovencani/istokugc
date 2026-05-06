@@ -76,7 +76,7 @@ export default function CreatorPendingPage() {
 
         {/* Footer text */}
         <p className="text-center text-sm text-muted mt-6">
-          Imaš pitanja? <a href="mailto:podrska@ugcselect.com" className="text-primary hover:underline">Kontaktiraj nas</a>
+          Imaš pitanja? Pišite nam na <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline font-medium">hello@ugcexecutive.com</a>
         </p>
       </div>
     </div>

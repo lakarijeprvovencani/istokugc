@@ -3414,11 +3414,14 @@ function BusinessDashboard() {
             <div className="bg-primary text-white rounded-2xl p-6">
               <h3 className="font-medium mb-2">Treba ti pomoć?</h3>
               <p className="text-sm text-white/70 mb-4">
-                Naš tim je tu da ti pomogne da pronađeš savršene kreatore.
+                Naš tim je tu da ti pomogne. Pošalji nam email i odgovorićemo u najkraćem roku.
               </p>
-              <button className="w-full py-3 bg-white text-primary rounded-xl text-sm font-medium hover:bg-white/90 transition-colors">
-                Kontaktiraj podršku
-              </button>
+              <a
+                href="mailto:hello@ugcexecutive.com"
+                className="block w-full py-3 bg-white text-primary rounded-xl text-sm font-medium hover:bg-white/90 transition-colors text-center"
+              >
+                hello@ugcexecutive.com
+              </a>
             </div>
           </div>
         </div>
@@ -3740,7 +3743,12 @@ function CreatorRejectedScreen({ rejectionReason }: { rejectionReason?: string }
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary mt-0.5">→</span>
-              <span>Kontaktirajte podršku ako imate pitanja</span>
+              <span>
+                Za pitanja nas kontaktirajte na{' '}
+                <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline font-medium">
+                  hello@ugcexecutive.com
+                </a>
+              </span>
             </li>
           </ul>
         </div>

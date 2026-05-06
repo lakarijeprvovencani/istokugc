@@ -15,8 +15,13 @@ const supabase = createClient(
 );
 
 // GET /api/business/profile?businessId=xxx
+// ZAŠTIĆENO: Samo vlasnik biznisa ili admin može videti pun profil
 export async function GET(request: NextRequest) {
   try {
+    // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const businessId = searchParams.get('businessId');
 
@@ -24,6 +29,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Business ID is required' },
         { status: 400 }
+      );
+    }
+
+    // 🔒 BEZBEDNOSNA PROVERA: Samo vlasnik ili admin može videti pun profil
+    // (sadrži email, phone, stripe_customer_id, subscription details)
+    const isOwner = user?.businessId === businessId;
+    const isAdminUser = user?.role === 'admin';
+
+    if (!isOwner && !isAdminUser) {
+      return NextResponse.json(
+        { error: 'Nemate dozvolu za pregled ovog profila' },
+        { status: 403 }
       );
     }
 

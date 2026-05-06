@@ -106,7 +106,7 @@ export default function LoginPage() {
 
         // Proveri status kreatora
         if (creatorData.status === 'deactivated') {
-          setError('Vaš nalog je deaktiviran. Kontaktirajte podršku za više informacija.');
+          setError('Vaš nalog je deaktiviran. Za više informacija pišite nam na hello@ugcexecutive.com');
           setIsLoading(false);
           return;
         }
@@ -140,7 +140,7 @@ export default function LoginPage() {
 
         // Proveri da li je nalog deaktiviran od strane admina
         if (businessData.subscription_status === 'deactivated') {
-          setError('Vaš nalog je deaktiviran. Kontaktirajte podršku za više informacija.');
+          setError('Vaš nalog je deaktiviran. Za više informacija pišite nam na hello@ugcexecutive.com');
           setIsLoading(false);
           return;
         }

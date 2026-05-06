@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-helper';
+import { checkRateLimit, getApplyLimiter, getClientIp } from '@/lib/rate-limit';
+
+// Maksimalna dužina poruke u pozivu (sprečava DOS i DB bloat)
+const MAX_INVITATION_MESSAGE_LENGTH = 1000;
 
 // GET - Fetch invitations
 export async function GET(request: Request) {
@@ -113,7 +117,12 @@ export async function POST(request: Request) {
     // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
     const { user, error: authError } = await getAuthUser();
     if (authError) return authError;
-    
+
+    // 🚦 RATE LIMIT: Spreči spam poziva (10/min po korisniku)
+    const rateLimitId = user?.id || getClientIp(request);
+    const rateLimited = await checkRateLimit(getApplyLimiter(), rateLimitId);
+    if (rateLimited) return rateLimited;
+
     const supabase = createAdminClient();
     
     const body = await request.json();
@@ -122,6 +131,14 @@ export async function POST(request: Request) {
     if (!jobId || !businessId || !creatorId) {
       return NextResponse.json(
         { error: 'jobId, businessId, and creatorId are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validacija dužine poruke
+    if (message && (typeof message !== 'string' || message.length > MAX_INVITATION_MESSAGE_LENGTH)) {
+      return NextResponse.json(
+        { error: `Poruka u pozivu je predugačka (maksimalno ${MAX_INVITATION_MESSAGE_LENGTH} karaktera)` },
         { status: 400 }
       );
     }

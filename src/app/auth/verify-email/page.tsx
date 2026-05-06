@@ -158,7 +158,12 @@ function VerifyEmailContent() {
               <li>• Proveri <span className="text-foreground">spam/junk</span> folder</li>
               <li>• Proveri da li je email adresa tačna</li>
               <li>• Sačekaj par minuta pre ponovnog slanja</li>
-              <li>• Kontaktiraj podršku ako problem potraje</li>
+              <li>
+                • Ako problem potraje, pišite nam na{' '}
+                <a href="mailto:hello@ugcexecutive.com" className="text-primary hover:underline font-medium">
+                  hello@ugcexecutive.com
+                </a>
+              </li>
             </ul>
           </div>
 

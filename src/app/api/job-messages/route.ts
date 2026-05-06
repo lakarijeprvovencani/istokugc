@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-helper';
+import { checkRateLimit, getActionLimiter, getClientIp } from '@/lib/rate-limit';
+
+// Maksimalna dužina poruke (sprečava DOS i DB bloat)
+const MAX_MESSAGE_LENGTH = 2000;
 
 // GET /api/job-messages - Dohvati poruke za prijavu ili broj nepročitanih
 export async function GET(request: NextRequest) {
@@ -169,7 +173,12 @@ export async function POST(request: NextRequest) {
     // 🔒 BEZBEDNOSNA PROVERA: Da li je korisnik ulogovan?
     const { user, error: authError } = await getAuthUser();
     if (authError) return authError;
-    
+
+    // 🚦 RATE LIMIT: Spreči chat spam (20 poruka/min po korisniku)
+    const rateLimitId = user?.id || getClientIp(request);
+    const rateLimited = await checkRateLimit(getActionLimiter(), rateLimitId);
+    if (rateLimited) return rateLimited;
+
     const body = await request.json();
     const { applicationId, senderType, senderId, message } = body;
 
@@ -182,6 +191,23 @@ export async function POST(request: NextRequest) {
 
     if (!['business', 'creator'].includes(senderType)) {
       return NextResponse.json({ error: 'senderType mora biti business ili creator' }, { status: 400 });
+    }
+
+    // Validacija dužine poruke (sprečava DOS i DB bloat)
+    if (typeof message !== 'string' || message.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json(
+        { error: `Poruka je predugačka (maksimalno ${MAX_MESSAGE_LENGTH} karaktera)` },
+        { status: 400 }
+      );
+    }
+    // Sanitizacija: ukloni nul-bajtove i kontrolne karaktere koji nisu \n, \r, \t
+    const cleanMessage = message
+      .replace(/\u0000/g, '')
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+      .trim();
+    if (!cleanMessage) {
+      return NextResponse.json({ error: 'Poruka ne sme biti prazna' }, { status: 400 });
     }
     
     // 🔒 BEZBEDNOSNA PROVERA: senderId mora odgovarati ulogovanom korisniku
@@ -224,7 +250,7 @@ export async function POST(request: NextRequest) {
         application_id: applicationId,
         sender_type: senderType,
         sender_id: senderId,
-        message: message.trim(),
+        message: cleanMessage,
       })
       .select()
       .single();
