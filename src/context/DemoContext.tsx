@@ -12,6 +12,7 @@ import {
 } from '@/lib/mockData';
 import type { Rating, CreateReviewInput } from '@/types/review';
 import { createClient } from '@/lib/supabase/client';
+import { setSentryUser, clearSentryUser } from '@/lib/sentry-user';
 
 // No more mock creators - all data comes from Supabase
 const allBaseCreators: Creator[] = [];
@@ -346,6 +347,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           setCurrentUser(demoUsers.guest);
           setLoggedInCreatorId(undefined);
           setLoggedInBusiness(undefined);
+          // Obrisi Sentry user kontekst pri logout-u
+          clearSentryUser();
         }
       });
 
@@ -368,7 +371,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           .select('role')
           .eq('id', session.user.id)
           .single();
-        
+
+        // Postavi Sentry user kontekst (samo id + role, BEZ email/PII)
+        if (userData?.role) {
+          setSentryUser({ id: session.user.id, role: userData.role });
+        }
+
         if (userData?.role === 'creator') {
           // Fetch creator profile
           const { data: creatorData } = await supabase
@@ -508,6 +516,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setCurrentUser(demoUsers.guest);
     setLoggedInCreatorId(undefined);
     setLoggedInBusiness(undefined);
+    // Obrisi Sentry user kontekst (defense in depth - SIGNED_OUT handler ce takodje ovo da uradi)
+    clearSentryUser();
     // Remove from localStorage
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY);

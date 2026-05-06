@@ -6,6 +6,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 
 export interface AuthUser {
   id: string;
@@ -96,7 +97,10 @@ export async function getAuthUser(): Promise<AuthResult> {
         result.businessId = businessData.id;
       }
     }
-    
+
+    // Postavi Sentry user kontekst za server-side greske (samo id + role, BEZ email)
+    Sentry.setUser({ id: result.id, role: result.role });
+
     return { user: result, error: null };
     
   } catch (error) {
