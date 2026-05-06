@@ -123,6 +123,99 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case 'charge.refunded': {
+        // Stripe je refundovao plaćanje (admin u Dashboard-u, ili automated).
+        // Ako je full refund, biznis gubi pristup odmah.
+        // Partial refund ne radi nista (npr. proportional credit).
+        const charge = event.data.object as Stripe.Charge;
+        const customerId = typeof charge.customer === 'string'
+          ? charge.customer
+          : charge.customer?.id;
+
+        const isFullRefund = charge.amount_refunded >= charge.amount;
+        if (!isFullRefund) {
+          console.log(`Partial refund (${charge.amount_refunded}/${charge.amount}) on charge ${charge.id} - subscription kept active`);
+          break;
+        }
+
+        if (customerId) {
+          const { error } = await supabase
+            .from('businesses')
+            .update({ subscription_status: 'expired' })
+            .eq('stripe_customer_id', customerId);
+
+          if (error) {
+            processingError = `Error revoking access after refund: ${error.message}`;
+            console.error(processingError);
+          } else {
+            console.log(`Full refund on charge ${charge.id} - subscription revoked for customer ${customerId}`);
+          }
+        }
+        break;
+      }
+
+      case 'charge.dispute.created': {
+        // Korisnik je pokrenuo chargeback. Odmah revoke pristup
+        // dok se dispute ne resi - sprecava da koristi platformu badjavi.
+        const dispute = event.data.object as Stripe.Dispute;
+        const chargeId = typeof dispute.charge === 'string'
+          ? dispute.charge
+          : dispute.charge.id;
+
+        let customerId: string | null = null;
+        try {
+          const charge = await stripe.charges.retrieve(chargeId);
+          customerId = typeof charge.customer === 'string'
+            ? charge.customer
+            : charge.customer?.id || null;
+        } catch (err) {
+          processingError = `Error fetching charge ${chargeId} for dispute: ${err}`;
+          console.error(processingError);
+          break;
+        }
+
+        if (customerId) {
+          const { error } = await supabase
+            .from('businesses')
+            .update({ subscription_status: 'expired' })
+            .eq('stripe_customer_id', customerId);
+
+          if (error) {
+            processingError = `Error revoking access after dispute: ${error.message}`;
+            console.error(processingError);
+          } else {
+            console.log(`Dispute ${dispute.id} created on charge ${chargeId} - subscription revoked for customer ${customerId}`);
+          }
+
+          // Ujedno cancel-uj subscription u Stripe-u da nema novih naplata.
+          // Ovo je defense-in-depth, Stripe to obicno ne radi automatski.
+          try {
+            const subs = await stripe.subscriptions.list({
+              customer: customerId,
+              status: 'active',
+              limit: 5,
+            });
+            const subList = (subs as unknown as { data: Stripe.Subscription[] }).data || [];
+            for (const sub of subList) {
+              await stripe.subscriptions.cancel(sub.id);
+              console.log(`Auto-cancelled subscription ${sub.id} after dispute`);
+            }
+          } catch (err) {
+            console.error('Error auto-cancelling subscription after dispute:', err);
+            // Ne fail-ujemo webhook na ovo - access je vec revoked
+          }
+        }
+        break;
+      }
+
+      case 'charge.dispute.closed': {
+        // Informativan log, ne menja stanje automatski.
+        // Ako biznis pobedi dispute, admin moze rucno reaktivirati pretplatu.
+        const dispute = event.data.object as Stripe.Dispute;
+        console.log(`Dispute ${dispute.id} closed with status: ${dispute.status}`);
+        break;
+      }
+
       case 'customer.subscription.updated': {
         const subscription = event.data.object as any;
         
