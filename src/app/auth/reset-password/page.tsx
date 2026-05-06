@@ -154,7 +154,7 @@ export default function ResetPasswordPage() {
                   placeholder="Minimum 8 karaktera"
                   className="w-full px-4 py-3.5 pr-12 border border-border rounded-xl focus:outline-none focus:border-muted"
                   required
-                  minLength={6}
+                  minLength={8}
                   disabled={isLoading}
                 />
                 <button
