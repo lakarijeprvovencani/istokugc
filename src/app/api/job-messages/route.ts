@@ -31,18 +31,45 @@ export async function GET(request: NextRequest) {
 
     // Count unread messages
     if (countUnread === 'true' && recipientType && recipientId) {
-      
+
       // If applicationId is provided, count only for that specific chat
       if (applicationId) {
+        // 🔒 IDOR ZASTITA: validiraj da je user ucesnik te prijave
+        if (user?.role !== 'admin') {
+          const { data: app } = await supabase
+            .from('job_applications')
+            .select('creator_id, job_id')
+            .eq('id', applicationId)
+            .single();
+
+          if (!app) {
+            return NextResponse.json({ unreadCount: 0 });
+          }
+
+          const { data: job } = await supabase
+            .from('jobs')
+            .select('business_id')
+            .eq('id', app.job_id)
+            .single();
+
+          const isParticipant =
+            user?.creatorId === app.creator_id ||
+            user?.businessId === job?.business_id;
+
+          if (!isParticipant) {
+            return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+          }
+        }
+
         const senderType = recipientType === 'business' ? 'creator' : 'business';
-        
+
         const { count } = await supabase
           .from('job_messages')
           .select('id', { count: 'exact', head: true })
           .eq('application_id', applicationId)
           .eq('sender_type', senderType)
           .is('read_at', null);
-        
+
         return NextResponse.json({ unreadCount: count || 0 });
       }
       
@@ -306,9 +333,37 @@ export async function PUT(request: NextRequest) {
 
     const supabase = createAdminClient();
 
+    // 🔒 IDOR ZASTITA: applicationId mora pripadati konverzaciji u kojoj je user ucesnik.
+    // Bez ove provere, bilo koji ulogovan user moze oznaciti tudje poruke kao procitane.
+    if (user?.role !== 'admin') {
+      const { data: app } = await supabase
+        .from('job_applications')
+        .select('creator_id, job_id')
+        .eq('id', applicationId)
+        .single();
+
+      if (!app) {
+        return NextResponse.json({ error: 'Prijava ne postoji' }, { status: 404 });
+      }
+
+      const { data: job } = await supabase
+        .from('jobs')
+        .select('business_id')
+        .eq('id', app.job_id)
+        .single();
+
+      const isParticipant =
+        user?.creatorId === app.creator_id ||
+        user?.businessId === job?.business_id;
+
+      if (!isParticipant) {
+        return NextResponse.json({ error: 'Nemate dozvolu' }, { status: 403 });
+      }
+    }
+
     // Mark all unread messages from the OTHER party as read
     const senderType = recipientType === 'business' ? 'creator' : 'business';
-    
+
     const { error } = await supabase
       .from('job_messages')
       .update({ read_at: new Date().toISOString() })

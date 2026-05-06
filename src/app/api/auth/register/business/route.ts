@@ -2,16 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthLimiter, checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { businessRegistrationSchema, validate } from '@/lib/validations';
+import { stripe, PRICE_IDS, getSubscriptionPeriodEnd } from '@/lib/stripe';
 
 // POST /api/auth/register/business
-// Registracija novog biznisa (poziva se nakon uspešnog Stripe plaćanja)
+// Registracija novog biznisa NAKON uspesnog Stripe placanja.
+//
+// BEZBEDNOST: Klijent salje samo `sessionId` Stripe Checkout session-a.
+// Server zatim:
+//   1. Retrieve session iz Stripe API-ja (live)
+//   2. Validira `payment_status === 'paid'` i `mode === 'subscription'`
+//   3. Validira da je Subscription `active` ili `trialing`
+//   4. Cita customer_id, subscription_id, plan i `current_period_end` IZ Stripe-a
+// Klijent NIKAD ne moze da postavi `subscription_status: 'active'` bez naplate.
 export async function POST(request: NextRequest) {
   try {
     const rateLimited = await checkRateLimit(getAuthLimiter(), getClientIp(request));
     if (rateLimited) return rateLimited;
 
     const body = await request.json();
-    
+
     const { data: validated, error: validationError } = validate(businessRegistrationSchema, body);
     if (validationError || !validated) {
       return NextResponse.json({ error: validationError || 'Nevažeći podaci' }, { status: 400 });
@@ -25,12 +34,80 @@ export async function POST(request: NextRequest) {
       website,
       industry,
       description,
-      plan,
-      stripeCustomerId,
-      stripeSubscriptionId,
+      sessionId,
     } = validated;
 
-    // Kreiraj Supabase admin client
+    // 1. KLJUCNA PROVERA: Validiraj Stripe Checkout session na serveru
+    let session;
+    try {
+      session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ['subscription', 'customer'],
+      });
+    } catch {
+      return NextResponse.json(
+        { error: 'Plaćanje nije pronađeno. Molimo pokušajte ponovo ili pišite na hello@ugcexecutive.com.' },
+        { status: 400 }
+      );
+    }
+
+    if (session.mode !== 'subscription') {
+      return NextResponse.json(
+        { error: 'Nevažeća sesija plaćanja.' },
+        { status: 400 }
+      );
+    }
+
+    if (session.payment_status !== 'paid') {
+      return NextResponse.json(
+        { error: 'Plaćanje nije potvrđeno. Molimo sačekajte i pokušajte ponovo.' },
+        { status: 402 }
+      );
+    }
+
+    const subscription = typeof session.subscription === 'object' ? session.subscription : null;
+    if (!subscription || (subscription.status !== 'active' && subscription.status !== 'trialing')) {
+      return NextResponse.json(
+        { error: 'Pretplata nije aktivna. Pišite nam na hello@ugcexecutive.com.' },
+        { status: 402 }
+      );
+    }
+
+    // Plan se IZVODI iz Stripe price-a, ne iz klijenta
+    const priceId = subscription.items.data[0]?.price?.id;
+    let plan: 'monthly' | 'yearly';
+    if (priceId === PRICE_IDS.monthly) {
+      plan = 'monthly';
+    } else if (priceId === PRICE_IDS.yearly) {
+      plan = 'yearly';
+    } else {
+      return NextResponse.json(
+        { error: 'Nepoznat plan pretplate.' },
+        { status: 400 }
+      );
+    }
+
+    // expires_at iz Stripe period-a (ne iz Node Date kalendara)
+    const periodEnd = getSubscriptionPeriodEnd(subscription);
+    if (!periodEnd) {
+      return NextResponse.json(
+        { error: 'Greška pri čitanju trajanja pretplate.' },
+        { status: 500 }
+      );
+    }
+
+    const stripeCustomerId = typeof session.customer === 'string'
+      ? session.customer
+      : session.customer?.id || null;
+    const stripeSubscriptionId = subscription.id;
+
+    if (!stripeCustomerId) {
+      return NextResponse.json(
+        { error: 'Greška pri čitanju Stripe podataka.' },
+        { status: 500 }
+      );
+    }
+
+    // 2. Kreiraj Supabase admin client
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -42,22 +119,51 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    // 1. Proveri da li email već postoji
+    // 3. Idempotentnost: ako je za ovaj subscription_id vec napravljen biznis,
+    // vrati ga. Sprecava duplikat ako se success page osvezi.
+    const { data: existingBusiness } = await supabaseAdmin
+      .from('businesses')
+      .select('id, user_id, company_name')
+      .eq('stripe_subscription_id', stripeSubscriptionId)
+      .maybeSingle();
+
+    if (existingBusiness) {
+      return NextResponse.json({
+        success: true,
+        message: 'Nalog već postoji za ovo plaćanje.',
+        userId: existingBusiness.user_id,
+        businessId: existingBusiness.id,
+        companyName: existingBusiness.company_name,
+        alreadyExisted: true,
+      });
+    }
+
+    // 4. Proveri da li email vec postoji u Auth-u
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
     const emailExists = existingUsers?.users?.some(u => u.email === email);
-    
+
     if (emailExists) {
       return NextResponse.json(
-        { error: 'Email adresa je već registrovana' },
+        { error: 'Email adresa je već registrovana. Molimo pišite na hello@ugcexecutive.com da povežemo plaćanje sa postojećim nalogom.' },
         { status: 400 }
       );
     }
 
-    // 2. Kreiraj korisnika u Supabase Auth
+    // Email iz Stripe-a mora odgovarati emailu iz forme (sprecava krijumcarenje
+    // tude pretplate kroz tudji session_id)
+    const stripeEmail = session.customer_email || session.customer_details?.email;
+    if (stripeEmail && stripeEmail.toLowerCase() !== email.toLowerCase()) {
+      return NextResponse.json(
+        { error: 'Email iz plaćanja ne odgovara email-u iz registracije.' },
+        { status: 400 }
+      );
+    }
+
+    // 5. Kreiraj korisnika u Supabase Auth
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Business ne treba email verifikaciju jer su platili
+      email_confirm: true,
       user_metadata: {
         role: 'business',
         companyName,
@@ -79,7 +185,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Kreiraj user record u našoj tabeli
+    // 6. Kreiraj user record u nasoj tabeli
     const { error: userError } = await supabaseAdmin
       .from('users')
       .insert({
@@ -97,16 +203,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Izračunaj datum isteka pretplate
-    const subscribedAt = new Date();
-    const expiresAt = new Date();
-    if (plan === 'yearly') {
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-    } else {
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-    }
-
-    // 5. Kreiraj business profil sa Stripe podacima
+    // 7. Kreiraj business profil sa Stripe-validiranim podacima
     const { data: businessData, error: businessError } = await supabaseAdmin
       .from('businesses')
       .insert({
@@ -117,12 +214,12 @@ export async function POST(request: NextRequest) {
         website: website || null,
         industry: industry || null,
         description: description || null,
-        subscription_type: plan || 'monthly',
-        subscription_status: 'active',
-        subscribed_at: subscribedAt.toISOString(),
-        expires_at: expiresAt.toISOString(),
-        stripe_customer_id: stripeCustomerId || null,
-        stripe_subscription_id: stripeSubscriptionId || null,
+        subscription_type: plan,
+        subscription_status: subscription.status === 'trialing' ? 'trialing' : 'active',
+        subscribed_at: new Date().toISOString(),
+        expires_at: periodEnd.toISOString(),
+        stripe_customer_id: stripeCustomerId,
+        stripe_subscription_id: stripeSubscriptionId,
       })
       .select()
       .single();
@@ -143,6 +240,8 @@ export async function POST(request: NextRequest) {
       userId: authData.user.id,
       businessId: businessData.id,
       companyName: businessData.company_name,
+      plan,
+      expiresAt: periodEnd.toISOString(),
     });
 
   } catch (error) {

@@ -26,9 +26,10 @@ export const businessRegistrationSchema = z.object({
   website: z.string().url('URL nije validan').optional().nullable().or(z.literal('')),
   industry: z.string().max(100).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
-  plan: z.enum(['monthly', 'yearly']).optional(),
-  stripeCustomerId: z.string().optional().nullable(),
-  stripeSubscriptionId: z.string().optional().nullable(),
+  // Stripe sessionId je OBAVEZAN - server retrieves session i validira da je placeno.
+  // Nikad ne primamo customer/subscription IDs ili plan iz klijenta - svi izvori istine
+  // dolaze iz Stripe API-ja preko ovog sessionId-ja.
+  sessionId: z.string().min(10, 'Stripe session ID je obavezan'),
 });
 
 export const creatorUpdateSchema = z.object({

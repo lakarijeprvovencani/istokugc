@@ -31,33 +31,19 @@ function SuccessContent() {
         if (renewBusinessId) {
           // OBNOVA PRETPLATE za postojećeg korisnika
           setIsRenewal(true);
-          
-          // Dohvati Stripe session podatke
-          let stripeCustomerId = null;
-          let stripeSubscriptionId = null;
 
-          if (sessionId) {
-            try {
-              const stripeResponse = await fetch(`/api/stripe/session/${sessionId}`);
-              if (stripeResponse.ok) {
-                const stripeData = await stripeResponse.json();
-                stripeCustomerId = stripeData.customer;
-                stripeSubscriptionId = stripeData.subscription;
-              }
-            } catch (stripeError) {
-              console.error('Error fetching Stripe session:', stripeError);
-            }
+          if (!sessionId) {
+            throw new Error('Nedostaje session ID iz Stripe-a. Kontaktirajte hello@ugcexecutive.com.');
           }
-          
-          // Ažuriraj pretplatu u bazi
+
+          // Server validira Stripe session i izvlaci sve podatke iz Stripe-a.
+          // Ne saljemo customer/subscription/plan iz klijenta.
           const response = await fetch('/api/subscription/renew', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               businessId: renewBusinessId,
-              plan: plan || 'monthly',
-              stripeCustomerId,
-              stripeSubscriptionId,
+              sessionId,
             }),
           });
 
@@ -83,8 +69,6 @@ function SuccessContent() {
         
         // NOVA REGISTRACIJA
         let registrationData: any = null;
-        let stripeCustomerId = null;
-        let stripeSubscriptionId = null;
 
         // Registracioni podaci žive samo u browser localStorage (iz sigurnosnih razloga
         // se ne prosleđuju kroz Stripe metadata). Ovo znači da isti browser koji je
@@ -94,22 +78,14 @@ function SuccessContent() {
           if (savedData) {
             registrationData = JSON.parse(savedData);
           }
-        } catch (e) {
+        } catch {
           // localStorage might be unavailable
         }
 
-        // Dohvati Stripe customer/subscription ID-jeve za vezu sa business nalogom
-        if (sessionId) {
-          try {
-            const stripeResponse = await fetch(`/api/stripe/session/${sessionId}`);
-            if (stripeResponse.ok) {
-              const stripeData = await stripeResponse.json();
-              stripeCustomerId = stripeData.customerId;
-              stripeSubscriptionId = stripeData.subscriptionId;
-            }
-          } catch (stripeError) {
-            console.error('Error fetching Stripe session:', stripeError);
-          }
+        if (!sessionId) {
+          setError('Nedostaje Stripe session ID. Pišite nam na hello@ugcexecutive.com.');
+          setIsCreating(false);
+          return;
         }
 
         if (!registrationData || !registrationData.email) {
@@ -117,7 +93,9 @@ function SuccessContent() {
           setIsCreating(false);
           return;
         }
-        
+
+        // Server validira Stripe session i izvlaci customer/subscription/plan IZ Stripe-a.
+        // Klijent ne salje stripeCustomerId/stripeSubscriptionId/plan - sve dolazi iz session-a.
         const response = await fetch('/api/auth/register/business', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -125,12 +103,11 @@ function SuccessContent() {
             email: registrationData.email,
             password: registrationData.password,
             companyName: registrationData.companyName,
+            phone: registrationData.phone || null,
             website: registrationData.website || null,
             industry: registrationData.industry || null,
             description: registrationData.description || null,
-            plan: plan || 'monthly',
-            stripeCustomerId,
-            stripeSubscriptionId,
+            sessionId,
           }),
         });
 
