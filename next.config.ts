@@ -126,7 +126,8 @@ export default withSentryConfig(nextConfig, {
   // Disable Sentry telemetry (mi ne saljemo metriku Sentry-u o nasem build-u)
   telemetry: false,
 
-  // Tunneling: rute koje pravimo /monitoring na nas server koji prosledjuje Sentry-u
-  // Ovo zaobilazi ad-blocker-e koji blokiraju ingest.sentry.io
-  tunnelRoute: "/monitoring",
+  // Tunneling onemoguceno: u Next.js 16 + Turbopack, auto-generisani /monitoring
+  // tunnel handler vraca 200 ali ne prosledjuje envelope-e pouzdano.
+  // CSP vec dozvoljava *.ingest.de.sentry.io u connect-src, pa SDK salje direktno.
+  // tunnelRoute: "/monitoring",
 });
