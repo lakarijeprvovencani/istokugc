@@ -17,7 +17,7 @@ export default function ForgotPasswordPage() {
 
     try {
       const supabase = createClient();
-      
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
       });
@@ -29,7 +29,26 @@ export default function ForgotPasswordPage() {
       setIsSuccess(true);
     } catch (err) {
       console.error('Reset password error:', err);
-      setError('Greška pri slanju emaila. Pokušajte ponovo.');
+
+      const anyErr = err as { status?: number; code?: string; message?: string };
+      const status = anyErr?.status;
+      const code = anyErr?.code ?? '';
+      const message = anyErr?.message ?? '';
+
+      // Rate limit (Supabase vraca 429 + poruku "after X seconds")
+      if (status === 429 || code.includes('rate_limit') || message.toLowerCase().includes('rate')) {
+        const match = message.match(/after\s+(\d+)\s+second/i);
+        const seconds = match ? match[1] : null;
+        setError(
+          seconds
+            ? `Previše puta ste zatražili reset lozinke. Sačekajte ${seconds} sekundi pa pokušajte ponovo.`
+            : 'Previše puta ste zatražili reset lozinke. Sačekajte minut pa pokušajte ponovo.'
+        );
+      } else if (status === 422 || code.includes('email')) {
+        setError('Email adresa nije validna. Proverite i pokušajte ponovo.');
+      } else {
+        setError('Trenutno ne možemo da pošaljemo email. Pokušajte ponovo za par minuta.');
+      }
     } finally {
       setIsLoading(false);
     }

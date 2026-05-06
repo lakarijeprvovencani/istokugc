@@ -52,7 +52,7 @@ export default function ResetPasswordPage() {
 
     try {
       const supabase = createClient();
-      
+
       const { error } = await supabase.auth.updateUser({
         password: password,
       });
@@ -62,15 +62,42 @@ export default function ResetPasswordPage() {
       }
 
       setIsSuccess(true);
-      
-      // Redirect nakon 3 sekunde
+
       setTimeout(() => {
         router.push('/login');
       }, 3000);
-      
+
     } catch (err) {
       console.error('Reset password error:', err);
-      setError('Greška pri promeni lozinke. Pokušajte ponovo.');
+
+      const anyErr = err as { status?: number; code?: string; message?: string };
+      const status = anyErr?.status;
+      const code = anyErr?.code ?? '';
+      const message = (anyErr?.message ?? '').toLowerCase();
+
+      if (status === 429 || code.includes('rate_limit') || message.includes('rate')) {
+        const match = message.match(/after\s+(\d+)\s+second/i);
+        const seconds = match ? match[1] : null;
+        setError(
+          seconds
+            ? `Previše puta ste pokušali. Sačekajte ${seconds} sekundi pa pokušajte ponovo.`
+            : 'Previše pokušaja u kratkom roku. Sačekajte minut pa pokušajte ponovo.'
+        );
+      } else if (
+        code.includes('weak_password') ||
+        message.includes('pwned') ||
+        message.includes('weak') ||
+        message.includes('leaked') ||
+        message.includes('compromised')
+      ) {
+        setError('Ova lozinka je previše jednostavna ili se nalazi u bazi procurelih lozinki. Izaberi jaču lozinku.');
+      } else if (message.includes('same') || message.includes('different from')) {
+        setError('Nova lozinka mora biti različita od stare.');
+      } else if (status === 401 || message.includes('expired') || message.includes('invalid')) {
+        setError('Link za reset lozinke je istekao. Zatraži novi link.');
+      } else {
+        setError('Trenutno ne možemo da promenimo lozinku. Pokušajte ponovo za par minuta.');
+      }
     } finally {
       setIsLoading(false);
     }
