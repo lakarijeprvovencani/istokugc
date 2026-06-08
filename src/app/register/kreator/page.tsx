@@ -8,6 +8,13 @@ import Image from 'next/image';
 import ImageCropper from '@/components/ImageCropper';
 import { createClient } from '@/lib/supabase/client';
 import { uploadPortfolioFileToR2, safeJson } from '@/lib/upload-client';
+import {
+  MAX_IMAGE_BYTES,
+  MAX_VIDEO_BYTES,
+  VIDEO_TOO_LARGE_MSG,
+  IMAGE_TOO_LARGE_MSG,
+  UPLOAD_HINT,
+} from '@/lib/upload-limits';
 
 interface PortfolioItem {
   id: string;
@@ -167,15 +174,11 @@ export default function RegisterCreatorPage() {
       return;
     }
 
-    // Check file size (max 50MB for videos, 10MB for images)
+    // Limiti dolaze iz src/lib/upload-limits.ts (jedno mesto za izmenu)
     const isVideoFile = file.type.startsWith('video/');
-    const maxSize = isVideoFile ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    const maxSize = isVideoFile ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
     if (file.size > maxSize) {
-      setPortfolioError(
-        isVideoFile
-          ? 'Video je veći od 50MB. Nalepi link umesto fajla.'
-          : 'Slika je veća od 10MB.'
-      );
+      setPortfolioError(isVideoFile ? VIDEO_TOO_LARGE_MSG : IMAGE_TOO_LARGE_MSG);
       return;
     }
 
@@ -873,7 +876,7 @@ export default function RegisterCreatorPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
                     <span className="text-sm font-medium">Klikni za upload</span>
-                    <span className="text-xs text-muted mt-1">Slika do 10MB • Video do 50MB</span>
+                    <span className="text-xs text-muted mt-1">{UPLOAD_HINT}</span>
                   </div>
                   <input
                     ref={portfolioInputRef}

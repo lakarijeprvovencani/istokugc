@@ -3,6 +3,13 @@
 import { useState, useRef } from 'react';
 import Image from 'next/image';
 import { uploadPortfolioFileToR2 } from '@/lib/upload-client';
+import {
+  MAX_IMAGE_BYTES,
+  MAX_VIDEO_BYTES,
+  VIDEO_TOO_LARGE_MSG,
+  IMAGE_TOO_LARGE_MSG,
+  UPLOAD_HINT,
+} from '@/lib/upload-limits';
 
 export interface PortfolioItem {
   id: string;
@@ -137,16 +144,12 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
       return;
     }
 
-    // Check file size - different limits for images vs videos
+    // Limiti dolaze iz src/lib/upload-limits.ts (jedno mesto za izmenu)
     const isVideo = videoTypes.includes(file.type);
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024; // 50MB za video, 10MB za slike
+    const maxSize = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
     
     if (file.size > maxSize) {
-      setUrlError(
-        isVideo
-          ? 'Video je veći od 50MB. Nalepi link umesto fajla.'
-          : 'Slika je veća od 10MB.'
-      );
+      setUrlError(isVideo ? VIDEO_TOO_LARGE_MSG : IMAGE_TOO_LARGE_MSG);
       return;
     }
 
@@ -431,7 +434,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
                       Slike (JPG, PNG, GIF, WebP) ili Video (MP4, MOV, WebM)
                     </p>
                     <p className="text-xs text-muted mt-2">
-                      Slika do 10MB • Video do 50MB
+                      {UPLOAD_HINT}
                     </p>
                   </>
                 )}

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 import { createAdminClient } from '@/lib/supabase/server';
+import {
+  MAX_IMAGE_BYTES,
+  MAX_VIDEO_BYTES,
+  VIDEO_TOO_LARGE_MSG,
+  IMAGE_TOO_LARGE_MSG,
+} from '@/lib/upload-limits';
 
 // POST /api/upload/portfolio/presign
 // Vraca Supabase Storage signed upload URL za direktan upload iz browsera.
@@ -10,8 +16,6 @@ import { createAdminClient } from '@/lib/supabase/server';
 // Body: { creatorId, contentType, fileName, fileSize }
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
-const MAX_IMAGE = 10 * 1024 * 1024;   // 10MB
-const MAX_VIDEO = 50 * 1024 * 1024;   // 50MB
 
 const EXT_BY_TYPE: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -51,13 +55,11 @@ export async function POST(request: NextRequest) {
     }
 
     const isVideo = VIDEO_TYPES.includes(contentType);
-    const maxSize = isVideo ? MAX_VIDEO : MAX_IMAGE;
+    const maxSize = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
 
     if (typeof fileSize === 'number' && fileSize > maxSize) {
       return NextResponse.json({
-        error: isVideo
-          ? 'Video je veći od 50MB. Nalepi link umesto fajla.'
-          : 'Slika je veća od 10MB.',
+        error: isVideo ? VIDEO_TOO_LARGE_MSG : IMAGE_TOO_LARGE_MSG,
       }, { status: 400 });
     }
 
