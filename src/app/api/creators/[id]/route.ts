@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getAuthUser } from '@/lib/auth-helper';
+import { getAuthUser, businessHasActiveSubscription } from '@/lib/auth-helper';
 
 // GET /api/creators/[id] - Dohvati pojedinačnog kreatora
 export async function GET(
@@ -34,7 +34,7 @@ export async function GET(
     const { data: { user: authUser } } = await supabaseAuth.auth.getUser();
     let userRole: string | null = null;
     let userCreatorId: string | null = null;
-    let businessHasActiveSubscription = false;
+    let bizHasActiveSub = false;
     if (authUser) {
       const { data: ud } = await supabaseAuth.from('users').select('role').eq('id', authUser.id).single();
       userRole = ud?.role || null;
@@ -42,23 +42,16 @@ export async function GET(
         const { data: cd } = await supabaseAuth.from('creators').select('id').eq('user_id', authUser.id).single();
         userCreatorId = cd?.id || null;
       }
-      // Biznis mora da ima aktivnu pretplatu (i da nije istekla) da bi video email/telefon
+      // Biznis mora da ima aktivnu pretplatu (i da nije istekla) da bi video email/telefon.
+      // Jedinstveno pravilo (deli se sa /api/job-applications).
       if (userRole === 'business') {
-        const { data: bd } = await supabase
-          .from('businesses')
-          .select('subscription_status, expires_at')
-          .eq('user_id', authUser.id)
-          .maybeSingle();
-        if (bd?.subscription_status === 'active') {
-          const notExpired = !bd.expires_at || new Date(bd.expires_at as string) > new Date();
-          businessHasActiveSubscription = notExpired;
-        }
+        bizHasActiveSub = await businessHasActiveSubscription(supabase, authUser.id);
       }
     }
 
     const isOwner = userCreatorId === id;
     // Pristup kontaktima: admin uvek, vlasnik svog profila uvek, biznis samo sa aktivnom pretplatom
-    const canSeeContact = userRole === 'admin' || isOwner || (userRole === 'business' && businessHasActiveSubscription);
+    const canSeeContact = userRole === 'admin' || isOwner || (userRole === 'business' && bizHasActiveSub);
 
     const formattedCreator: Record<string, unknown> = {
       id: creator.id,
@@ -100,7 +93,7 @@ export async function GET(
 
   } catch (error: any) {
     console.error('Creator fetch error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
@@ -177,6 +170,6 @@ export async function PUT(
 
   } catch (error: any) {
     console.error('Creator update error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }

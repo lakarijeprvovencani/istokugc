@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Applications fetch error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Application creation error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
@@ -385,7 +385,7 @@ export async function PUT(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Application update error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
@@ -442,7 +442,7 @@ export async function DELETE(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Application deletion error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 

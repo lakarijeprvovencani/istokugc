@@ -136,7 +136,7 @@ export async function DELETE(request: NextRequest) {
   } catch (error: any) {
     console.error('Account deletion error:', error);
     return NextResponse.json(
-      { error: error.message || 'Greška pri brisanju naloga' },
+      { error: 'Greška pri brisanju naloga' },
       { status: 500 }
     );
   }

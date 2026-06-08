@@ -57,7 +57,7 @@ export async function GET() {
 
   } catch (error: any) {
     console.error('Businesses fetch error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
@@ -141,7 +141,7 @@ export async function PUT(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Business update error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
@@ -218,7 +218,7 @@ export async function DELETE(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Business delete error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 

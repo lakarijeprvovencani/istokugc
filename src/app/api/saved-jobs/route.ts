@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     
     if (error) {
       console.error('Error fetching saved jobs:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
     }
     
     // If no saved jobs, return empty array
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     
     if (error) {
       console.error('Error saving job:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
     }
     
     return NextResponse.json({ success: true, savedJob: data });
@@ -180,7 +180,7 @@ export async function DELETE(request: NextRequest) {
     
     if (error) {
       console.error('Error unsaving job:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
     }
     
     return NextResponse.json({ success: true });

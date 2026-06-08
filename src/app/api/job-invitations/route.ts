@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('Error fetching invitations:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
     }
 
     // OPTIMIZED: Fetch all related data in bulk (3 queries instead of N*3)
@@ -196,7 +196,7 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('Error creating invitation:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
     }
 
     return NextResponse.json({ invitation });
@@ -268,7 +268,7 @@ export async function PUT(request: Request) {
 
     if (error) {
       console.error('Error updating invitation:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
     }
 
     // If accepted, create a job application with 'engaged' status and close the job
@@ -373,7 +373,7 @@ export async function DELETE(request: Request) {
 
     if (error) {
       console.error('Error deleting invitation:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

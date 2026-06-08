@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Jobs fetch error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
@@ -227,11 +227,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating job:', error);
-      return NextResponse.json({ 
-        error: error.message || 'Failed to create job',
-        details: error.details || null,
-        code: error.code || null
-      }, { status: 500 });
+      return NextResponse.json({ error: 'Greška pri kreiranju posla' }, { status: 500 });
     }
 
     console.log('Job created successfully');
@@ -239,7 +235,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Job creation error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
@@ -320,7 +316,7 @@ export async function PUT(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Job update error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
@@ -406,7 +402,7 @@ export async function DELETE(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Job deletion error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 

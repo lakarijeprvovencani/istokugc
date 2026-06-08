@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Creator views error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error recording view:', error);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Greška na serveru' }, { status: 500 });
     }
     
     // Increment profile_views only for new unique views
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Record view error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 

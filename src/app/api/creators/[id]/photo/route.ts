@@ -36,6 +36,15 @@ export async function POST(
           { status: 400 }
         );
       }
+
+      // Limit veličine i za JSON (base64) put — sprečava unbounded upload/DoS
+      const base64Size = (photoData.length * 3) / 4;
+      if (base64Size > 5 * 1024 * 1024) {
+        return NextResponse.json(
+          { success: false, error: 'Slika mora biti manja od 5MB' },
+          { status: 400 }
+        );
+      }
     } else {
       const formData = await request.formData();
       const file = formData.get('photo') as File;

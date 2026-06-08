@@ -18,9 +18,12 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Supabase će automatski poslati email za reset lozinke
+    // Supabase šalje reset email. redirectTo mora ići kroz /auth/callback
+    // (code exchange), koji onda preusmerava na /auth/reset-password —
+    // isti tok kao user-facing /auth/forgot-password.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9898'}/reset-password`,
+      redirectTo: `${appUrl}/auth/callback?type=recovery`,
     });
 
     if (error) {
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Reset password error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška na serveru' }, { status: 500 });
   }
 }
 
