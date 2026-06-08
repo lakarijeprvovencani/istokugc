@@ -89,7 +89,7 @@ export default function RegisterPage() {
             </ul>
 
             <div className="flex items-center justify-between">
-              <span className="text-primary font-medium">od $49/mesec</span>
+              <span className="text-primary font-medium">od $99/mesec</span>
               <span className="text-primary group-hover:translate-x-2 transition-transform">
                 →
               </span>

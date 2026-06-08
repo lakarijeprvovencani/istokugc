@@ -208,12 +208,12 @@ function SuccessContent() {
   const planDetails = {
     monthly: {
       name: 'Mesečni plan',
-      price: '$49/mesec',
+      price: '$99/mesec',
       nextBilling: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('sr-RS'),
     },
     yearly: {
       name: 'Godišnji plan',
-      price: '$490/godina',
+      price: '$948/godina',
       nextBilling: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('sr-RS'),
     },
   };

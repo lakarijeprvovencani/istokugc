@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# DB bekapi i dump-ovi (sadrze korisnicke podatke - NE u repo)
+/migration/
+.cursor/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

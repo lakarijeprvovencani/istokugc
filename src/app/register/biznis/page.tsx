@@ -142,7 +142,7 @@ export default function RegisterBusinessPage() {
             >
               <div className="text-sm uppercase tracking-wider text-muted mb-4">Mesečno</div>
               <div className="flex items-baseline gap-1 mb-2">
-                <span className="text-5xl font-light">$49</span>
+                <span className="text-5xl font-light">$99</span>
                 <span className="text-muted">/mesec</span>
               </div>
               <p className="text-muted mb-8">Fleksibilno, bez obaveza</p>
@@ -186,12 +186,12 @@ export default function RegisterBusinessPage() {
               
               <div className="text-sm uppercase tracking-wider text-muted mb-4">Godišnje</div>
               <div className="flex items-baseline gap-1 mb-2">
-                <span className="text-5xl font-light">$490</span>
+                <span className="text-5xl font-light">$948</span>
                 <span className="text-muted">/godina</span>
               </div>
               <div className="flex items-center gap-2 mb-8">
-                <span className="text-sm line-through text-muted">$588</span>
-                <span className="text-sm text-success font-medium">Uštedi $98</span>
+                <span className="text-sm line-through text-muted">$1188</span>
+                <span className="text-sm text-success font-medium">Uštedi $240 (20%)</span>
               </div>
               
               <ul className="space-y-4 mb-8">
@@ -201,7 +201,7 @@ export default function RegisterBusinessPage() {
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <span className="w-5 h-5 rounded-full bg-success/10 text-success flex items-center justify-center text-xs">✓</span>
-                  <strong>2 meseca besplatno</strong>
+                  <strong>$79/mesec umesto $99</strong>
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <span className="w-5 h-5 rounded-full bg-success/10 text-success flex items-center justify-center text-xs">✓</span>

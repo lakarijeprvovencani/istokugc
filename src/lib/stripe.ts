@@ -70,13 +70,13 @@ export function getInvoiceSubscriptionId(invoice: any): string | null {
 // Cene za prikaz u UI (mora se poklapati sa Stripe Price-evima u live mode-u)
 export const PRICES = {
   monthly: {
-    amount: 4900, // $49.00
+    amount: 9900, // $99.00
     currency: 'usd',
     interval: 'month' as const,
     name: 'Mesečni plan',
   },
   yearly: {
-    amount: 49000, // $490.00
+    amount: 94800, // $948.00 ($79/mes, 20% popust)
     currency: 'usd',
     interval: 'year' as const,
     name: 'Godišnji plan',

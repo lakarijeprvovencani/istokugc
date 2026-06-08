@@ -2652,8 +2652,8 @@ export default function AdminPage() {
                     <div>
                       <p className="text-xs text-muted uppercase tracking-wider mb-1">Plan</p>
                       <p className="font-medium">
-                        {viewingBusiness.subscriptionType === 'yearly' ? 'Godišnji ($490/god)' : 
-                         viewingBusiness.subscriptionType === 'monthly' ? 'Mesečni ($49/mes)' : '—'}
+                        {viewingBusiness.subscriptionType === 'yearly' ? 'Godišnji ($948/god)' : 
+                         viewingBusiness.subscriptionType === 'monthly' ? 'Mesečni ($99/mes)' : '—'}
                       </p>
                     </div>
                     <div>

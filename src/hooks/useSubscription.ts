@@ -271,7 +271,7 @@ export function useSubscription(): UseSubscriptionReturn {
   
   const planText = subscription?.plan === 'yearly' ? 'Godišnji' : 'Mesečni';
   
-  const priceText = subscription?.plan === 'yearly' ? '$490/godina' : '$49/mesec';
+  const priceText = subscription?.plan === 'yearly' ? '$948/godina' : '$99/mesec';
   
   const nextBillingDate = subscription?.currentPeriodEnd 
     ? new Date(subscription.currentPeriodEnd).toLocaleDateString('sr-RS', {

@@ -69,7 +69,7 @@ export default function PricingPage() {
             <div className="text-center mb-6">
               <h3 className="text-xl font-medium mb-2">Mesečni plan</h3>
               <div className="flex items-baseline justify-center gap-1">
-                <span className="text-4xl font-light">$49</span>
+                <span className="text-4xl font-light">$99</span>
                 <span className="text-muted">/mesec</span>
               </div>
             </div>
@@ -131,17 +131,17 @@ export default function PricingPage() {
             {/* Popular badge */}
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
               <span className="bg-success text-white text-xs font-medium px-3 py-1 rounded-full">
-                Uštedi 17%
+                Uštedi 20%
               </span>
             </div>
             
             <div className="text-center mb-6">
               <h3 className="text-xl font-medium mb-2">Godišnji plan</h3>
               <div className="flex items-baseline justify-center gap-1">
-                <span className="text-4xl font-light">$490</span>
+                <span className="text-4xl font-light">$948</span>
                 <span className="text-muted">/godina</span>
               </div>
-              <p className="text-sm text-success mt-1">Ušteda $98 godišnje</p>
+              <p className="text-sm text-success mt-1">$79/mesec · ušteda $240 godišnje</p>
             </div>
             
             <ul className="space-y-3 mb-8">
@@ -155,7 +155,7 @@ export default function PricingPage() {
                 <svg className="w-5 h-5 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                2 meseca gratis
+                Plaćaš $79/mesec umesto $99
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <svg className="w-5 h-5 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
