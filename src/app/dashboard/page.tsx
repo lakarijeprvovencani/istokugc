@@ -2228,6 +2228,10 @@ function CreatorDashboard() {
 function BusinessDashboard() {
   const { currentUser, isHydrated } = useDemo();
   const [showPortalMessage, setShowPortalMessage] = useState(false);
+  const [showChangePlanModal, setShowChangePlanModal] = useState(false);
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
+  const [changePlanError, setChangePlanError] = useState<string | null>(null);
+  const [changePlanSuccess, setChangePlanSuccess] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const [visibleReviews, setVisibleReviews] = useState(3);
   const [viewingReview, setViewingReview] = useState<any | null>(null);
@@ -2587,6 +2591,41 @@ function BusinessDashboard() {
       console.error('Error opening portal:', error);
       setShowPortalMessage(true);
       setTimeout(() => setShowPortalMessage(false), 3000);
+    }
+  };
+
+  // Promena plana (mesečni <-> godišnji) direktno iz aplikacije.
+  // Stripe automatski obračunava prorata; status se odmah refetch-uje.
+  const handleChangePlan = async () => {
+    if (!currentUser.businessId || isChangingPlan) return;
+    const targetPlan = subscription.plan === 'yearly' ? 'monthly' : 'yearly';
+    setIsChangingPlan(true);
+    setChangePlanError(null);
+    try {
+      const res = await fetch('/api/stripe/change-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ businessId: currentUser.businessId, newPlan: targetPlan }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Promena plana nije uspela.');
+
+      // Očisti keš pa povuci sveže podatke o pretplati
+      try { sessionStorage.removeItem(`dashboard_business_${currentUser.businessId}`); } catch {}
+      const [profileRes, subRes] = await Promise.all([
+        fetch(`/api/business/profile?businessId=${currentUser.businessId}&t=${Date.now()}`),
+        fetch(`/api/stripe/subscription-status?businessId=${currentUser.businessId}&t=${Date.now()}`),
+      ]);
+      if (profileRes.ok) setBusinessData(await profileRes.json());
+      if (subRes.ok) setSubscriptionData(await subRes.json());
+
+      setShowChangePlanModal(false);
+      setChangePlanSuccess(true);
+      setTimeout(() => setChangePlanSuccess(false), 4000);
+    } catch (error: any) {
+      setChangePlanError(error?.message || 'Greška pri promeni plana.');
+    } finally {
+      setIsChangingPlan(false);
     }
   };
 
@@ -2983,10 +3022,18 @@ function BusinessDashboard() {
                       })}
                     </p>
                   </div>
-                  <div className="sm:text-right">
+                  <div className="sm:text-right flex flex-col sm:items-end gap-2">
+                    <button
+                      onClick={() => { setChangePlanError(null); setShowChangePlanModal(true); }}
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      {subscription.plan === 'yearly'
+                        ? 'Pređi na mesečni plan'
+                        : 'Pređi na godišnji plan (uštedi 20%)'}
+                    </button>
                     <button 
                       onClick={handleManageSubscription}
-                      className="text-sm text-primary hover:underline"
+                      className="text-sm text-muted hover:text-foreground hover:underline"
                     >
                       Upravljaj pretplatom →
                     </button>
@@ -2995,6 +3042,63 @@ function BusinessDashboard() {
               )}
 
             </div>
+
+            {/* Toast: uspešna promena plana */}
+            {changePlanSuccess && (
+              <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-success text-white rounded-xl shadow-lg">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm font-medium">Plan je uspešno promenjen.</span>
+              </div>
+            )}
+
+            {/* Modal: potvrda promene plana */}
+            {showChangePlanModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !isChangingPlan && setShowChangePlanModal(false)}>
+                <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="text-lg font-medium mb-2">
+                    {subscription.plan === 'yearly' ? 'Prelazak na mesečni plan' : 'Prelazak na godišnji plan'}
+                  </h3>
+                  <p className="text-sm text-muted mb-4">
+                    {subscription.plan === 'yearly'
+                      ? 'Prelaziš sa godišnjeg ($948/god) na mesečni plan ($99/mesec).'
+                      : 'Prelaziš sa mesečnog ($99/mesec) na godišnji plan ($948/god) i štediš 20%.'}
+                    {' '}Stripe će automatski obračunati razliku (prorata) na osnovu preostalog perioda.
+                  </p>
+
+                  {changePlanError && (
+                    <div className="mb-4 p-3 bg-error/10 text-error text-sm rounded-lg">
+                      {changePlanError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowChangePlanModal(false)}
+                      disabled={isChangingPlan}
+                      className="flex-1 py-3 border border-border rounded-xl font-medium hover:bg-secondary transition-colors disabled:opacity-50"
+                    >
+                      Odustani
+                    </button>
+                    <button
+                      onClick={handleChangePlan}
+                      disabled={isChangingPlan}
+                      className="flex-1 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isChangingPlan ? (
+                        <>
+                          <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                          Menjam...
+                        </>
+                      ) : (
+                        'Potvrdi promenu'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Company Information */}
             <div className="bg-white rounded-2xl p-6 border border-border">
