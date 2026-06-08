@@ -17,6 +17,15 @@ interface LocationStat {
 const W = 800;
 const H = 580;
 
+// Srpska pluralizacija (paukal): 1 -> one, 2-4 -> few, 5+ -> many
+function plural(n: number, one: string, few: string, many: string) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return few;
+  return many;
+}
+
 export default function CreatorsMap() {
   const router = useRouter();
   const [locations, setLocations] = useState<LocationStat[]>([]);
@@ -165,8 +174,9 @@ export default function CreatorsMap() {
             ))}
           </div>
           <p className="mt-3 text-center text-sm text-muted">
-            <strong className="font-medium text-foreground">{total}</strong> kreatora u {locations.length}{' '}
-            {locations.length === 1 ? 'gradu' : 'gradova'} · klikni na grad da vidiš ko je dostupan
+            <strong className="font-medium text-foreground">{total}</strong>{' '}
+            {plural(total, 'kreator', 'kreatora', 'kreatora')} u {locations.length}{' '}
+            {plural(locations.length, 'gradu', 'grada', 'gradova')} · klikni na grad da vidiš ko je dostupan
           </p>
         </div>
       )}
