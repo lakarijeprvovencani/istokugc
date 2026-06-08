@@ -3,11 +3,12 @@
 import { useState, useRef } from 'react';
 import Image from 'next/image';
 import { uploadPortfolioFileToR2 } from '@/lib/upload-client';
+import { compressImage } from '@/lib/image-compress';
 import {
   MAX_IMAGE_BYTES,
-  MAX_VIDEO_BYTES,
-  VIDEO_TOO_LARGE_MSG,
+  IMAGE_TYPES,
   IMAGE_TOO_LARGE_MSG,
+  VIDEO_USE_LINK_MSG,
   UPLOAD_HINT,
 } from '@/lib/upload-limits';
 
@@ -134,22 +135,19 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
   };
 
   const processFile = (file: File) => {
-    // Check file type
-    const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const videoTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
-    const validTypes = [...imageTypes, ...videoTypes];
-    
-    if (!validTypes.includes(file.type)) {
-      setUrlError('Nepodržan format. Koristite JPG, PNG, GIF, WebP, MP4, MOV ili WebM.');
+    // Video se dodaje preko linka, ne kao fajl
+    if (file.type.startsWith('video/')) {
+      setUrlError(VIDEO_USE_LINK_MSG);
+      return;
+    }
+    if (!IMAGE_TYPES.includes(file.type)) {
+      setUrlError('Nepodržan format. Koristite JPG, PNG, GIF ili WebP.');
       return;
     }
 
-    // Limiti dolaze iz src/lib/upload-limits.ts (jedno mesto za izmenu)
-    const isVideo = videoTypes.includes(file.type);
-    const maxSize = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
-    
-    if (file.size > maxSize) {
-      setUrlError(isVideo ? VIDEO_TOO_LARGE_MSG : IMAGE_TOO_LARGE_MSG);
+    // Limit slike dolazi iz src/lib/upload-limits.ts (jedno mesto za izmenu)
+    if (file.size > MAX_IMAGE_BYTES) {
+      setUrlError(IMAGE_TOO_LARGE_MSG);
       return;
     }
 
@@ -204,7 +202,8 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
       setUrlError('');
       
       try {
-        const result = await uploadPortfolioFileToR2(uploadedFile, creatorId);
+        const compressed = await compressImage(uploadedFile);
+        const result = await uploadPortfolioFileToR2(compressed, creatorId);
 
         const newItem: PortfolioItem = {
           id: `upload-${Date.now()}`,
@@ -296,7 +295,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
                 : 'text-muted hover:text-foreground'
             }`}
           >
-            📤 Dodaj fajl
+            📤 Dodaj sliku
           </button>
         </div>
 
@@ -431,7 +430,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
                       {isDragging ? 'Spustite fajl ovde' : 'Kliknite ili prevucite fajl'}
                     </p>
                     <p className="text-sm text-muted">
-                      Slike (JPG, PNG, GIF, WebP) ili Video (MP4, MOV, WebM)
+                      Slike (JPG, PNG, GIF, WebP)
                     </p>
                     <p className="text-xs text-muted mt-2">
                       {UPLOAD_HINT}
@@ -443,7 +442,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm"
+                accept="image/jpeg,image/png,image/gif,image/webp"
                 onChange={handleFileSelect}
                 className="hidden"
               />

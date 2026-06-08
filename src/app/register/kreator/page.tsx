@@ -8,11 +8,11 @@ import Image from 'next/image';
 import ImageCropper from '@/components/ImageCropper';
 import { createClient } from '@/lib/supabase/client';
 import { uploadPortfolioFileToR2, safeJson } from '@/lib/upload-client';
+import { compressImage } from '@/lib/image-compress';
 import {
   MAX_IMAGE_BYTES,
-  MAX_VIDEO_BYTES,
-  VIDEO_TOO_LARGE_MSG,
   IMAGE_TOO_LARGE_MSG,
+  VIDEO_USE_LINK_MSG,
   UPLOAD_HINT,
 } from '@/lib/upload-limits';
 
@@ -164,43 +164,47 @@ export default function RegisterCreatorPage() {
   };
 
   // Handle portfolio file upload
-  const handlePortfolioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check file type (image or video)
-    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-      setPortfolioError('Molimo izaberite sliku ili video');
+    // Video se dodaje preko linka, ne kao fajl
+    if (file.type.startsWith('video/')) {
+      setPortfolioError(VIDEO_USE_LINK_MSG);
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setPortfolioError('Molimo izaberite sliku.');
       return;
     }
 
-    // Limiti dolaze iz src/lib/upload-limits.ts (jedno mesto za izmenu)
-    const isVideoFile = file.type.startsWith('video/');
-    const maxSize = isVideoFile ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
-    if (file.size > maxSize) {
-      setPortfolioError(isVideoFile ? VIDEO_TOO_LARGE_MSG : IMAGE_TOO_LARGE_MSG);
+    // Limit slike dolazi iz src/lib/upload-limits.ts (jedno mesto za izmenu)
+    if (file.size > MAX_IMAGE_BYTES) {
+      setPortfolioError(IMAGE_TOO_LARGE_MSG);
       return;
     }
 
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      const newItem: PortfolioItem = {
-        id: `upload-${Date.now()}`,
-        type: 'upload',
-        url: dataUrl,
-        thumbnail: file.type.startsWith('video/') ? '/video-thumbnail.jpg' : dataUrl,
-        description: portfolioDescription,
-        platform: 'other',
-        file, // cuvamo raw fajl za kasniji direktan upload u Storage
-      };
-      setPortfolioItems([...portfolioItems, newItem]);
-      setPortfolioDescription('');
-      setPortfolioError('');
-      setShowAddPortfolio(false);
+    // Kompresuj sliku pre uploada (manji storage trošak, brže učitavanje)
+    const compressed = await compressImage(file);
+    const dataUrl: string = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(compressed);
+    });
+
+    const newItem: PortfolioItem = {
+      id: `upload-${Date.now()}`,
+      type: 'upload',
+      url: dataUrl,
+      thumbnail: dataUrl,
+      description: portfolioDescription,
+      platform: 'other',
+      file: compressed, // kompresovan fajl za direktan upload u Storage
     };
-    reader.readAsDataURL(file);
+    setPortfolioItems((prev) => [...prev, newItem]);
+    setPortfolioDescription('');
+    setPortfolioError('');
+    setShowAddPortfolio(false);
   };
 
   // Handle portfolio URL add
@@ -863,7 +867,7 @@ export default function RegisterCreatorPage() {
                   {/* Divider */}
                   <div className="flex items-center gap-4">
                     <div className="flex-1 h-px bg-border"></div>
-                    <span className="text-sm text-muted">Ili dodaj svoj fajl</span>
+                    <span className="text-sm text-muted">Ili dodaj sliku</span>
                     <div className="flex-1 h-px bg-border"></div>
                   </div>
 
@@ -881,7 +885,7 @@ export default function RegisterCreatorPage() {
                   <input
                     ref={portfolioInputRef}
                     type="file"
-                    accept="image/*,video/*"
+                    accept="image/*"
                     onChange={handlePortfolioUpload}
                     className="hidden"
                   />

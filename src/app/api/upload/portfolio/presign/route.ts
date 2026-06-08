@@ -3,9 +3,9 @@ import { getAuthUser, isAdmin } from '@/lib/auth-helper';
 import { createAdminClient } from '@/lib/supabase/server';
 import {
   MAX_IMAGE_BYTES,
-  MAX_VIDEO_BYTES,
-  VIDEO_TOO_LARGE_MSG,
+  IMAGE_TYPES,
   IMAGE_TOO_LARGE_MSG,
+  VIDEO_USE_LINK_MSG,
 } from '@/lib/upload-limits';
 
 // POST /api/upload/portfolio/presign
@@ -13,18 +13,14 @@ import {
 // Fajl NE prolazi kroz nas server (zaobilazi Vercel 4.5MB limit) - ide
 // direktno browser -> Supabase Storage. Supabase ima CORS prepodesen.
 //
+// SAMO SLIKE. Video se dodaje preko linka (nema upload fajlom).
+//
 // Body: { creatorId, contentType, fileName, fileSize }
-const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
-
 const EXT_BY_TYPE: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/gif': 'gif',
   'image/webp': 'webp',
-  'video/mp4': 'mp4',
-  'video/quicktime': 'mov',
-  'video/webm': 'webm',
 };
 
 const BUCKET = 'portfolio';
@@ -49,18 +45,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Možete uploadovati samo na svoj portfolio' }, { status: 403 });
     }
 
-    const validTypes = [...IMAGE_TYPES, ...VIDEO_TYPES];
-    if (!contentType || !validTypes.includes(contentType)) {
+    // Samo slike. Video se dodaje preko linka.
+    if (typeof contentType === 'string' && contentType.startsWith('video/')) {
+      return NextResponse.json({ error: VIDEO_USE_LINK_MSG }, { status: 400 });
+    }
+    if (!contentType || !IMAGE_TYPES.includes(contentType)) {
       return NextResponse.json({ error: 'Nepodržan tip fajla' }, { status: 400 });
     }
 
-    const isVideo = VIDEO_TYPES.includes(contentType);
-    const maxSize = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
-
-    if (typeof fileSize === 'number' && fileSize > maxSize) {
-      return NextResponse.json({
-        error: isVideo ? VIDEO_TOO_LARGE_MSG : IMAGE_TOO_LARGE_MSG,
-      }, { status: 400 });
+    if (typeof fileSize === 'number' && fileSize > MAX_IMAGE_BYTES) {
+      return NextResponse.json({ error: IMAGE_TOO_LARGE_MSG }, { status: 400 });
     }
 
     const ext = EXT_BY_TYPE[contentType] || 'bin';
@@ -85,7 +79,7 @@ export async function POST(request: NextRequest) {
       path: data.path,
       token: data.token,
       publicUrl: pub.publicUrl,
-      isVideo,
+      isVideo: false,
     });
 
   } catch (error: unknown) {
