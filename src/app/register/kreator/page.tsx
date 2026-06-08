@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { platforms, languages } from '@/lib/mockData';
 import Image from 'next/image';
 import ImageCropper from '@/components/ImageCropper';
+import { createClient } from '@/lib/supabase/client';
+import { uploadPortfolioFileToR2, safeJson } from '@/lib/upload-client';
 
 interface PortfolioItem {
   id: string;
@@ -14,6 +16,9 @@ interface PortfolioItem {
   thumbnail: string;
   description?: string;
   platform?: 'instagram' | 'tiktok' | 'youtube' | 'other';
+  // Raw fajl za 'upload' stavke - uploaduje se direktno u Storage POSLE
+  // kreiranja naloga (ne salje se kao base64 u registracioni body).
+  file?: File;
 }
 
 export default function RegisterCreatorPage() {
@@ -180,6 +185,7 @@ export default function RegisterCreatorPage() {
         thumbnail: file.type.startsWith('video/') ? '/video-thumbnail.jpg' : dataUrl,
         description: portfolioDescription,
         platform: 'other',
+        file, // cuvamo raw fajl za kasniji direktan upload u Storage
       };
       setPortfolioItems([...portfolioItems, newItem]);
       setPortfolioDescription('');
@@ -352,6 +358,23 @@ export default function RegisterCreatorPage() {
       setIsSubmitting(true);
       
       try {
+        // Razdvoj portfolio: URL stavke (lagane) salju se odmah u registraciju,
+        // a fajl uploadi (slike/video) idu DIREKTNO u Storage POSLE kreiranja
+        // naloga - da telo zahteva ne pređe Vercel 4.5MB limit (uzrok bivseg
+        // "Unexpected token R" / 413 Request Entity Too Large buga).
+        const urlItems = portfolioItems
+          .filter(item => item.type !== 'upload')
+          .map(item => ({
+            id: item.id,
+            type: item.type,
+            url: item.url,
+            thumbnail: item.thumbnail,
+            description: item.description,
+            platform: item.platform,
+          }));
+        const fileItems = portfolioItems.filter(item => item.type === 'upload' && item.file);
+
+        // FAZA 1: Registracija (samo URL portfolio + foto) -> dobijamo creatorId
         const response = await fetch('/api/auth/register/creator', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -370,31 +393,67 @@ export default function RegisterCreatorPage() {
             youtube: formData.youtube || null,
             phone: formData.phone || null,
             photo: photoPreview || null,
-            portfolio: portfolioItems.map(item => ({
-              id: item.id,
-              type: item.type,
-              url: item.url,
-              thumbnail: item.thumbnail,
-              description: item.description,
-            })),
+            portfolio: urlItems,
           }),
         });
 
-        const data = await response.json();
+        const data = await safeJson(response);
 
         if (!response.ok) {
           throw new Error(data.error || 'Greška pri registraciji');
         }
 
-        // API uspešan! Podaci su sačuvani u Supabase bazi.
-        // Ne koristimo DemoContext za čuvanje jer može prekoračiti localStorage limit
-        // (slike su prevelike za localStorage)
-        
+        const creatorId: string | undefined = data.creatorId;
+
+        // FAZA 2 + 3: ako ima fajlova, prijavi se i uploaduj ih direktno u Storage,
+        // pa azuriraj portfolio kreatora. Nalog je vec kreiran - greske ovde
+        // ne brisu nalog, vec dozvoljavaju kreatoru da doda fajlove iz dashboarda.
+        if (fileItems.length > 0 && creatorId) {
+          try {
+            const supabase = createClient();
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+              email: formData.email,
+              password: formData.password,
+            });
+            if (signInError) throw signInError;
+
+            const uploadedItems = [];
+            for (const item of fileItems) {
+              const result = await uploadPortfolioFileToR2(item.file!, creatorId);
+              uploadedItems.push({
+                id: item.id,
+                type: 'upload',
+                url: result.url,
+                thumbnail: result.isVideo ? '/video-thumbnail.jpg' : result.url,
+                description: item.description,
+                platform: item.platform || 'other',
+              });
+            }
+
+            const putRes = await fetch(`/api/creators/${creatorId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ portfolio: [...urlItems, ...uploadedItems] }),
+            });
+            if (!putRes.ok) {
+              const putData = await safeJson(putRes);
+              throw new Error(putData.error || 'Greška pri čuvanju portfolija');
+            }
+          } catch (uploadErr) {
+            // Nalog postoji - ne blokiraj registraciju zbog neuspelog uploada.
+            console.error('Portfolio upload error:', uploadErr);
+            setApiError(
+              'Nalog je kreiran, ali otpremanje nekih fajlova nije uspelo. ' +
+              'Možeš ih dodati kasnije iz svog profila.'
+            );
+          }
+        }
+
         console.log('Registration successful:', data);
-        
+
         // Redirect na stranicu čekanja
         router.push('/register/kreator/cekanje');
-        
+
       } catch (error) {
         console.error('Registration error:', error);
         setApiError(error instanceof Error ? error.message : 'Greška pri registraciji');

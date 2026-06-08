@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import Image from 'next/image';
+import { uploadPortfolioFileToR2 } from '@/lib/upload-client';
 
 export interface PortfolioItem {
   id: string;
@@ -191,34 +192,19 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
       return;
     }
 
-    const isVideo = uploadedFile.type.startsWith('video/');
-    
-    // If creatorId is provided, upload to Supabase Storage
+    // If creatorId is provided, upload DIRECTLY to Storage (zaobilazi Vercel 4.5MB limit)
     if (creatorId) {
       setIsUploading(true);
       setUrlError('');
       
       try {
-        const formData = new FormData();
-        formData.append('file', uploadedFile);
-        formData.append('creatorId', creatorId);
-        
-        const response = await fetch('/api/upload/portfolio', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.error || 'Upload failed');
-        }
-        
+        const result = await uploadPortfolioFileToR2(uploadedFile, creatorId);
+
         const newItem: PortfolioItem = {
           id: `upload-${Date.now()}`,
           type: 'upload',
-          url: data.url,
-          thumbnail: data.url, // For images, same URL. For video, could generate thumbnail
+          url: result.url,
+          thumbnail: result.isVideo ? '/video-thumbnail.jpg' : result.url,
           description: description.trim() || undefined,
           platform: selectedPlatform,
         };
