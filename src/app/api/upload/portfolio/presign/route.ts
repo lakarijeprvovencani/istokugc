@@ -11,7 +11,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
 const MAX_IMAGE = 10 * 1024 * 1024;   // 10MB
-const MAX_VIDEO = 200 * 1024 * 1024;  // 200MB
+const MAX_VIDEO = 50 * 1024 * 1024;   // 50MB
 
 const EXT_BY_TYPE: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -55,7 +55,9 @@ export async function POST(request: NextRequest) {
 
     if (typeof fileSize === 'number' && fileSize > maxSize) {
       return NextResponse.json({
-        error: `Fajl je prevelik. Maksimalno ${isVideo ? '200MB' : '10MB'} za ${isVideo ? 'video' : 'slike'}.`,
+        error: isVideo
+          ? 'Video je veći od 50MB. Nalepi link umesto fajla.'
+          : 'Slika je veća od 10MB.',
       }, { status: 400 });
     }
 

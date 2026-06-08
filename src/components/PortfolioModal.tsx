@@ -139,11 +139,14 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
 
     // Check file size - different limits for images vs videos
     const isVideo = videoTypes.includes(file.type);
-    const maxSize = isVideo ? 30 * 1024 * 1024 : 10 * 1024 * 1024; // 30MB for video, 10MB for images
-    const maxSizeLabel = isVideo ? '30MB' : '10MB';
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024; // 50MB za video, 10MB za slike
     
     if (file.size > maxSize) {
-      setUrlError(`Fajl je prevelik. Maksimalna veličina za ${isVideo ? 'video' : 'slike'} je ${maxSizeLabel}.`);
+      setUrlError(
+        isVideo
+          ? 'Video je veći od 50MB. Nalepi link umesto fajla.'
+          : 'Slika je veća od 10MB.'
+      );
       return;
     }
 
@@ -428,7 +431,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
                       Slike (JPG, PNG, GIF, WebP) ili Video (MP4, MOV, WebM)
                     </p>
                     <p className="text-xs text-muted mt-2">
-                      Max: 10MB za slike, 30MB za video
+                      Slika do 10MB • Video do 50MB
                     </p>
                   </>
                 )}

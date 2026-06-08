@@ -21,7 +21,14 @@ const createImage = (url: string): Promise<HTMLImageElement> =>
     image.src = url;
   });
 
-// Get cropped image as base64
+// Profilna/logo slika ne treba da bude ogromna - downscale na max dimenziju i
+// kompresuj tako da base64 uvek ostane mali (< ~480KB). Time se izbegava:
+//  - 413 (telo zahteva > Vercel 4.5MB limita)
+//  - "Nevažeći podaci" (schema cap od 500KB na photo/logo polju)
+const MAX_DIMENSION = 1200;     // px - sasvim dovoljno za profilnu/logo
+const MAX_BASE64_BYTES = 480 * 1024;
+
+// Get cropped image as base64 (downscaled + compressed)
 async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<string> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement('canvas');
@@ -31,11 +38,19 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<string>
     throw new Error('No 2d context');
   }
 
-  // Set canvas size to the cropped area
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
+  // Downscale ako je isecak veci od MAX_DIMENSION (cuvajuci aspect ratio)
+  let targetW = pixelCrop.width;
+  let targetH = pixelCrop.height;
+  const longest = Math.max(targetW, targetH);
+  if (longest > MAX_DIMENSION) {
+    const scale = MAX_DIMENSION / longest;
+    targetW = Math.round(targetW * scale);
+    targetH = Math.round(targetH * scale);
+  }
 
-  // Draw cropped image
+  canvas.width = targetW;
+  canvas.height = targetH;
+
   ctx.drawImage(
     image,
     pixelCrop.x,
@@ -44,12 +59,19 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<string>
     pixelCrop.height,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height
+    targetW,
+    targetH
   );
 
-  // Return as base64
-  return canvas.toDataURL('image/jpeg', 0.9);
+  // Smanjuj kvalitet dok base64 ne stane ispod limita (garantovano malo telo)
+  let quality = 0.85;
+  let dataUrl = canvas.toDataURL('image/jpeg', quality);
+  while ((dataUrl.length * 3) / 4 > MAX_BASE64_BYTES && quality > 0.4) {
+    quality -= 0.1;
+    dataUrl = canvas.toDataURL('image/jpeg', quality);
+  }
+
+  return dataUrl;
 }
 
 export default function ImageCropper({ 

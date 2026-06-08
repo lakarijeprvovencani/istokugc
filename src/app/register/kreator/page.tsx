@@ -168,9 +168,14 @@ export default function RegisterCreatorPage() {
     }
 
     // Check file size (max 50MB for videos, 10MB for images)
-    const maxSize = file.type.startsWith('video/') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    const isVideoFile = file.type.startsWith('video/');
+    const maxSize = isVideoFile ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      setPortfolioError(`Fajl je prevelik. Maksimalna veličina: ${file.type.startsWith('video/') ? '50MB' : '10MB'}`);
+      setPortfolioError(
+        isVideoFile
+          ? 'Video je veći od 50MB. Nalepi link umesto fajla.'
+          : 'Slika je veća od 10MB.'
+      );
       return;
     }
 
@@ -868,7 +873,7 @@ export default function RegisterCreatorPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
                     <span className="text-sm font-medium">Klikni za upload</span>
-                    <span className="text-xs text-muted mt-1">Slika ili video • Max 50MB</span>
+                    <span className="text-xs text-muted mt-1">Slika do 10MB • Video do 50MB</span>
                   </div>
                   <input
                     ref={portfolioInputRef}
