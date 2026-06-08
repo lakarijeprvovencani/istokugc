@@ -231,11 +231,27 @@ export default function RegisterCreatorPage() {
       return;
     }
 
+    // Za YouTube izvuci pravi thumbnail snimka; za TikTok/Instagram placeholder
+    let thumbnail = 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=300&h=400&fit=crop';
+    if (type === 'youtube') {
+      let videoId = '';
+      if (portfolioUrl.includes('youtu.be/')) {
+        videoId = portfolioUrl.split('youtu.be/')[1]?.split(/[?&]/)[0] || '';
+      } else if (portfolioUrl.includes('/shorts/')) {
+        videoId = portfolioUrl.split('/shorts/')[1]?.split(/[?&]/)[0] || '';
+      } else if (portfolioUrl.includes('v=')) {
+        videoId = portfolioUrl.split('v=')[1]?.split('&')[0] || '';
+      }
+      if (videoId) {
+        thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+      }
+    }
+
     const newItem: PortfolioItem = {
       id: `url-${Date.now()}`,
       type,
       url: portfolioUrl,
-      thumbnail: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=300&h=400&fit=crop',
+      thumbnail,
       description: portfolioDescription,
       platform,
     };

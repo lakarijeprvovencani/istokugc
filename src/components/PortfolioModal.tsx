@@ -123,7 +123,7 @@ export default function PortfolioModal({ isOpen, onClose, onAdd, creatorId }: Po
     const newItem: PortfolioItem = {
       id: `url-${Date.now()}`,
       type: parsed.type,
-      url: parsed.thumbnail,
+      url: parsed.originalUrl, // pravi link (za playback na profilu); thumbnail je preview
       thumbnail: parsed.thumbnail,
       originalUrl: parsed.originalUrl,
       description: urlDescription.trim() || undefined,

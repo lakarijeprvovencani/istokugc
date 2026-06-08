@@ -291,6 +291,7 @@ function CreatorDashboard() {
           thumbnail: item.thumbnail,
           description: item.description,
           platform: item.platform,
+          originalUrl: item.originalUrl,
         }))
       );
     }
@@ -486,10 +487,34 @@ function CreatorDashboard() {
     return <CreatorRejectedScreen rejectionReason={creator.rejectionReason} />;
   }
   
+  // Sačuvaj portfolio u bazu (PUT /api/creators/[id])
+  const persistPortfolio = async (items: PortfolioItem[]) => {
+    if (!creator?.id) return;
+    try {
+      await fetch(`/api/creators/${creator.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          portfolio: items.map((i) => ({
+            type: i.type,
+            url: i.url,
+            thumbnail: i.thumbnail,
+            description: i.description,
+            platform: i.platform,
+            originalUrl: i.originalUrl,
+          })),
+        }),
+      });
+    } catch (e) {
+      console.error('Greška pri čuvanju portfolija:', e);
+    }
+  };
+
   // Portfolio handlers
   const handleAddPortfolioItem = (item: PortfolioItem) => {
-    setPortfolioItems([...portfolioItems, item]);
-    // In production: API call to save to database
+    const updated = [...portfolioItems, item];
+    setPortfolioItems(updated);
+    persistPortfolio(updated);
   };
   
   const handleRemovePortfolioItem = (item: PortfolioItem) => {
@@ -498,9 +523,10 @@ function CreatorDashboard() {
   
   const confirmDeletePortfolioItem = () => {
     if (deletePortfolioConfirm) {
-      setPortfolioItems(portfolioItems.filter(item => item.id !== deletePortfolioConfirm.id));
+      const updated = portfolioItems.filter(item => item.id !== deletePortfolioConfirm.id);
+      setPortfolioItems(updated);
       setDeletePortfolioConfirm(null);
-      // In production: API call to delete from database
+      persistPortfolio(updated);
     }
   };
   
