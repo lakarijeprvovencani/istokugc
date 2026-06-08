@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getAuthUser } from '@/lib/auth-helper';
+import { getAuthUser, getOptionalAuthUser } from '@/lib/auth-helper';
 import { reviewSchema, validate } from '@/lib/validations';
 import { getApiLimiter, checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
@@ -16,6 +16,14 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
 
     const supabase = createAdminClient();
+
+    // Pristup statusima: admin i biznis koji gleda SVOJE recenzije smeju da
+    // vide sve statuse (pending/rejected). Svi ostali (javnost, profil
+    // kreatora) dobijaju ISKLJUČIVO approved — moderaciona lista se ne sme curiti.
+    const viewer = await getOptionalAuthUser();
+    const isAdminViewer = viewer?.role === 'admin';
+    const isOwnBusinessView = !!businessId && viewer?.businessId === businessId;
+    const canSeeAllStatuses = isAdminViewer || isOwnBusinessView;
 
     // Prvo dohvati recenzije
     let query = supabase
@@ -34,7 +42,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Filtriraj po statusu
-    if (status) {
+    if (!canSeeAllStatuses) {
+      // Javni/kreator pogled: samo odobrene, bez obzira na klijentski param
+      query = query.eq('status', 'approved');
+    } else if (status) {
       query = query.eq('status', status);
     }
 
@@ -76,7 +87,7 @@ export async function GET(request: NextRequest) {
         rating: review.rating,
         comment: review.comment,
         status: review.status,
-        rejectionReason: review.rejection_reason || null,
+        rejectionReason: canSeeAllStatuses ? (review.rejection_reason || null) : null,
         createdAt: review.created_at,
         date: review.created_at,
         updatedAt: review.updated_at,

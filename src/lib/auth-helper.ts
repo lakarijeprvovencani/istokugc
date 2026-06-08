@@ -116,6 +116,34 @@ export async function getAuthUser(): Promise<AuthResult> {
 }
 
 /**
+ * Kao getAuthUser, ali za JAVNE rute: vraća korisnika ako je ulogovan,
+ * ili null ako nije (BEZ 401 odgovora). Koristi se kad endpoint sme da
+ * posluži i anonimne korisnike, ali menja odgovor za ulogovane/vlasnike.
+ */
+export async function getOptionalAuthUser(): Promise<AuthUser | null> {
+  const { user } = await getAuthUser();
+  return user;
+}
+
+/**
+ * Proverava da li biznis (po user_id) ima aktivnu, neistekli pretplatu.
+ * Jedinstveno pravilo za pristup kontakt podacima kreatora.
+ * `supabaseAdmin` mora biti service-role klijent.
+ */
+export async function businessHasActiveSubscription(
+  supabaseAdmin: { from: (t: string) => any },
+  businessUserId: string
+): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from('businesses')
+    .select('subscription_status, expires_at')
+    .eq('user_id', businessUserId)
+    .maybeSingle();
+  if (!data || data.subscription_status !== 'active') return false;
+  return !data.expires_at || new Date(data.expires_at as string) > new Date();
+}
+
+/**
  * Proverava da li korisnik ima određenu ulogu
  */
 export function hasRole(user: AuthUser, roles: ('creator' | 'business' | 'admin')[]): boolean {

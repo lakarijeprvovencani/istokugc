@@ -152,10 +152,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Email iz Stripe-a mora odgovarati emailu iz forme (sprecava krijumcarenje
-    // tude pretplate kroz tudji session_id)
+    // Email iz Stripe-a MORA postojati i odgovarati emailu iz forme.
+    // Bez obaveznog poklapanja, procureli session_id sa praznim email-om bi
+    // dozvolio registraciju pod bilo kojim email-om (krađa tuđe pretplate).
     const stripeEmail = session.customer_email || session.customer_details?.email;
-    if (stripeEmail && stripeEmail.toLowerCase() !== email.toLowerCase()) {
+    if (!stripeEmail || stripeEmail.toLowerCase() !== email.toLowerCase()) {
       return NextResponse.json(
         { error: 'Email iz plaćanja ne odgovara email-u iz registracije.' },
         { status: 400 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getAuthUser } from '@/lib/auth-helper';
+import { getAuthUser, getOptionalAuthUser } from '@/lib/auth-helper';
 
 // Force dynamic rendering - no caching
 export const dynamic = 'force-dynamic';
@@ -29,13 +29,22 @@ export async function GET(request: NextRequest) {
 
     if (businessId) {
       query = query.eq('business_id', businessId);
+      // Sve statuse (draft/pending/closed) sme da vidi samo vlasnik biznisa ili admin.
+      // Za javnost ograničavamo na objavljene poslove.
+      const viewer = await getOptionalAuthUser();
+      const isOwnerOrAdmin = viewer?.role === 'admin' || viewer?.businessId === businessId;
+      if (!isOwnerOrAdmin) {
+        query = query.in('status', ['open', 'in_progress']);
+      }
     } else if (includeAll) {
       const { user } = await getAuthUser();
       if (!user || user.role !== 'admin') {
         return NextResponse.json({ error: 'Admin only' }, { status: 403 });
       }
     } else {
-      query = query.eq('status', status);
+      // Javna lista: dozvoljeni su samo javni statusi (sprečava ?status=pending scraping)
+      const publicStatus = status === 'in_progress' ? 'in_progress' : 'open';
+      query = query.eq('status', publicStatus);
     }
 
     // Filter by category
@@ -282,7 +291,17 @@ export async function PUT(request: NextRequest) {
     if (updates.duration) dbUpdates.duration = updates.duration;
     if (updates.experienceLevel) dbUpdates.experience_level = updates.experienceLevel;
     if (updates.applicationDeadline !== undefined) dbUpdates.application_deadline = updates.applicationDeadline;
-    if (updates.status) dbUpdates.status = updates.status;
+    if (updates.status) {
+      // Objavljivanje posla (open/in_progress) je moderacija → samo admin.
+      // Biznis ne sme da zaobiđe pending status i sam objavi posao.
+      if (user?.role !== 'admin' && ['open', 'in_progress'].includes(updates.status)) {
+        return NextResponse.json(
+          { error: 'Objavljivanje posla odobrava administrator.' },
+          { status: 403 }
+        );
+      }
+      dbUpdates.status = updates.status;
+    }
     dbUpdates.updated_at = new Date().toISOString();
 
     const { data: job, error } = await supabase

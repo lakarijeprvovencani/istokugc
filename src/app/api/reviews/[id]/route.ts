@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getAuthUser, isAdmin } from '@/lib/auth-helper';
+import { getAuthUser, getOptionalAuthUser, isAdmin } from '@/lib/auth-helper';
 import { MIN_COMMENT_LENGTH, MAX_COMMENT_LENGTH } from '@/types/review';
 
 export async function GET(
@@ -34,6 +34,19 @@ export async function GET(
         { error: 'Review not found' },
         { status: 404 }
       );
+    }
+
+    // Neodobrene recenzije sme da vidi samo admin, biznis koji ju je napisao,
+    // ili kreator na čijem je profilu. Za sve ostale → 404 (bez curenja).
+    if (review.status !== 'approved') {
+      const viewer = await getOptionalAuthUser();
+      const allowed =
+        viewer?.role === 'admin' ||
+        (!!viewer?.businessId && viewer.businessId === review.business_id) ||
+        (!!viewer?.creatorId && viewer.creatorId === review.creator_id);
+      if (!allowed) {
+        return NextResponse.json({ error: 'Review not found' }, { status: 404 });
+      }
     }
 
     // Transform to expected format

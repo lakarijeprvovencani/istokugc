@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getAuthUser } from '@/lib/auth-helper';
+import { getAuthUser, businessHasActiveSubscription } from '@/lib/auth-helper';
 import { checkRateLimit, getApplyLimiter, getClientIp } from '@/lib/rate-limit';
 
 // Maksimalna dužina cover letter-a (sprečava DOS i DB bloat)
@@ -31,6 +31,17 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+
+    // Pristup kontakt podacima kreatora (email) je iza paywall-a, isto kao
+    // na profilu kreatora: admin uvek; kreator vidi svoj email; biznis samo
+    // sa aktivnom pretplatom.
+    let canSeeCreatorContact = user?.role === 'admin';
+    if (!canSeeCreatorContact && user?.role === 'creator' && creatorId && user?.creatorId === creatorId) {
+      canSeeCreatorContact = true;
+    }
+    if (!canSeeCreatorContact && user?.role === 'business' && user?.id) {
+      canSeeCreatorContact = await businessHasActiveSubscription(supabase, user.id);
+    }
 
     // Simple query - no nested joins
     let query = supabase
@@ -156,7 +167,7 @@ export async function GET(request: NextRequest) {
           id: creator.id,
           name: creator.name,
           photo: creator.photo,
-          email: creator.email,
+          email: canSeeCreatorContact ? creator.email : undefined,
           categories: creator.categories,
         } : null,
       };

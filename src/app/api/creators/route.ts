@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getOptionalAuthUser } from '@/lib/auth-helper';
 
 // GET /api/creators - Dohvati kreatore
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const includeAll = searchParams.get('includeAll') === 'true';
+    // includeAll (pending/rejected/deactivated kreatori) je dozvoljen SAMO adminu.
+    // Za sve ostale ignorišemo flag i vraćamo samo approved.
+    const requestedIncludeAll = searchParams.get('includeAll') === 'true';
+    let includeAll = false;
+    if (requestedIncludeAll) {
+      const viewer = await getOptionalAuthUser();
+      includeAll = viewer?.role === 'admin';
+    }
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '12');
     const offset = (page - 1) * limit;
@@ -102,6 +110,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Creators fetch error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Greška pri učitavanju kreatora' }, { status: 500 });
   }
 }
