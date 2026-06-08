@@ -48,7 +48,7 @@ export async function GET(request: Request) {
           .select(`
             *,
             jobs (
-              id, title, description, category, budget_type, price_from, price_to,
+              id, title, description, category, budget_type, budget_min, budget_max,
               business_id, status,
               businesses (company_name)
             )
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
           .select(`
             *,
             jobs (
-              id, title, description, category, budget_type, price_from, price_to,
+              id, title, description, category, budget_type, budget_min, budget_max,
               business_id,
               businesses (company_name)
             )
@@ -81,12 +81,12 @@ export async function GET(request: Request) {
           .eq('status', 'approved')
           .order('created_at', { ascending: false }),
         
-        // Unread messages count
+        // Unread messages count (poruke od biznisa ka ovom kreatoru, neprocitane)
         supabaseAdmin
           .from('job_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('recipient_type', 'creator')
-          .eq('recipient_id', creatorId)
+          .select('id, job_applications!inner(creator_id)', { count: 'exact', head: true })
+          .eq('job_applications.creator_id', creatorId)
+          .eq('sender_type', 'business')
           .is('read_at', null)
       ]);
 
@@ -109,8 +109,8 @@ export async function GET(request: Request) {
           description: app.jobs.description,
           category: app.jobs.category,
           budgetType: app.jobs.budget_type,
-          priceFrom: app.jobs.price_from,
-          priceTo: app.jobs.price_to,
+          priceFrom: app.jobs.budget_min,
+          priceTo: app.jobs.budget_max,
           businessId: app.jobs.business_id,
           status: app.jobs.status,
           businessName: app.jobs.businesses?.company_name
@@ -132,8 +132,8 @@ export async function GET(request: Request) {
           description: inv.jobs.description,
           category: inv.jobs.category,
           budgetType: inv.jobs.budget_type,
-          priceFrom: inv.jobs.price_from,
-          priceTo: inv.jobs.price_to,
+          priceFrom: inv.jobs.budget_min,
+          priceTo: inv.jobs.budget_max,
           businessId: inv.jobs.business_id,
           businessName: inv.jobs.businesses?.company_name
         } : null
@@ -145,7 +145,7 @@ export async function GET(request: Request) {
         comment: r.comment,
         createdAt: r.created_at,
         reply: r.reply,
-        replyAt: r.reply_at,
+        replyAt: r.reply_date,
         businessName: r.businesses?.company_name,
         businessLogo: r.businesses?.logo
       }));
@@ -213,7 +213,7 @@ export async function GET(request: Request) {
           .from('creator_views')
           .select(`
             *,
-            creators (id, name, photo, location, categories, price_from, price_to)
+            creators (id, name, photo, location, categories, price_from)
           `)
           .eq('business_id', businessId)
           .order('viewed_at', { ascending: false })
@@ -224,16 +224,16 @@ export async function GET(request: Request) {
           .from('saved_creators')
           .select(`
             *,
-            creators (id, name, photo, location, categories, price_from, price_to)
+            creators (id, name, photo, location, categories, price_from)
           `)
           .eq('business_id', businessId),
         
-        // Unread messages count
+        // Unread messages count (poruke od kreatora ka ovom biznisu, neprocitane)
         supabaseAdmin
           .from('job_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('recipient_type', 'business')
-          .eq('recipient_id', businessId)
+          .select('id, job_applications!inner(jobs!inner(business_id))', { count: 'exact', head: true })
+          .eq('job_applications.jobs.business_id', businessId)
+          .eq('sender_type', 'creator')
           .is('read_at', null)
       ]);
 
@@ -245,8 +245,8 @@ export async function GET(request: Request) {
         description: job.description,
         category: job.category,
         budgetType: job.budget_type,
-        priceFrom: job.price_from,
-        priceTo: job.price_to,
+        priceFrom: job.budget_min,
+        priceTo: job.budget_max,
         status: job.status,
         createdAt: job.created_at,
         applicationDeadline: job.application_deadline,
@@ -280,7 +280,6 @@ export async function GET(request: Request) {
           location: v.creators.location,
           categories: v.creators.categories,
           priceFrom: v.creators.price_from,
-          priceTo: v.creators.price_to,
           viewedAt: v.viewed_at
         }));
 
@@ -292,8 +291,7 @@ export async function GET(request: Request) {
           photo: f.creators.photo,
           location: f.creators.location,
           categories: f.creators.categories,
-          priceFrom: f.creators.price_from,
-          priceTo: f.creators.price_to
+          priceFrom: f.creators.price_from
         }));
 
       const pendingApplicationsCount = applications.filter((a: any) => a.status === 'pending').length;
