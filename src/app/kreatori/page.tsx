@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { categories, platforms, languages } from '@/lib/mockData';
 import CreatorCard from '@/components/CreatorCard';
+import CityAutocomplete, { City } from '@/components/CityAutocomplete';
 import { useSupabaseUser } from '@/hooks/useSupabaseUser';
 
 interface Creator {
@@ -14,6 +15,7 @@ interface Creator {
   platforms: string[];
   languages: string[];
   location: string;
+  cityId: number | null;
   bio: string;
   priceFrom: number;
   rating: number;
@@ -33,7 +35,7 @@ interface Creator {
 }
 
 export default function KreatoriPage() {
-  const { user, userData, creatorProfile, isLoading: authLoading } = useSupabaseUser();
+  const { user, userData, creatorProfile, businessProfile, isLoading: authLoading } = useSupabaseUser();
   
   // State for creators from API
   const [creators, setCreators] = useState<Creator[]>([]);
@@ -54,6 +56,27 @@ export default function KreatoriPage() {
   const [minRating, setMinRating] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('');
   const [showFilters, setShowFilters] = useState<boolean>(true);
+  // Lokacija (server-side filter)
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
+  const [includeNearby, setIncludeNearby] = useState<boolean>(false);
+  const [autoNearApplied, setAutoNearApplied] = useState<boolean>(false);
+
+  // Biznis: podrazumevano prikaži kreatore blizu njega (može ručno da promeni)
+  useEffect(() => {
+    if (autoNearApplied) return;
+    if (userType === 'business' && businessProfile?.city_id && businessProfile.lat != null && businessProfile.lng != null) {
+      setAutoNearApplied(true);
+      fetch(`/api/cities/${businessProfile.city_id}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.city) {
+            setSelectedCity(d.city);
+            setIncludeNearby(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [userType, businessProfile, autoNearApplied]);
   
   // Fetch creators from API
   useEffect(() => {
@@ -62,12 +85,20 @@ export default function KreatoriPage() {
         setIsLoadingCreators(true);
         setError(null);
         
-        // Include all creators for admin
         const params = new URLSearchParams();
         if (isAdmin) {
           params.set('includeAll', 'true');
         }
         params.set('limit', '100'); // Get more creators
+
+        // Lokacija: ili "okolina" (radius oko grada) ili tačan grad
+        if (selectedCity && includeNearby) {
+          params.set('nearLat', String(selectedCity.lat));
+          params.set('nearLng', String(selectedCity.lng));
+          params.set('radiusKm', '50');
+        } else if (selectedCity) {
+          params.set('cityId', String(selectedCity.id));
+        }
         
         const response = await fetch(`/api/creators?${params.toString()}`);
         
@@ -89,7 +120,7 @@ export default function KreatoriPage() {
     if (!authLoading && isLoggedIn) {
       fetchCreators();
     }
-  }, [authLoading, isLoggedIn, isAdmin]);
+  }, [authLoading, isLoggedIn, isAdmin, selectedCity, includeNearby]);
   
   // Hide filters on mobile by default
   useEffect(() => {
@@ -163,6 +194,8 @@ export default function KreatoriPage() {
     setSearchQuery('');
     setMinRating('');
     setSortBy('');
+    setSelectedCity(null);
+    setIncludeNearby(false);
   };
 
   // Loading state
@@ -285,6 +318,28 @@ export default function KreatoriPage() {
                   placeholder="Ime, lokacija..."
                   className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-muted"
                 />
+              </div>
+
+              {/* Grad (lokacija) */}
+              <div className="mb-8">
+                <label className="text-sm text-muted mb-2 block">Grad</label>
+                <CityAutocomplete
+                  value={selectedCity}
+                  onChange={setSelectedCity}
+                  placeholder="Svi gradovi"
+                  className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:border-muted"
+                />
+                {selectedCity && (
+                  <label className="flex items-center gap-2 mt-3 text-sm cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={includeNearby}
+                      onChange={(e) => setIncludeNearby(e.target.checked)}
+                      className="rounded border-border"
+                    />
+                    <span>Uključi okolinu (50km)</span>
+                  </label>
+                )}
               </div>
 
               {/* Category */}

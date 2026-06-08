@@ -107,6 +107,9 @@ function SuccessContent() {
             website: registrationData.website || null,
             industry: registrationData.industry || null,
             description: registrationData.description || null,
+            cityId: registrationData.cityId ?? null,
+            lat: registrationData.lat ?? null,
+            lng: registrationData.lng ?? null,
             sessionId,
           }),
         });

@@ -34,6 +34,9 @@ export async function POST(request: NextRequest) {
       website,
       industry,
       description,
+      cityId,
+      lat,
+      lng,
       sessionId,
     } = validated;
 
@@ -214,6 +217,9 @@ export async function POST(request: NextRequest) {
         website: website || null,
         industry: industry || null,
         description: description || null,
+        city_id: cityId || null,
+        lat: lat ?? null,
+        lng: lng ?? null,
         subscription_type: plan,
         subscription_status: subscription.status === 'trialing' ? 'trialing' : 'active',
         subscribed_at: new Date().toISOString(),

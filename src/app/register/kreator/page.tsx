@@ -9,6 +9,7 @@ import ImageCropper from '@/components/ImageCropper';
 import { createClient } from '@/lib/supabase/client';
 import { uploadPortfolioFileToR2, safeJson } from '@/lib/upload-client';
 import { compressImage } from '@/lib/image-compress';
+import CityAutocomplete, { City, cityLabel } from '@/components/CityAutocomplete';
 import {
   MAX_IMAGE_BYTES,
   IMAGE_TOO_LARGE_MSG,
@@ -53,6 +54,7 @@ export default function RegisterCreatorPage() {
     phone: '',
     photo: null as File | null,
   });
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [originalPhoto, setOriginalPhoto] = useState<string | null>(null);
   const [showCropper, setShowCropper] = useState(false);
@@ -352,8 +354,8 @@ export default function RegisterCreatorPage() {
         alert('Molimo unesite početnu cenu');
         return;
       }
-      if (!formData.location.trim()) {
-        alert('Molimo unesite lokaciju');
+      if (!selectedCity) {
+        alert('Molimo izaberite grad iz liste');
         return;
       }
       if (!formData.phone.trim()) {
@@ -412,6 +414,9 @@ export default function RegisterCreatorPage() {
             name: formData.name,
             bio: formData.bio,
             location: formData.location,
+            cityId: selectedCity?.id ?? null,
+            lat: selectedCity?.lat ?? null,
+            lng: selectedCity?.lng ?? null,
             priceFrom: formData.priceFrom,
             categories: formData.categories,
             platforms: formData.platforms,
@@ -579,14 +584,14 @@ export default function RegisterCreatorPage() {
               </div>
 
               <div>
-                <label className="text-sm text-muted mb-2 block">Lokacija *</label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="Beograd, Srbija"
-                  className="w-full px-5 py-4 border border-border rounded-xl focus:outline-none focus:border-muted"
-                  required
+                <label className="text-sm text-muted mb-2 block">Grad *</label>
+                <CityAutocomplete
+                  value={selectedCity}
+                  onChange={(c) => {
+                    setSelectedCity(c);
+                    setFormData({ ...formData, location: c ? cityLabel(c) : '' });
+                  }}
+                  placeholder="Beograd, Novi Sad, Zagreb..."
                 />
               </div>
             </div>

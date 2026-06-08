@@ -38,6 +38,9 @@ export interface BusinessProfile {
   industry: string | null;
   subscription_type: 'monthly' | 'yearly' | null;
   subscription_status: 'active' | 'expired' | 'none';
+  city_id: number | null;
+  lat: number | null;
+  lng: number | null;
   created_at: string;
   updated_at: string;
 }

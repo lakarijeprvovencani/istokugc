@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ImageCropper from '@/components/ImageCropper';
+import CityAutocomplete, { City, cityLabel } from '@/components/CityAutocomplete';
 
 export default function RegisterBusinessPage() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function RegisterBusinessPage() {
     industry: '',
     description: '',
   });
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [acceptTerms, setAcceptTerms] = useState(false);
   
   // Handle logo file select
@@ -76,6 +78,10 @@ export default function RegisterBusinessPage() {
       alert('Molimo unesite broj telefona');
       return;
     }
+    if (!selectedCity) {
+      alert('Molimo izaberite grad iz liste');
+      return;
+    }
     if (!acceptTerms) {
       alert('Morate prihvatiti uslove korišćenja i politiku privatnosti');
       return;
@@ -90,6 +96,10 @@ export default function RegisterBusinessPage() {
     // Store form data in localStorage for checkout (survives redirect to Stripe)
     localStorage.setItem('businessRegistration', JSON.stringify({
       ...formData,
+      cityId: selectedCity?.id ?? null,
+      lat: selectedCity?.lat ?? null,
+      lng: selectedCity?.lng ?? null,
+      location: selectedCity ? cityLabel(selectedCity) : '',
       plan,
       logo: logoPreview, // Include logo if uploaded
     }));
@@ -378,6 +388,17 @@ export default function RegisterBusinessPage() {
               placeholder="https://www.tvojsajt.com"
               className="w-full px-5 py-4 border border-border rounded-xl focus:outline-none focus:border-primary transition-colors"
             />
+          </div>
+
+          <div>
+            <label className="text-sm text-muted mb-2 block">Grad *</label>
+            <CityAutocomplete
+              value={selectedCity}
+              onChange={setSelectedCity}
+              placeholder="Beograd, Novi Sad, Zagreb..."
+              className="w-full px-5 py-4 border border-border rounded-xl focus:outline-none focus:border-primary transition-colors"
+            />
+            <p className="text-xs text-muted mt-1">Da ti prikažemo kreatore u blizini.</p>
           </div>
 
           <div>

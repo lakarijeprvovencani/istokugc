@@ -6,6 +6,9 @@ export const creatorRegistrationSchema = z.object({
   name: z.string().min(2, 'Ime mora imati najmanje 2 karaktera').max(100),
   bio: z.string().min(10, 'Bio mora imati najmanje 10 karaktera').max(2000),
   location: z.string().min(2, 'Lokacija je obavezna').max(100),
+  cityId: z.number().int().positive().optional().nullable(),
+  lat: z.number().optional().nullable(),
+  lng: z.number().optional().nullable(),
   priceFrom: z.union([z.string(), z.number()]).transform(v => Number(v)),
   categories: z.array(z.string()).optional().default([]),
   platforms: z.array(z.string()).optional().default([]),
@@ -26,6 +29,9 @@ export const businessRegistrationSchema = z.object({
   website: z.string().url('URL nije validan').optional().nullable().or(z.literal('')),
   industry: z.string().max(100).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
+  cityId: z.number().int().positive().optional().nullable(),
+  lat: z.number().optional().nullable(),
+  lng: z.number().optional().nullable(),
   // Stripe sessionId je OBAVEZAN - server retrieves session i validira da je placeno.
   // Nikad ne primamo customer/subscription IDs ili plan iz klijenta - svi izvori istine
   // dolaze iz Stripe API-ja preko ovog sessionId-ja.
@@ -36,6 +42,9 @@ export const creatorUpdateSchema = z.object({
   name: z.string().min(2, 'Ime mora imati najmanje 2 karaktera').max(100).optional(),
   bio: z.string().min(10, 'Bio mora imati najmanje 10 karaktera').max(2000).optional(),
   location: z.string().min(2, 'Lokacija je obavezna').max(100).optional(),
+  cityId: z.number().int().positive().optional().nullable(),
+  lat: z.number().optional().nullable(),
+  lng: z.number().optional().nullable(),
   email: z.string().email('Email adresa nije validna').optional(),
   phone: z.string().max(30).optional().nullable(),
   instagram: z.string().max(100).optional().nullable(),
