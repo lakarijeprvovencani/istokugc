@@ -404,7 +404,8 @@ export default function RegisterCreatorPage() {
           }));
         const fileItems = portfolioItems.filter(item => item.type === 'upload' && item.file);
 
-        // FAZA 1: Registracija (samo URL portfolio + foto) -> dobijamo creatorId
+        // FAZA 1: Registracija BEZ base64 foto (Zod/Vercel limit) — samo URL portfolio.
+        // Profilna slika ide u FAZI 2 preko /api/creators/[id]/photo posle logina.
         const response = await fetch('/api/auth/register/creator', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -425,7 +426,7 @@ export default function RegisterCreatorPage() {
             tiktok: formData.tiktok || null,
             youtube: formData.youtube || null,
             phone: formData.phone || null,
-            photo: photoPreview || null,
+            photo: null,
             portfolio: urlItems,
           }),
         });
@@ -438,10 +439,8 @@ export default function RegisterCreatorPage() {
 
         const creatorId: string | undefined = data.creatorId;
 
-        // FAZA 2 + 3: ako ima fajlova, prijavi se i uploaduj ih direktno u Storage,
-        // pa azuriraj portfolio kreatora. Nalog je vec kreiran - greske ovde
-        // ne brisu nalog, vec dozvoljavaju kreatoru da doda fajlove iz dashboarda.
-        if (fileItems.length > 0 && creatorId) {
+        // FAZA 2: login + upload profilne slike + portfolio fajlova (nalog već postoji)
+        if (creatorId && (photoPreview || fileItems.length > 0)) {
           try {
             const supabase = createClient();
             const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -450,33 +449,47 @@ export default function RegisterCreatorPage() {
             });
             if (signInError) throw signInError;
 
-            const uploadedItems = [];
-            for (const item of fileItems) {
-              const result = await uploadPortfolioFileToR2(item.file!, creatorId);
-              uploadedItems.push({
-                id: item.id,
-                type: 'upload',
-                url: result.url,
-                thumbnail: result.isVideo ? '/video-thumbnail.jpg' : result.url,
-                description: item.description,
-                platform: item.platform || 'other',
+            if (photoPreview?.startsWith('data:image')) {
+              const photoRes = await fetch(`/api/creators/${creatorId}/photo`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ photo: photoPreview }),
               });
+              if (!photoRes.ok) {
+                const photoData = await safeJson(photoRes);
+                throw new Error(photoData.error || 'Greška pri otpremanju profilne slike');
+              }
             }
 
-            const putRes = await fetch(`/api/creators/${creatorId}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ portfolio: [...urlItems, ...uploadedItems] }),
-            });
-            if (!putRes.ok) {
-              const putData = await safeJson(putRes);
-              throw new Error(putData.error || 'Greška pri čuvanju portfolija');
+            if (fileItems.length > 0) {
+              const uploadedItems = [];
+              for (const item of fileItems) {
+                const result = await uploadPortfolioFileToR2(item.file!, creatorId);
+                uploadedItems.push({
+                  id: item.id,
+                  type: 'upload',
+                  url: result.url,
+                  thumbnail: result.isVideo ? '/video-thumbnail.jpg' : result.url,
+                  description: item.description,
+                  platform: item.platform || 'other',
+                });
+              }
+
+              const putRes = await fetch(`/api/creators/${creatorId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ portfolio: [...urlItems, ...uploadedItems] }),
+              });
+              if (!putRes.ok) {
+                const putData = await safeJson(putRes);
+                throw new Error(putData.error || 'Greška pri čuvanju portfolija');
+              }
             }
           } catch (uploadErr) {
             // Nalog postoji - ne blokiraj registraciju zbog neuspelog uploada.
-            console.error('Portfolio upload error:', uploadErr);
+            console.error('Post-registration upload error:', uploadErr);
             setApiError(
-              'Nalog je kreiran, ali otpremanje nekih fajlova nije uspelo. ' +
+              'Nalog je kreiran, ali otpremanje slike/fajlova nije uspelo. ' +
               'Možeš ih dodati kasnije iz svog profila.'
             );
           }

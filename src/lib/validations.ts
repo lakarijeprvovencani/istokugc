@@ -17,7 +17,13 @@ export const creatorRegistrationSchema = z.object({
   tiktok: z.string().max(100).optional().nullable(),
   youtube: z.string().max(200).optional().nullable(),
   phone: z.string().max(30).optional().nullable(),
-  photo: z.string().max(500000).optional().nullable(),
+  // Profilna slika se NE šalje kao base64 u registraciji (lako pređe limit / Vercel body).
+  // Dozvoljen je samo kratak URL ili null — upload ide posle kreiranja naloga.
+  photo: z
+    .string()
+    .max(2000, 'Profilna slika je prevelika za registracioni zahtev')
+    .optional()
+    .nullable(),
   portfolio: z.array(z.any()).optional().default([]),
 });
 
@@ -54,7 +60,12 @@ export const creatorUpdateSchema = z.object({
   categories: z.array(z.string()).optional(),
   platforms: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),
-  photo: z.string().max(500000).optional().nullable(),
+  // Base64 data URL do ~5MB (isti limit kao /api/creators/[id]/photo)
+  photo: z
+    .string()
+    .max(7_000_000, 'Profilna slika je prevelika (max ~5MB)')
+    .optional()
+    .nullable(),
   portfolio: z.array(z.any()).optional(),
   status: z.enum(['pending', 'approved', 'deactivated']).optional(),
 }).refine(data => {
