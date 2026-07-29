@@ -7,6 +7,31 @@ import Image from 'next/image';
 import { Creator, CreatorStatus, Review } from '@/lib/mockData';
 import ReviewCard from '@/components/ReviewCard';
 import StarRating from '@/components/StarRating';
+import VideoPlayerModal from '@/components/VideoPlayerModal';
+
+function getAdminPortfolioMediaKind(item: { type?: string; url?: string }): 'video' | 'image' {
+  const url = (item.url || '').toLowerCase();
+  const type = (item.type || '').toLowerCase();
+  if (type === 'youtube' || type === 'tiktok' || type === 'instagram') return 'video';
+  if (type === 'upload' && /\.(mp4|webm|mov|avi)(\?|$)/i.test(url)) return 'video';
+  if (/youtube\.com|youtu\.be|tiktok\.com|instagram\.com/.test(url)) return 'video';
+  if (/\.(mp4|webm|mov|avi)(\?|$)/i.test(url)) return 'video';
+  return 'image';
+}
+
+function getAdminPortfolioVideoType(
+  item: { type?: string; url?: string }
+): 'youtube' | 'instagram' | 'tiktok' | 'upload' {
+  const type = (item.type || '').toLowerCase();
+  if (type === 'youtube' || type === 'tiktok' || type === 'instagram' || type === 'upload') {
+    return type;
+  }
+  const url = (item.url || '').toLowerCase();
+  if (url.includes('youtube') || url.includes('youtu.be')) return 'youtube';
+  if (url.includes('tiktok')) return 'tiktok';
+  if (url.includes('instagram')) return 'instagram';
+  return 'upload';
+}
 
 type AdminTab = 'pending' | 'creators' | 'businesses' | 'categories' | 'reviews' | 'poslovi';
 
@@ -189,17 +214,18 @@ export default function AdminPage() {
   // Da li se modal otvara iz pending liste (prikaži Odobri/Odbij) ili iz kreatori liste (prikaži samo status)
   const [viewingFromPending, setViewingFromPending] = useState(false);
   
-  // State za pregled portfolio stavke
+  // State za pregled portfolio stavke (slike) / video player
   const [viewingPortfolioItem, setViewingPortfolioItem] = useState<any | null>(null);
-  
-  // ESC key handler za portfolio preview
+  const [viewingPortfolioVideo, setViewingPortfolioVideo] = useState<any | null>(null);
+
+  // ESC key handler za portfolio image preview
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && viewingPortfolioItem) {
         setViewingPortfolioItem(null);
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [viewingPortfolioItem]);
@@ -1727,7 +1753,13 @@ export default function AdminPage() {
                       {viewingCreator.portfolio.map((item: any, index: number) => (
                         <button 
                           key={index}
-                          onClick={() => setViewingPortfolioItem(item)}
+                          onClick={() => {
+                            if (getAdminPortfolioMediaKind(item) === 'video') {
+                              setViewingPortfolioVideo(item);
+                            } else {
+                              setViewingPortfolioItem(item);
+                            }
+                          }}
                           className="group relative aspect-[9/16] rounded-xl overflow-hidden bg-secondary text-left"
                         >
                           {item.thumbnail ? (
@@ -2936,13 +2968,12 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Portfolio Preview Modal */}
+        {/* Portfolio image preview (upload / static images) */}
         {viewingPortfolioItem && (
           <div 
             className="fixed inset-0 bg-black/90 flex items-center justify-center z-[70] p-4"
             onClick={() => setViewingPortfolioItem(null)}
           >
-            {/* Close button */}
             <button
               onClick={() => setViewingPortfolioItem(null)}
               className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-10"
@@ -2956,27 +2987,16 @@ export default function AdminPage() {
               className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Image or Video */}
               {viewingPortfolioItem.url && (
-                viewingPortfolioItem.url.includes('.mp4') || viewingPortfolioItem.url.includes('.webm') || viewingPortfolioItem.url.includes('.mov') ? (
-                  <video 
-                    src={viewingPortfolioItem.url} 
-                    controls 
-                    autoPlay
-                    className="max-w-full max-h-full rounded-xl"
-                  />
-                ) : (
-                  <Image 
-                    src={viewingPortfolioItem.thumbnail || viewingPortfolioItem.url} 
-                    alt="Portfolio" 
-                    fill 
-                    className="object-contain"
-                  />
-                )
+                <Image 
+                  src={viewingPortfolioItem.thumbnail || viewingPortfolioItem.url} 
+                  alt="Portfolio" 
+                  fill 
+                  className="object-contain"
+                />
               )}
             </div>
 
-            {/* Description */}
             {viewingPortfolioItem.description && (
               <div className="absolute bottom-4 left-4 right-4 bg-black/70 rounded-xl p-4 max-w-2xl mx-auto">
                 <p className="text-white text-sm">
@@ -2990,12 +3010,29 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* ESC hint */}
-            <div className="absolute bottom-4 right-4 text-white/50 text-xs hidden sm:block">
-              Pritisni ESC za zatvaranje
-            </div>
+            {viewingPortfolioItem.url && (
+              <a
+                href={viewingPortfolioItem.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute bottom-4 right-4 text-white/80 text-xs underline hover:text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Otvori original
+              </a>
+            )}
           </div>
         )}
+
+        {/* Portfolio video — YouTube embed / TikTok+IG open-on-platform (isto kao javni profil) */}
+        <VideoPlayerModal
+          isOpen={!!viewingPortfolioVideo}
+          onClose={() => setViewingPortfolioVideo(null)}
+          videoUrl={viewingPortfolioVideo?.url || ''}
+          videoType={getAdminPortfolioVideoType(viewingPortfolioVideo || {})}
+          originalUrl={viewingPortfolioVideo?.url}
+          description={viewingPortfolioVideo?.description}
+        />
       </div>
     </div>
   );
