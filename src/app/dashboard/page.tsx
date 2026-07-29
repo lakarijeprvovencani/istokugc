@@ -12,6 +12,7 @@ import PortfolioModal, { PortfolioItem } from '@/components/PortfolioModal';
 import VideoPlayerModal from '@/components/VideoPlayerModal';
 import ImageCropper from '@/components/ImageCropper';
 import ChatModal from '@/components/ChatModal';
+import { getPortfolioVideoType, isPortfolioVideo } from '@/lib/portfolio-media';
 
 export default function DashboardPage() {
   const { currentUser, updateCreator } = useDemo();
@@ -1131,12 +1132,7 @@ function CreatorDashboard() {
                       other: 'Ostalo'
                     };
                     
-                    // Check if item is a video or image
-                    const isVideo = item.type === 'upload' && item.url.startsWith('data:video') ||
-                                   item.type === 'youtube' || 
-                                   item.type === 'instagram' || 
-                                   item.type === 'tiktok' ||
-                                   (item.type === 'upload' && item.url.includes('video'));
+                    const isVideo = isPortfolioVideo(item);
                     const isImage = !isVideo;
                     
                     return (
@@ -1245,8 +1241,8 @@ function CreatorDashboard() {
                 isOpen={!!activeVideo}
                 onClose={() => setActiveVideo(null)}
                 videoUrl={activeVideo?.url || ''}
-                videoType={activeVideo?.type || 'upload'}
-                originalUrl={activeVideo?.originalUrl}
+                videoType={getPortfolioVideoType(activeVideo || {})}
+                originalUrl={activeVideo?.originalUrl || activeVideo?.url}
                 description={activeVideo?.description}
               />
 
@@ -1341,13 +1337,12 @@ function CreatorDashboard() {
 
                     {/* Show button only for videos, not for images */}
                     {(() => {
-                      const isImage = detailItem.type === 'upload' && 
-                        (detailItem.thumbnail?.match(/\.(jpg|jpeg|png|gif|webp)$/i) || 
-                         detailItem.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i));
-                      const isVideo = detailItem.type === 'youtube' || 
-                        detailItem.type === 'tiktok' || 
-                        detailItem.type === 'instagram' ||
-                        (detailItem.type === 'upload' && !isImage);
+                      const isVideo = isPortfolioVideo(detailItem);
+                      const isImage = !isVideo && (
+                        detailItem.type === 'upload' ||
+                        !!detailItem.thumbnail?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ||
+                        !!detailItem.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+                      );
                       
                       if (isVideo) {
                         return (

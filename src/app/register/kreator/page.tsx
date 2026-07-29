@@ -820,7 +820,16 @@ export default function RegisterCreatorPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
                   {portfolioItems.map((item) => (
                     <div key={item.id} className="relative group">
-                      <div className="aspect-[3/4] rounded-xl overflow-hidden bg-secondary">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.url && (item.type === 'youtube' || item.type === 'tiktok' || item.type === 'instagram' || /youtube|youtu\.be|tiktok|instagram/.test(item.url))) {
+                            window.open(item.url, '_blank', 'noopener,noreferrer');
+                          }
+                        }}
+                        className="aspect-[3/4] rounded-xl overflow-hidden bg-secondary relative w-full text-left"
+                        title={item.url ? 'Otvori link' : undefined}
+                      >
                         {item.type === 'upload' && item.url.startsWith('data:video') ? (
                           <video src={item.url} className="w-full h-full object-cover" muted />
                         ) : (
@@ -832,7 +841,7 @@ export default function RegisterCreatorPage() {
                             unoptimized={item.thumbnail.startsWith('data:')}
                           />
                         )}
-                      </div>
+                      </button>
                       <div className="absolute top-2 right-2 bg-white/90 px-2 py-0.5 rounded-full text-[10px] font-medium">
                         {item.platform === 'instagram' ? 'Instagram' : 
                          item.platform === 'tiktok' ? 'TikTok' : 

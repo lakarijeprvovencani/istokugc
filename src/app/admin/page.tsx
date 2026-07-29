@@ -8,30 +8,7 @@ import { Creator, CreatorStatus, Review } from '@/lib/mockData';
 import ReviewCard from '@/components/ReviewCard';
 import StarRating from '@/components/StarRating';
 import VideoPlayerModal from '@/components/VideoPlayerModal';
-
-function getAdminPortfolioMediaKind(item: { type?: string; url?: string }): 'video' | 'image' {
-  const url = (item.url || '').toLowerCase();
-  const type = (item.type || '').toLowerCase();
-  if (type === 'youtube' || type === 'tiktok' || type === 'instagram') return 'video';
-  if (type === 'upload' && /\.(mp4|webm|mov|avi)(\?|$)/i.test(url)) return 'video';
-  if (/youtube\.com|youtu\.be|tiktok\.com|instagram\.com/.test(url)) return 'video';
-  if (/\.(mp4|webm|mov|avi)(\?|$)/i.test(url)) return 'video';
-  return 'image';
-}
-
-function getAdminPortfolioVideoType(
-  item: { type?: string; url?: string }
-): 'youtube' | 'instagram' | 'tiktok' | 'upload' {
-  const type = (item.type || '').toLowerCase();
-  if (type === 'youtube' || type === 'tiktok' || type === 'instagram' || type === 'upload') {
-    return type;
-  }
-  const url = (item.url || '').toLowerCase();
-  if (url.includes('youtube') || url.includes('youtu.be')) return 'youtube';
-  if (url.includes('tiktok')) return 'tiktok';
-  if (url.includes('instagram')) return 'instagram';
-  return 'upload';
-}
+import { getPortfolioVideoType, isPortfolioVideo } from '@/lib/portfolio-media';
 
 type AdminTab = 'pending' | 'creators' | 'businesses' | 'categories' | 'reviews' | 'poslovi';
 
@@ -1754,7 +1731,7 @@ export default function AdminPage() {
                         <button 
                           key={index}
                           onClick={() => {
-                            if (getAdminPortfolioMediaKind(item) === 'video') {
+                            if (isPortfolioVideo(item)) {
                               setViewingPortfolioVideo(item);
                             } else {
                               setViewingPortfolioItem(item);
@@ -2000,9 +1977,20 @@ export default function AdminPage() {
                   <div className="pt-4 mt-4 border-t border-border">
                     <label className="text-sm text-muted mb-3 block">Portfolio ({editingCreator.portfolio.length} stavki)</label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {editingCreator.portfolio.map((item: { thumbnail?: string; url?: string }, index: number) => (
+                      {editingCreator.portfolio.map((item: { thumbnail?: string; url?: string; type?: string }, index: number) => (
                         <div key={index} className="relative group">
-                          <div className="relative aspect-square rounded-lg overflow-hidden bg-secondary">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isPortfolioVideo(item)) {
+                                setViewingPortfolioVideo(item);
+                              } else {
+                                setViewingPortfolioItem(item);
+                              }
+                            }}
+                            className="relative aspect-square rounded-lg overflow-hidden bg-secondary w-full text-left"
+                            title="Otvori portfolio stavku"
+                          >
                             {item.thumbnail ? (
                               <Image src={item.thumbnail} alt="" fill className="object-cover" />
                             ) : (
@@ -2012,7 +2000,7 @@ export default function AdminPage() {
                                 </svg>
                               </div>
                             )}
-                          </div>
+                          </button>
                           {/* Desktop: X button on hover */}
                           <button
                             type="button"
@@ -3029,7 +3017,7 @@ export default function AdminPage() {
           isOpen={!!viewingPortfolioVideo}
           onClose={() => setViewingPortfolioVideo(null)}
           videoUrl={viewingPortfolioVideo?.url || ''}
-          videoType={getAdminPortfolioVideoType(viewingPortfolioVideo || {})}
+          videoType={getPortfolioVideoType(viewingPortfolioVideo || {})}
           originalUrl={viewingPortfolioVideo?.url}
           description={viewingPortfolioVideo?.description}
         />

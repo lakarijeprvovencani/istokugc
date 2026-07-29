@@ -12,6 +12,7 @@ import { generateReviewStats } from '@/types/review';
 import type { CreateReviewInput } from '@/types/review';
 import VideoPlayerModal from '@/components/VideoPlayerModal';
 import { createClient } from '@/lib/supabase/client';
+import { getPortfolioVideoType, isPortfolioVideo } from '@/lib/portfolio-media';
 
 export default function CreatorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -879,11 +880,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
               <h2 className="text-sm text-muted uppercase tracking-wider mb-6">Portfolio</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {creator.portfolio.map((item, index) => {
-                  // Check if item is a video or image
-                  const isVideo = item.type === 'youtube' || 
-                                 item.type === 'instagram' || 
-                                 item.type === 'tiktok' ||
-                                 (item.type === 'upload' && item.url && (item.url.includes('video') || item.url.match(/\.(mp4|webm|mov|avi)$/i)));
+                  const isVideo = isPortfolioVideo(item);
                   const isImage = !isVideo;
                   
                   // Get display platform (use platform if set, otherwise type)
@@ -995,8 +992,8 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
               isOpen={!!activeVideo}
               onClose={() => setActiveVideo(null)}
               videoUrl={activeVideo?.url || ''}
-              videoType={activeVideo?.type as 'youtube' | 'instagram' | 'tiktok' | 'upload'}
-              originalUrl={activeVideo?.originalUrl}
+              videoType={getPortfolioVideoType(activeVideo || {})}
+              originalUrl={activeVideo?.originalUrl || activeVideo?.url}
               description={activeVideo?.description}
             />
 
@@ -1077,12 +1074,13 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                     </p>
                   </div>
 
+                  {isPortfolioVideo(portfolioDetail) && (
                   <button
                     onClick={() => {
                       setPortfolioDetail(null);
                       setActiveVideo({
                         url: portfolioDetail.url,
-                        type: portfolioDetail.type,
+                        type: getPortfolioVideoType(portfolioDetail),
                         originalUrl: portfolioDetail.url,
                         description: portfolioDetail.description
                       });
@@ -1094,6 +1092,7 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
                     </svg>
                     Pusti video
                   </button>
+                  )}
                 </div>
               </div>
             )}
