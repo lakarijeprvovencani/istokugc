@@ -82,7 +82,12 @@ export const businessUpdateSchema = z.object({
   website: z.string().url('URL nije validan').optional().nullable().or(z.literal('')),
   industry: z.string().max(100).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
-  logo: z.string().max(500000).optional().nullable(),
+  // Base64 data URL do ~5MB (isti limit kao /api/business/[id]/logo)
+  logo: z
+    .string()
+    .max(7_000_000, 'Logo je prevelik (max ~5MB)')
+    .optional()
+    .nullable(),
 });
 
 export const reviewSchema = z.object({
