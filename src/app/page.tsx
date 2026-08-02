@@ -5,10 +5,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import CreatorsMap from '@/components/CreatorsMap';
 import CategoryIcon from '@/components/CategoryIcon';
+import { useSupabaseUser } from '@/hooks/useSupabaseUser';
 
 export default function Home() {
   const [categories, setCategories] = useState<string[]>([]);
   const [featuredCreators, setFeaturedCreators] = useState<any[]>([]);
+  const { userData } = useSupabaseUser();
+  const isAdmin = userData?.role === 'admin';
   
   // Fetch categories and featured creators from database
   useEffect(() => {
@@ -143,20 +146,22 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Kreatori širom regiona (mapa) */}
-      <section className="py-16 lg:py-24 bg-secondary">
-        <div className="max-w-5xl mx-auto px-6 lg:px-12">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl lg:text-4xl font-light mb-4">Kreatori širom regiona</h2>
-            <p className="text-muted max-w-xl mx-auto">
-              Pogledaj odakle su naši kreatori. Klikni na grad da vidiš ko je dostupan.
-            </p>
+      {/* Kreatori širom regiona (mapa) — samo za admina dok baza kreatora ne naraste */}
+      {isAdmin && (
+        <section className="py-16 lg:py-24 bg-secondary">
+          <div className="max-w-5xl mx-auto px-6 lg:px-12">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl lg:text-4xl font-light mb-4">Kreatori širom regiona</h2>
+              <p className="text-muted max-w-xl mx-auto">
+                Pogledaj odakle su naši kreatori. Klikni na grad da vidiš ko je dostupan.
+              </p>
+            </div>
+            <div className="bg-white border border-border rounded-3xl p-4 sm:p-6 shadow-sm">
+              <CreatorsMap />
+            </div>
           </div>
-          <div className="bg-white border border-border rounded-3xl p-4 sm:p-6 shadow-sm">
-            <CreatorsMap />
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* How it works */}
       <section className="py-16 lg:py-24">
