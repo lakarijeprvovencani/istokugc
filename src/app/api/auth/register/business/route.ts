@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthLimiter, checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { businessRegistrationSchema, validate } from '@/lib/validations';
-import { stripe, PRICE_IDS, getSubscriptionPeriodEnd } from '@/lib/stripe';
+import { stripe, resolvePlanFromSubscription, getSubscriptionPeriodEnd } from '@/lib/stripe';
 
 // POST /api/auth/register/business
 // Registracija novog biznisa NAKON uspesnog Stripe placanja.
@@ -77,12 +77,8 @@ export async function POST(request: NextRequest) {
 
     // Plan se IZVODI iz Stripe price-a, ne iz klijenta
     const priceId = subscription.items.data[0]?.price?.id;
-    let plan: 'monthly' | 'yearly';
-    if (priceId === PRICE_IDS.monthly) {
-      plan = 'monthly';
-    } else if (priceId === PRICE_IDS.yearly) {
-      plan = 'yearly';
-    } else {
+    const plan = resolvePlanFromSubscription(subscription, priceId);
+    if (!plan) {
       return NextResponse.json(
         { error: 'Nepoznat plan pretplate.' },
         { status: 400 }

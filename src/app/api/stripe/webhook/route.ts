@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { getSubscriptionPeriodEnd, getInvoiceSubscriptionId } from '@/lib/stripe';
+import { getSubscriptionPeriodEnd, getInvoiceSubscriptionId, resolvePlanFromSubscription } from '@/lib/stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-12-15.clover',
@@ -232,14 +232,8 @@ export async function POST(request: NextRequest) {
         } else if (subscription.status === 'active' || subscription.status === 'trialing') {
           const expiresAt = getSubscriptionPeriodEnd(subscription);
 
-          let subscriptionType: string | undefined;
           const priceId = subscription.items?.data?.[0]?.price?.id;
-          if (priceId) {
-            const monthlyPriceId = (process.env.STRIPE_PRICE_MONTHLY || process.env.STRIPE_PRICE_ID_MONTHLY || '').trim();
-            const yearlyPriceId = (process.env.STRIPE_PRICE_YEARLY || process.env.STRIPE_PRICE_ID_YEARLY || '').trim();
-            if (priceId === monthlyPriceId) subscriptionType = 'monthly';
-            else if (priceId === yearlyPriceId) subscriptionType = 'yearly';
-          }
+          const subscriptionType = resolvePlanFromSubscription(subscription, priceId) ?? undefined;
 
           const updateData: Record<string, any> = { subscription_status: 'active' };
           if (expiresAt) {

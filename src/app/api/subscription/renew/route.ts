@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-helper';
-import { stripe, PRICE_IDS, getSubscriptionPeriodEnd } from '@/lib/stripe';
+import { stripe, resolvePlanFromSubscription, getSubscriptionPeriodEnd } from '@/lib/stripe';
 
 // POST /api/subscription/renew
 // Ozivljavanje istekle/otkazane pretplate kroz NOVU Stripe Checkout Session.
@@ -58,12 +58,8 @@ export async function POST(request: Request) {
     }
 
     const priceId = subscription.items.data[0]?.price?.id;
-    let plan: 'monthly' | 'yearly';
-    if (priceId === PRICE_IDS.monthly) {
-      plan = 'monthly';
-    } else if (priceId === PRICE_IDS.yearly) {
-      plan = 'yearly';
-    } else {
+    const plan = resolvePlanFromSubscription(subscription, priceId);
+    if (!plan) {
       return NextResponse.json({ error: 'Nepoznat plan pretplate.' }, { status: 400 });
     }
 

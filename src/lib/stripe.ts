@@ -40,6 +40,21 @@ export const PRICE_IDS = {
  * the top-level Subscription object and moved them onto each subscription_item.
  * This helper reads from the new location with a legacy fallback.
  */
+/**
+ * Plan se po pravilu izvodi iz Stripe price ID-a (ne iz klijenta, bezbednosti
+ * radi). Test promo checkout (TEST_PROMO_CODE) kreira ad-hoc price preko
+ * price_data koji ne odgovara ni jednom od PRICE_IDS, pa u tom slucaju
+ * padamo nazad na subscription_data.metadata.plan koji smo mi sami postavili
+ * na serveru prilikom kreiranja checkout sesije.
+ */
+export function resolvePlanFromSubscription(subscription: any, priceId: string | undefined): 'monthly' | 'yearly' | null {
+  if (priceId === PRICE_IDS.monthly) return 'monthly';
+  if (priceId === PRICE_IDS.yearly) return 'yearly';
+  const metaPlan = subscription?.metadata?.plan;
+  if (metaPlan === 'monthly' || metaPlan === 'yearly') return metaPlan;
+  return null;
+}
+
 export function getSubscriptionPeriodEnd(subscription: any): Date | null {
   const fromItem = subscription?.items?.data?.[0]?.current_period_end;
   const legacy = subscription?.current_period_end;
