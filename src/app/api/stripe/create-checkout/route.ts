@@ -47,35 +47,59 @@ export async function POST(request: NextRequest) {
       email: email || '',
     };
 
-    // If a coupon was entered on our own page, look up the matching Stripe
-    // promotion code and apply it directly so the customer doesn't have to
-    // re-type it on Stripe's hosted checkout. `discounts` and
-    // `allow_promotion_codes` are mutually exclusive on a Checkout Session,
-    // so we only fall back to the manual entry field when no valid code
-    // was pre-applied.
+    const enteredCode = typeof couponCode === 'string' ? couponCode.trim() : '';
+
+    // Internal test promo: a secret code known only to this app (env var,
+    // never committed to git). When matched, we override the checkout price
+    // ourselves via Stripe's price_data — no Coupon/Promotion Code object is
+    // ever created in Stripe, this is entirely our own app's logic.
+    const testPromoCode = (process.env.TEST_PROMO_CODE || '').trim();
+    const isInternalTestPromo =
+      !!testPromoCode && !!enteredCode && enteredCode.toUpperCase() === testPromoCode.toUpperCase();
+
+    let lineItem: any;
     let discounts: { promotion_code: string }[] | undefined;
-    if (couponCode && typeof couponCode === 'string' && couponCode.trim()) {
-      const promotionCodes = await stripe.promotionCodes.list({
-        code: couponCode.trim(),
-        active: true,
-        limit: 1,
-      });
-      if (promotionCodes.data.length > 0) {
-        discounts = [{ promotion_code: promotionCodes.data[0].id }];
+
+    if (isInternalTestPromo) {
+      const basePrice = await stripe.prices.retrieve(priceId);
+      const productId = typeof basePrice.product === 'string' ? basePrice.product : basePrice.product.id;
+
+      lineItem = {
+        price_data: {
+          currency: basePrice.currency,
+          product: productId,
+          unit_amount: 100, // $1, test-only override
+          recurring: { interval: plan === 'yearly' ? 'year' : 'month' },
+        },
+        quantity: 1,
+      };
+    } else {
+      lineItem = { price: priceId, quantity: 1 };
+
+      // If a coupon was entered on our own page, look up the matching Stripe
+      // promotion code and apply it directly so the customer doesn't have to
+      // re-type it on Stripe's hosted checkout. `discounts` and
+      // `allow_promotion_codes` are mutually exclusive on a Checkout Session,
+      // so we only fall back to the manual entry field when no valid code
+      // was pre-applied.
+      if (enteredCode) {
+        const promotionCodes = await stripe.promotionCodes.list({
+          code: enteredCode,
+          active: true,
+          limit: 1,
+        });
+        if (promotionCodes.data.length > 0) {
+          discounts = [{ promotion_code: promotionCodes.data[0].id }];
+        }
       }
     }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
-      ...(discounts ? { discounts } : { allow_promotion_codes: true }),
+      ...(isInternalTestPromo ? {} : discounts ? { discounts } : { allow_promotion_codes: true }),
       ...(email && { customer_email: email }),
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      line_items: [lineItem],
       metadata,
       subscription_data: {
         metadata: {
