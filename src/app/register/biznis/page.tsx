@@ -10,6 +10,7 @@ export default function RegisterBusinessPage() {
   const router = useRouter();
   const [step, setStep] = useState<'info' | 'plan'>('info');
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly' | null>(null);
+  const [couponCode, setCouponCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
   // Logo upload state
@@ -102,6 +103,7 @@ export default function RegisterBusinessPage() {
       location: selectedCity ? cityLabel(selectedCity) : '',
       plan,
       logo: logoPreview, // Include logo if uploaded
+      couponCode: couponCode.trim() || null,
     }));
     router.push(`/checkout?plan=${plan}`);
   };
@@ -219,6 +221,17 @@ export default function RegisterBusinessPage() {
                 Izaberi godišnje
               </button>
             </div>
+          </div>
+
+          <div className="max-w-sm mx-auto mt-8">
+            <label className="text-sm text-muted mb-2 block text-center">Imaš kod za popust? (opciono)</label>
+            <input
+              type="text"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value)}
+              placeholder="Unesi kod"
+              className="w-full px-5 py-3 border border-border rounded-xl focus:outline-none focus:border-primary transition-colors text-center"
+            />
           </div>
 
           <div className="text-center mt-12 space-y-4">

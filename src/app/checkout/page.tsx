@@ -21,11 +21,13 @@ function CheckoutContent() {
       }
 
       let email = '';
+      let couponCode: string | null = null;
       try {
         const savedData = localStorage.getItem('businessRegistration');
         if (savedData) {
           const registrationData = JSON.parse(savedData);
           email = registrationData?.email || '';
+          couponCode = registrationData?.couponCode || null;
         }
       } catch (e) {
         console.error('Error reading registration data:', e);
@@ -35,7 +37,7 @@ function CheckoutContent() {
         const response = await fetch('/api/stripe/create-checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan, email }),
+          body: JSON.stringify({ plan, email, couponCode }),
         });
 
         const data = await response.json();

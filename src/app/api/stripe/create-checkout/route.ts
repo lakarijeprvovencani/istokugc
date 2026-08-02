@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     if (rateLimited) return rateLimited;
 
     const body = await request.json();
-    const { plan, email } = body;
+    const { plan, email, couponCode } = body;
 
     const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').trim();
 
@@ -47,10 +47,28 @@ export async function POST(request: NextRequest) {
       email: email || '',
     };
 
+    // If a coupon was entered on our own page, look up the matching Stripe
+    // promotion code and apply it directly so the customer doesn't have to
+    // re-type it on Stripe's hosted checkout. `discounts` and
+    // `allow_promotion_codes` are mutually exclusive on a Checkout Session,
+    // so we only fall back to the manual entry field when no valid code
+    // was pre-applied.
+    let discounts: { promotion_code: string }[] | undefined;
+    if (couponCode && typeof couponCode === 'string' && couponCode.trim()) {
+      const promotionCodes = await stripe.promotionCodes.list({
+        code: couponCode.trim(),
+        active: true,
+        limit: 1,
+      });
+      if (promotionCodes.data.length > 0) {
+        discounts = [{ promotion_code: promotionCodes.data[0].id }];
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
-      allow_promotion_codes: true,
+      ...(discounts ? { discounts } : { allow_promotion_codes: true }),
       ...(email && { customer_email: email }),
       line_items: [
         {
