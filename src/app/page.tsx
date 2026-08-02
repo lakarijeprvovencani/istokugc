@@ -51,8 +51,7 @@ export default function Home() {
                 <span className="block font-medium">UGC kreatore</span>
               </h1>
               <p className="text-lg text-muted max-w-lg mb-10 leading-relaxed">
-                Platforma koja povezuje brendove sa talentovanim kreatorima 
-                sadržaja. Autentičan sadržaj, jednostavna saradnja.
+                Platforma koja povezuje brendove sa talentovanim kreatorima. Autentičan sadržaj, jednostavna saradnja.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link 
